@@ -36,7 +36,7 @@ src/
   modes/                  Mode.js (interfaz base), registry.js (registro), index.js (descubre los modos)
   modes/evaluation/       Evaluación: dos variantes de 5 fases + scoring → rango
   modes/campaign/         (Fase 2)
-  modes/coordination/     (Fase 3)
+  modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
   modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
   ui/                     HUD, mira, pantallas (menú, ajustes, pausa, resultados, compatibilidad)
   utils/                  math, format
@@ -67,7 +67,7 @@ pasa el mismo `scale` a `randomOpenSpot` y `pickCoverSpot`.
 
 1. **Motor base + control FPS + evaluación inicial** ✅
 2. Campaña: bots, un mapa por rango, 3-5 niveles por mapa, desbloqueos, sugerencia de bajar de rango.
-3. Coordinación ojo-mano: secuencias, colores, visión periférica, doble tarea.
+3. **Coordinación ojo-mano** ✅: secuencias, colores, visión periférica, doble tarea.
 4. **Modo infinito** ✅: oleadas, vida del jugador, botiquines, récords.
 5. Pulido: historial de progreso, más opciones de mira, ajustes de rendimiento.
 
@@ -108,6 +108,25 @@ Rangos: Bronce 0+, Plata 30+, Oro 48+, Diamante 64+, Élite 80+ (`src/config/ran
 Cada variante guarda su propio rango. El **rango general** (el del menú, el que desbloquea modos) es el
 mejor rango actual entre las dos variantes. Los tiempos de reacción se miden con el reloj real
 (`performance.now()` y el instante del clic), así que no dependen de los FPS.
+
+## Coordinación ojo-mano
+
+Disponible desde el inicio (no requiere evaluación). Se juega en la **Cúpula**, una sala circular oscura y
+neutra sin obstáculos, con una línea de horizonte a la altura de los ojos como referencia. Cada
+ejercicio dura 45 s, da una puntuación de 0 a 100 y se puede jugar suelto o en **circuito completo** (los
+cuatro seguidos, con un índice de coordinación y niveles Inicial → Élite). Munición ilimitada: aquí solo
+cuenta la coordinación.
+
+| Ejercicio | Qué hay que hacer | Se adapta | Mide |
+|-----------|-------------------|-----------|------|
+| Secuencia | Destruir dianas numeradas en orden | Serie limpia → +1 diana; 2 errores → −1 (4 a 9) | dianas/s, errores de orden, precisión |
+| Color objetivo | Disparar solo a la figura indicada; la regla cambia cada 5-9 s | — | aciertos/s, figuras prohibidas, reacción al cambio |
+| Periferia | Con la mira en el aro central, acertar objetivos en los bordes del FOV real | Escalera que converge al 75 % de aciertos | ventana final, aciertos por zona, reacción |
+| Doble tarea | Seguir una esfera y disparar a dianas que aparecen | — | % sobre la esfera, reacción, vuelta a la esfera |
+
+En **Color objetivo** cada color tiene su forma (azul esfera, amarillo cubo, magenta pirámide, verde
+diamante), así que se puede jugar con daltonismo. Las fórmulas están en
+`src/modes/coordination/coordScoring.js` y los récords en `records.coordination`.
 
 ## Modo infinito
 
