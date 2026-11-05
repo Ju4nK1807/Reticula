@@ -9,6 +9,7 @@ import {
 } from './targetPhases.js';
 import { scoreEvaluation } from './scoring.js';
 import { recordEvaluation } from '../../storage/profile.js';
+import { Mode } from '../Mode.js';
 import { evalIntroScreen, evalResultsScreen } from '../../ui/evaluationScreens.js';
 
 // Dos evaluaciones independientes, cada una con su mapa y su rango.
@@ -35,9 +36,9 @@ const BRIEF_TIME = 5; // segundos de instrucciones + cuenta regresiva antes de c
 
 // Modo Evaluación: encadena las fases de una variante, calcula el rango y lo guarda.
 // Estados: intro → brief → running → (brief → running)… → done
-export class Evaluation {
+export class Evaluation extends Mode {
   constructor(game, variantId = 'targets') {
-    this.game = game;
+    super(game);
     this.variant = VARIANTS[variantId];
     this.stages = this.variant.stages;
     this.root = new THREE.Group();
@@ -180,14 +181,10 @@ export class Evaluation {
         summary,
         results: this.results,
         previous,
-        onRetry: () => g.startEvaluation(this.variant.id),
+        onRetry: () => g.startMode(new Evaluation(g, this.variant.id)),
         onMenu: () => g.quitToMenu(),
       }),
     );
-  }
-
-  onShoot(time) {
-    this.game.weapon.trigger(time);
   }
 
   onPause() {
