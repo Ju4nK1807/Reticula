@@ -38,7 +38,7 @@ export class DomeMap extends World {
       floor: lambert('#1f2530'),
       panel: lambert('#273041'),
       panelAlt: lambert('#232b3a'),
-      ceiling: lambert('#141922'),
+      ceiling: new THREE.MeshBasicMaterial({ color: '#1a2130' }), // sin luz: mira hacia abajo y la luz viene de arriba
       pad: lambert('#2c3545'),
       rib: new THREE.MeshBasicMaterial({ color: '#33405a' }),
       accent: new THREE.MeshBasicMaterial({ color: '#00ffa3' }),
@@ -91,6 +91,13 @@ export class DomeMap extends World {
     ceiling.position.y = HEIGHT;
     scene.add(ceiling);
     this.solids.push(ceiling);
+    // Anillos en el techo: referencia al mirar hacia arriba (si no, se ve como un vacío negro).
+    for (const r of [4, 9, 14]) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.06, SIDES * 2), M.accentDim);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = HEIGHT - 0.02;
+      scene.add(ring);
+    }
 
     scene.updateMatrixWorld(true);
   }
