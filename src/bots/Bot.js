@@ -7,6 +7,7 @@ const JUMP_HEIGHT = 0.9;
 const DEATH_TIME = 0.9;
 const APPEAR_TIME = 0.12;
 const RADIUS = 0.4;
+const BODY_HEIGHT = 1.78;
 
 const _v = new THREE.Vector3();
 const _head = new THREE.Vector3();
@@ -83,6 +84,17 @@ export class Bot {
   headPosition(out = _head) {
     const p = this.group.position;
     return out.set(p.x, p.y + BOT_DIMENSIONS.headCenter - BOT_DIMENSIONS.crouchDrop * this.crouch, p.z);
+  }
+
+  // Cilindro de colisión para el jugador (pies en y0, altura h). Escribe en `out` y lo devuelve.
+  bodyCollider(out) {
+    const p = this.group.position;
+    out.x = p.x;
+    out.z = p.z;
+    out.r = RADIUS;
+    out.y0 = p.y;
+    out.h = BODY_HEIGHT - BOT_DIMENSIONS.crouchDrop * this.crouch;
+    return out;
   }
 
   chestPosition(out = _head) {
