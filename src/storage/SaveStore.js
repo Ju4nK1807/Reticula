@@ -51,6 +51,19 @@ export function migrate(data, fromVersion) {
   return true;
 }
 
+// Convierte un guardado leído (objeto) en datos válidos y actuales: valores por defecto para lo que
+// falte, tipos validados y migraciones. Lanza un error si no es un guardado de Retícula.
+export function hydrate(parsed) {
+  if (!isPlainObject(parsed) || (!isPlainObject(parsed.profile) && !isPlainObject(parsed.settings))) {
+    throw new Error('No es un guardado de Retícula');
+  }
+  const data = deepMerge(structuredClone(DEFAULT_SAVE), parsed);
+  const migrated = migrate(data, parsed.version);
+  return { data, migrated };
+}
+
+export const EXPORT_APP = 'reticula';
+
 export class SaveStore {
   constructor(storage = globalThis.localStorage) {
     this.storage = storage;
@@ -68,9 +81,8 @@ export class SaveStore {
     if (!raw) return fresh;
     try {
       const parsed = JSON.parse(raw);
-      if (!isPlainObject(parsed)) throw new Error('guardado inválido');
-      const data = deepMerge(fresh, parsed);
-      if (migrate(data, parsed.version)) {
+      const { data, migrated } = hydrate(parsed);
+      if (migrated) {
         this.data = data;
         this.persist();
       }
@@ -91,6 +103,27 @@ export class SaveStore {
       this.storage?.setItem(KEY, JSON.stringify(this.data));
     } catch {
       // Sin almacenamiento disponible (modo privado, cuota llena): el juego sigue funcionando.
+    }
+  }
+
+  // Copia de seguridad: todo el guardado (progreso y configuración) como texto JSON.
+  exportData() {
+    return JSON.stringify({ app: EXPORT_APP, exportedAt: new Date().toISOString(), ...this.data }, null, 2);
+  }
+
+  // Restaura una copia (texto JSON u objeto). Devuelve true si se aplicó; false si no era válida
+  // (en ese caso no se toca nada).
+  importData(input) {
+    try {
+      const parsed = typeof input === 'string' ? JSON.parse(input) : input;
+      const { data } = hydrate(parsed);
+      delete data.app;
+      delete data.exportedAt;
+      this.data = data;
+      this.persist();
+      return true;
+    } catch {
+      return false;
     }
   }
 

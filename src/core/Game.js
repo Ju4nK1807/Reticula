@@ -15,6 +15,7 @@ import { UI } from '../ui/UI.js';
 import { menuScreen } from '../ui/menuScreen.js';
 import { settingsScreen } from '../ui/settingsScreen.js';
 import { pauseScreen } from '../ui/pauseScreen.js';
+import { progressScreen } from '../ui/progressScreen.js';
 import { getMode } from '../modes/index.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
 import { spreadToPixels } from '../ui/Crosshair.js';
@@ -218,6 +219,7 @@ export class Game {
     this.ui.show(
       menuScreen(this, {
         onMode: (id) => this.startModeById(id),
+        onProgress: () => this.ui.show(progressScreen(this, { onBack: () => this.showMenu() })),
         onSettings: () => this.showSettings(() => this.showMenu()),
       }),
     );
