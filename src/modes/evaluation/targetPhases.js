@@ -182,6 +182,10 @@ export class SphereTrackingPhase extends SpherePhase {
 // ---------------------------------------------------------------------------
 const TRIALS = 8;
 const TIMEOUT = 1.5;
+const REACTION_DIST = 10;
+const REACTION_RADIUS = 0.55;
+const REACTION_OFFSET = [2, 5]; // grados desde la mira
+const REACTION_TRIES = 30;
 
 export class SphereReactionPhase extends SpherePhase {
   static info = {
@@ -223,21 +227,37 @@ export class SphereReactionPhase extends SpherePhase {
     this.current = null;
   }
 
-  show() {
+  // Punto cerca de la mira que quede sobre el piso y sin muros delante. Si el jugador mira al
+  // suelo o a una pared, la diana aparece al frente del campo de tiro.
+  reactionSpot() {
     const p = this.game.player;
-    const a = rand(0, Math.PI * 2);
-    const off = rand(2, 5);
-    const yaw = toDeg(p.yaw) + Math.cos(a) * off;
-    const pitch = clamp(toDeg(p.pitch) + Math.sin(a) * off, -30, 45);
+    const eye = p.eye;
+    const aimYaw = toDeg(p.yaw);
+    const aimPitch = toDeg(p.pitch);
+    for (let i = 0; i < REACTION_TRIES; i++) {
+      const a = rand(0, Math.PI * 2);
+      const off = rand(...REACTION_OFFSET);
+      const pitch = clamp(aimPitch + Math.sin(a) * off, -30, 45);
+      const pos = pointFromAngles(aimYaw + Math.cos(a) * off, pitch, REACTION_DIST, eye);
+      if (pos.y < REACTION_RADIUS + 0.05) continue;
+      if (!this.game.ballistics.lineOfSight(eye, pos)) continue;
+      return pos;
+    }
+    this.game.hud.flash('Mira hacia el campo de tiro', 'info');
+    return this.sphereSpot({ yaw: [-25, 25], pitch: [0, 12], dist: REACTION_DIST }).pos;
+  }
+
+  show() {
     this.current = this.spawnSphere({
-      position: pointFromAngles(yaw, pitch, 10, p.eye),
-      radius: 0.55,
+      position: this.reactionSpot(),
+      radius: REACTION_RADIUS,
       color: '#36d6ff',
       spawnTime: 0,
       lifetime: TIMEOUT,
     });
     this.state = 'show';
-    this.shownAt = this.elapsed;
+    // Reloj real: la medición no depende de los FPS ni del límite de dt del motor.
+    this.shownAt = performance.now();
   }
 
   nextTrial() {
@@ -266,7 +286,7 @@ export class SphereReactionPhase extends SpherePhase {
 
   onKill(target) {
     if (target !== this.current) return;
-    const rt = (this.elapsed - this.shownAt) * 1000;
+    const rt = Math.max(0, this.shotTime - this.shownAt);
     this.times.push(rt);
     this.score += Math.max(0, Math.round(800 - rt));
     this.game.hud.flash(`${Math.round(rt)} ms`, 'good');

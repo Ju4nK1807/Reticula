@@ -181,7 +181,8 @@ export class PeekPhase extends Phase {
     this.count = 0;
     this.times = [];
     this.current = null;
-    this.visibleAt = null;
+    this.visibleAt = null; // ms (reloj real) en que el enemigo actual se volvió visible
+    this.timingValid = true; // false si hubo una pausa con el enemigo actual en juego
   }
 
   begin() {
@@ -202,6 +203,7 @@ export class PeekPhase extends Phase {
     });
     this.count++;
     this.visibleAt = null;
+    this.timingValid = true;
   }
 
   update(dt) {
@@ -214,7 +216,12 @@ export class PeekPhase extends Phase {
       else this.spawnPeek();
       return;
     }
-    if (this.visibleAt === null && this.current.alive && this.isVisible(this.current)) this.visibleAt = this.elapsed;
+    if (this.visibleAt === null && this.current.alive && this.isVisible(this.current)) this.visibleAt = performance.now();
+  }
+
+  // Una pausa con el enemigo en juego invalida su tiempo de reacción (el reloj real siguió corriendo).
+  onPause() {
+    if (this.current) this.timingValid = false;
   }
 
   clearCurrent() {
@@ -224,8 +231,8 @@ export class PeekPhase extends Phase {
 
   onKill(bot) {
     if (bot !== this.current) return;
-    if (this.visibleAt !== null) {
-      const rt = (this.elapsed - this.visibleAt) * 1000;
+    if (this.visibleAt !== null && this.timingValid) {
+      const rt = Math.max(0, this.shotTime - this.visibleAt);
       this.times.push(rt);
       this.game.hud.flash(`${Math.round(rt)} ms`, 'good');
     }

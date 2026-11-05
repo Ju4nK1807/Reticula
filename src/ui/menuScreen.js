@@ -3,6 +3,7 @@ import { LOGO_SVG, rankBadge } from './components.js';
 import { getRank } from '../config/ranks.js';
 import { sensSummary } from '../config/sensitivity.js';
 import { shortDate } from '../utils/format.js';
+import { PLANNED_MODES, getMode, listModes } from '../modes/registry.js';
 
 function menuItem(title, sub, { onClick, disabled = false, primary = false, tag = null }) {
   return h(
@@ -14,23 +15,49 @@ function menuItem(title, sub, { onClick, disabled = false, primary = false, tag 
   );
 }
 
-// Mini gráfica de las últimas evaluaciones (0-100).
+const HISTORY_POINTS = 12;
+const HISTORY_SERIES = [
+  { id: 'targets', label: 'Dianas', color: 'var(--accent)' },
+  { id: 'bots', label: 'Enemigos', color: 'var(--accent-2)' },
+];
+
+// Mini gráfica de las últimas evaluaciones (0-100), una línea por variante: mezclarlas hacía
+// que la curva subiera y bajara solo por alternar entre dianas y enemigos.
 function historyChart(evaluations) {
-  const points = evaluations.slice(-12).map((e) => e.total);
-  if (points.length < 2) return null;
   const W = 220;
   const H = 54;
-  const step = W / (points.length - 1);
   const y = (v) => H - 4 - (v / 100) * (H - 8);
-  const path = points.map((v, i) => `${i ? 'L' : 'M'}${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const series = HISTORY_SERIES.map((s) => ({
+    ...s,
+    points: evaluations.filter((e) => e.variant === s.id).slice(-HISTORY_POINTS).map((e) => e.total),
+  })).filter((s) => s.points.length);
+  if (!series.some((s) => s.points.length >= 2)) return null;
+
+  const marks = series
+    .map((s) => {
+      const step = s.points.length > 1 ? W / (s.points.length - 1) : 0;
+      const xy = s.points.map((v, i) => [(s.points.length > 1 ? i * step : W).toFixed(1), y(v).toFixed(1)]);
+      const path = xy.map(([px, py], i) => `${i ? 'L' : 'M'}${px},${py}`).join(' ');
+      const [lx, ly] = xy.at(-1);
+      return `<path d="${path}" fill="none" style="stroke:${s.color}" stroke-width="2" vector-effect="non-scaling-stroke"/>` +
+        `<circle cx="${lx}" cy="${ly}" r="2.5" style="fill:${s.color}"/>`;
+    })
+    .join('');
+
   return h(
     'div',
     { class: 'history' },
-    h('div', { class: 'history-title' }, `Últimas ${points.length} evaluaciones`),
+    h('div', { class: 'history-title' }, 'Progreso por evaluación'),
     h('div', {
-      html: `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" aria-label="Historial de puntuación">
-        <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`,
+      html: `<svg viewBox="-3 0 ${W + 6} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="Historial de puntuación por evaluación">${marks}</svg>`,
     }),
+    h(
+      'div',
+      { class: 'history-legend' },
+      series.map((s) =>
+        h('span', {}, h('i', { style: { background: s.color } }), `${s.label} · ${s.points.at(-1)}`, h('small', {}, ` (${s.points.length})`)),
+      ),
+    ),
   );
 }
 
@@ -46,12 +73,24 @@ function variantRow(label, data) {
   );
 }
 
-export function menuScreen(game, { onEvaluation, onSettings }) {
+// Botones de modos: los registrados (modes/registry.js) y, desactivados, los planeados que aún no existen.
+function modeItems(game, rank, onMode) {
+  const registered = listModes().map((m) => {
+    const locked = m.locked?.(game) ?? null;
+    return { order: m.order, item: menuItem(m.title, m.desc, { onClick: () => onMode(m.id), primary: m.primary, disabled: !!locked, tag: locked }) };
+  });
+  const planned = PLANNED_MODES.filter((p) => !getMode(p.id)).map((p) => ({
+    order: p.order,
+    item: menuItem(p.title, p.desc, { disabled: true, tag: p.needsRank && !rank ? 'Requiere evaluación' : 'Próximamente' }),
+  }));
+  return [...registered, ...planned].sort((a, b) => a.order - b.order).map((x) => x.item);
+}
+
+export function menuScreen(game, { onMode, onSettings }) {
   const { profile, settings } = game.store.data;
   const rank = getRank(profile.rank);
   const last = profile.evaluations.at(-1);
   const v = profile.variants ?? {};
-  const lockedTag = rank ? 'Próximamente' : 'Requiere evaluación';
 
   const profileCard = h(
     'aside',
@@ -85,17 +124,7 @@ export function menuScreen(game, { onEvaluation, onSettings }) {
       h(
         'nav',
         { class: 'menu-list' },
-        menuItem('Evaluación · Dianas', 'Clásica: flicking, tracking, reacción, multi-objetivo y precisión', {
-          onClick: () => onEvaluation('targets'),
-          primary: true,
-        }),
-        menuItem('Evaluación · Enemigos', 'Bots reales: flicks, tracking, peeks, headshots y combate en movimiento', {
-          onClick: () => onEvaluation('bots'),
-          primary: true,
-        }),
-        menuItem('Campaña', 'Mapas y bots según tu rango', { disabled: true, tag: lockedTag }),
-        menuItem('Coordinación ojo-mano', 'Secuencias, colores, periferia, doble tarea', { disabled: true, tag: 'Próximamente' }),
-        menuItem('Modo infinito', 'Oleadas sin fin hasta caer', { disabled: true, tag: lockedTag }),
+        modeItems(game, rank, onMode),
         menuItem('Configuración', 'Sensibilidad de cualquier juego, FOV, mira, controles', { onClick: onSettings }),
       ),
       profileCard,

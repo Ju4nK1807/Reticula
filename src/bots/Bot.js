@@ -7,6 +7,7 @@ const JUMP_HEIGHT = 0.9;
 const DEATH_TIME = 0.9;
 const APPEAR_TIME = 0.12;
 const RADIUS = 0.4;
+const BODY_HEIGHT = 1.78;
 
 const _v = new THREE.Vector3();
 const _head = new THREE.Vector3();
@@ -16,6 +17,8 @@ const _head = new THREE.Vector3();
 
   opts = {
     position: Vector3 (pies), color, hp = 100,
+    scale: 1                   → tamaño relativo a 1.77 m (campaña / infinito usan < 1); escala
+                                 modelo, hitboxes, línea de visión, salto y colisión
     appear: bool               → aparece con una animación rápida (no hay "peek" previo)
     lifetime: s | null         → si sigue vivo al cumplirse, se esconde o desaparece (escapa)
     behavior:
@@ -41,6 +44,8 @@ export class Bot {
     this.gunTip = model.gunTip;
     for (const m of this.hitMeshes) m.userData.bot = this;
 
+    this.scale = opts.scale ?? 1;
+    this.radius = RADIUS * this.scale;
     this.baseY = opts.position.y;
     this.group.position.copy(opts.position);
     this.hp = opts.hp ?? 100;
@@ -82,12 +87,23 @@ export class Bot {
 
   headPosition(out = _head) {
     const p = this.group.position;
-    return out.set(p.x, p.y + BOT_DIMENSIONS.headCenter - BOT_DIMENSIONS.crouchDrop * this.crouch, p.z);
+    return out.set(p.x, p.y + (BOT_DIMENSIONS.headCenter - BOT_DIMENSIONS.crouchDrop * this.crouch) * this.scale, p.z);
+  }
+
+  // Cilindro de colisión para el jugador (pies en y0, altura h). Escribe en `out` y lo devuelve.
+  bodyCollider(out) {
+    const p = this.group.position;
+    out.x = p.x;
+    out.z = p.z;
+    out.r = this.radius;
+    out.y0 = p.y;
+    out.h = (BODY_HEIGHT - BOT_DIMENSIONS.crouchDrop * this.crouch) * this.scale;
+    return out;
   }
 
   chestPosition(out = _head) {
     const p = this.group.position;
-    return out.set(p.x, p.y + BOT_DIMENSIONS.chestCenter - BOT_DIMENSIONS.crouchDrop * this.crouch, p.z);
+    return out.set(p.x, p.y + (BOT_DIMENSIONS.chestCenter - BOT_DIMENSIONS.crouchDrop * this.crouch) * this.scale, p.z);
   }
 
   initBehavior() {
@@ -203,7 +219,7 @@ export class Bot {
       b.vel = -b.vel;
     }
     _v.copy(b.anchor).addScaledVector(b.lateral, offset);
-    if (this.world.isFree(_v.x, _v.z, RADIUS, this.baseY)) {
+    if (this.world.isFree(_v.x, _v.z, this.radius, this.baseY)) {
       b.offset = offset;
       this.group.position.x = _v.x;
       this.group.position.z = _v.z;
@@ -310,13 +326,14 @@ export class Bot {
     this.upper.position.y = BOT_DIMENSIONS.legHeight - BOT_DIMENSIONS.crouchDrop * c;
 
     if (this.state !== 'dying') {
-      const jump = this.jumpT >= 0 ? Math.sin((Math.PI * this.jumpT) / JUMP_TIME) * JUMP_HEIGHT : 0;
+      const jump = this.jumpT >= 0 ? Math.sin((Math.PI * this.jumpT) / JUMP_TIME) * JUMP_HEIGHT * this.scale : 0;
       this.group.position.y = this.baseY + jump;
     }
 
     const appear = this.appearT / APPEAR_TIME;
     const leave = this.state === 'leaving' ? 1 - this.leaveT / 0.15 : 1;
-    this.group.scale.set(1, Math.max(0.02, appear * leave), 1);
+    const s = this.scale;
+    this.group.scale.set(s, s * Math.max(0.02, appear * leave), s);
 
     const flash = this.flashT > 0 ? 0.9 : 0;
     this.mats.body.emissiveIntensity = flash;

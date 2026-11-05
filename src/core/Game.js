@@ -4,8 +4,7 @@ import { Input } from './Input.js';
 import { PlayerController } from './PlayerController.js';
 import { Sfx } from '../audio/Sfx.js';
 import { SaveStore } from '../storage/SaveStore.js';
-import { TrainingYard } from '../scenes/TrainingYard.js';
-import { ShootingRange } from '../scenes/ShootingRange.js';
+import { createWorld } from '../scenes/registry.js';
 import { Ballistics } from '../combat/Ballistics.js';
 import { Weapon } from '../combat/Weapon.js';
 import { Viewmodel } from '../combat/Viewmodel.js';
@@ -15,20 +14,15 @@ import { UI } from '../ui/UI.js';
 import { menuScreen } from '../ui/menuScreen.js';
 import { settingsScreen } from '../ui/settingsScreen.js';
 import { pauseScreen } from '../ui/pauseScreen.js';
-import { Evaluation } from '../modes/evaluation/Evaluation.js';
+import { getMode } from '../modes/index.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
 
 const _v = new THREE.Vector3();
-
-// Mapas disponibles; se construyen la primera vez que se usan y se reutilizan.
-const WORLDS = {
-  range: () => new ShootingRange(),
-  yard: () => new TrainingYard(),
-};
+const NO_BODIES = [];
 
 // Orquestador: conecta motor, entrada, jugador, arma, audio, guardado, UI y el modo activo.
-// Un modo implementa: start, update(dt), onShoot, onLock, onPause, wantsLock, weaponEnabled,
-// hitMeshes, restartStage, dispose.
+// La interfaz de un modo está en modes/Mode.js; los modos se registran en modes/registry.js y los
+// mapas en scenes/registry.js, así que un modo nuevo no necesita editar este archivo.
 export class Game {
   constructor(root) {
     this.store = new SaveStore();
@@ -54,8 +48,8 @@ export class Game {
     this.useWorld('range');
     this.applySettings();
 
-    this.input.on('shoot', () => {
-      if (this.mode && !this.paused) this.mode.onShoot();
+    this.input.on('shoot', (time) => {
+      if (this.mode && !this.paused) this.mode.onShoot(time);
     });
     this.input.on('lock', () => this.onLock());
     this.input.on('unlock', () => this.onUnlock());
@@ -65,6 +59,12 @@ export class Game {
     );
     // El audio solo puede iniciar tras un gesto del usuario.
     window.addEventListener('pointerdown', () => this.sfx.unlock());
+    // Pérdida del contexto WebGL: soltar el mouse (pausa si hay partida) y avisar.
+    this.engine.onContextLost = () => {
+      this.input.unlock();
+      this.ui.toast('La tarjeta gráfica se reinició. Restaurando gráficos…', 6000);
+    };
+    this.engine.onContextRestored = () => this.ui.toast('Gráficos restaurados.');
   }
 
   get settings() {
@@ -75,8 +75,9 @@ export class Game {
     return !!this.mode && !this.paused && this.input.locked;
   }
 
+  // Activa un mapa registrado (scenes/registry.js); se construye la primera vez y se reutiliza.
   useWorld(key) {
-    this.worlds[key] ??= WORLDS[key]();
+    this.worlds[key] ??= createWorld(key);
     if (this.world !== this.worlds[key]) this.setWorld(this.worlds[key]);
   }
 
@@ -127,6 +128,7 @@ export class Game {
     this.time += dt;
     const playing = this.playing;
 
+    this.player.bodies = this.mode?.bodyColliders?.() ?? NO_BODIES;
     this.player.update(dt, playing);
     if (!this.mode) {
       // Paneo lento de fondo en el menú.
@@ -213,7 +215,7 @@ export class Game {
     this.hud.setVisible(false);
     this.ui.show(
       menuScreen(this, {
-        onEvaluation: (variant) => this.startEvaluation(variant),
+        onMode: (id) => this.startModeById(id),
         onSettings: () => this.showSettings(() => this.showMenu()),
       }),
     );
@@ -230,8 +232,19 @@ export class Game {
     mode.start();
   }
 
-  startEvaluation(variant) {
-    this.startMode(new Evaluation(this, variant));
+  // Inicia un modo del registro (lo usa el menú). Respeta su condición de bloqueo.
+  startModeById(id) {
+    const entry = getMode(id);
+    if (!entry) {
+      this.ui.toast(`Modo no disponible: ${id}`);
+      return;
+    }
+    const locked = entry.locked?.(this);
+    if (locked) {
+      this.ui.toast(locked);
+      return;
+    }
+    this.startMode(entry.create(this));
   }
 
   quitToMenu() {
