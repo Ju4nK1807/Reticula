@@ -7,8 +7,9 @@ import { Ballistics } from '../src/combat/Ballistics.js';
 import { BOT_DIMENSIONS } from '../src/bots/botModel.js';
 import { WarehouseMap } from '../src/modes/campaign/maps/WarehouseMap.js';
 import { CityMap } from '../src/modes/campaign/maps/CityMap.js';
+import { ArenaMap } from '../src/modes/campaign/maps/ArenaMap.js';
 
-const MAPS = { warehouse: WarehouseMap, city: CityMap };
+const MAPS = { warehouse: WarehouseMap, city: CityMap, arena: ArenaMap };
 const EYE = 1.62;
 const BOT_RADIUS = 0.4;
 
