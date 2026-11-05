@@ -35,7 +35,7 @@ src/
   bots/                   Bots humanoides: hitboxes, strafing, peeks, agachadas, saltos y disparo
   modes/                  Mode.js (interfaz base), registry.js (registro), index.js (descubre los modos)
   modes/evaluation/       Evaluación: dos variantes de 5 fases + scoring → rango
-  modes/campaign/         (Fase 2)
+  modes/campaign/         Campaña: mapas Bodega/Ciudad/Arena, 12 niveles, misiones, progreso y estrellas
   modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
   modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
   ui/                     HUD, mira, pantallas (menú, ajustes, pausa, resultados, compatibilidad)
@@ -66,7 +66,7 @@ pasa el mismo `scale` a `randomOpenSpot` y `pickCoverSpot`.
 ## Fases
 
 1. **Motor base + control FPS + evaluación inicial** ✅
-2. Campaña: bots, un mapa por rango, 3-5 niveles por mapa, desbloqueos, sugerencia de bajar de rango.
+2. **Campaña** ✅: un mapa por rango, 4 niveles por mapa con estrellas, desbloqueos, sugerencia de bajar de mapa.
 3. **Coordinación ojo-mano** ✅: secuencias, colores, visión periférica, doble tarea.
 4. **Modo infinito** ✅: oleadas, vida del jugador, botiquines, récords.
 5. Pulido: historial de progreso, más opciones de mira, ajustes de rendimiento.
@@ -108,6 +108,34 @@ Rangos: Bronce 0+, Plata 30+, Oro 48+, Diamante 64+, Élite 80+ (`src/config/ran
 Cada variante guarda su propio rango. El **rango general** (el del menú, el que desbloquea modos) es el
 mejor rango actual entre las dos variantes. Los tiempos de reacción se miden con el reloj real
 (`performance.now()` y el instante del clic), así que no dependen de los FPS.
+
+## Campaña
+
+Se desbloquea al hacer cualquier evaluación. Un mapa por tramo de rango, con 4 niveles cada uno
+(12 en total). Se empieza en el mapa recomendado para tu rango; los inferiores siempre están abiertos y
+completar un mapa abre el siguiente aunque tu rango no llegue.
+
+| Mapa | Rangos | Escenario |
+|------|--------|-----------|
+| Bodega | Bronce · Plata | Almacén con estanterías, palés, montacargas, pasarela alta y portones |
+| Ciudad | Oro · Diamante | Calle con coches cruzados, quioscos, balcones, callejones y plaza |
+| Arena | Élite | Arena simétrica con torre central, plataformas laterales y pilares |
+
+- **Niveles**: Reconocimiento (flicks y duelos), Asomadas (peeks desde coberturas y alturas), Fuego
+  cruzado (varios a la vez y por los flancos) y Asalto final (todo mezclado, también por detrás).
+- **Dificultad continua 0-11** (`botProfile` en `src/modes/campaign/campaignData.js`): los bots pasan del
+  100 % al 72 % de tamaño, se mueven más rápido, cambian de dirección más seguido, amagan, se agachan y
+  saltan más, y reaccionan antes (0.75 s → 0.31 s). Su daño por segundo va de ~3.6 a ~14.
+- **Nota 0-100 y estrellas**: 45 % enemigos eliminados, 20 % precisión, 15 % cabeza, 12 % vida y 8 %
+  rapidez; morir multiplica por 0.6 y deja el nivel sin estrellas. La 1ª estrella es la meta que
+  desbloquea el siguiente nivel; la 2ª y la 3ª son para rejugar.
+- **Sugerencia de bajar de mapa**: tras 3 intentos seguidos sin estrellas y con nota media 10 puntos o
+  más bajo la meta del primer nivel del mapa, se recomienda practicar en el mapa inferior.
+- **Auditoría de mapas** (`tests/campaignMaps.test.js`): con raycasts reales verifica que cada asomada se
+  vea desde la zona del jugador, que cada escondite oculte, que los bots quepan, que las posiciones altas
+  tengan piso y que haya terreno abierto suficiente. Si un mapa cambia y deja un enemigo imposible,
+  la prueba falla y dice cuál.
+- Progreso en `store.data.campaign` (`best`, `unlocked`, `recent`). `B` cambia el modo de disparo.
 
 ## Coordinación ojo-mano
 
