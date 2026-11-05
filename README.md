@@ -11,6 +11,10 @@ npm test          # pruebas automáticas (Vitest)
 npm run build     # versión de producción en dist/
 ```
 
+Cada PR y cada push a `main` pasan por la CI de GitHub Actions (`.github/workflows/ci.yml`): `npm ci`,
+`npm test` y `npm run build`. Fusiona solo PRs en verde y abre cada PR contra `main` (no contra otra
+rama de PR), para que lo fusionado llegue siempre a `main`.
+
 Requisitos: navegador con WebGL 2 y Pointer Lock (Chrome o Edge recomendados: son los únicos que dan
 raw input), mouse y teclado. Si falta algo, el juego lo avisa al abrir.
 

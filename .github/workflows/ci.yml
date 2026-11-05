@@ -1,0 +1,39 @@
+# Integración continua: en cada PR y en cada push a main se instalan las dependencias exactas
+# del package-lock, se ejecutan las pruebas y se compila la versión de producción.
+# Si algo falla, el PR aparece en rojo antes de fusionarlo.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Un push nuevo al mismo PR cancela la ejecución anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-build:
+    name: Pruebas y compilación
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas
+        run: npm test
+
+      - name: Compilar
+        run: npm run build
