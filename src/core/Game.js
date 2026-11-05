@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Engine } from './Engine.js';
+import { PerfMeter } from './PerfMeter.js';
 import { Input } from './Input.js';
 import { PlayerController } from './PlayerController.js';
 import { Sfx } from '../audio/Sfx.js';
@@ -41,8 +42,7 @@ export class Game {
     this.mode = null;
     this.paused = false;
     this.time = 0;
-    this.fpsFrames = 0;
-    this.fpsTime = 0;
+    this.perf = new PerfMeter();
 
     this.worlds = {};
     this.useWorld('range');
@@ -147,13 +147,8 @@ export class Game {
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked;
     this.world.update(dt);
 
-    this.fpsFrames++;
-    this.fpsTime += dt;
-    if (this.fpsTime >= 0.5) {
-      this.hud.setFps(Math.round(this.fpsFrames / this.fpsTime));
-      this.fpsFrames = 0;
-      this.fpsTime = 0;
-    }
+    const perf = this.perf.tick();
+    if (perf) this.hud.setFps(perf);
   }
 
   // Paneo estéreo (-1…1) de un punto del mundo respecto a la cámara.

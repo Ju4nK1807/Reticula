@@ -38,6 +38,15 @@ export class Phase {
     this.stats = { shots: 0, hits: 0, head: 0, body: 0, legs: 0, kills: 0, escaped: 0, damageTaken: 0 };
     this.shotTime = 0; // instante (ms, reloj real) del último disparo; lo usan las fases de reacción
     this.bodies = []; // colisionadores de los bots vivos, reutilizados cada cuadro
+    this.hitList = []; // mallas golpeables, reutilizadas en cada consulta
+    this.ctx = {
+      playerPos: null,
+      playerEye: null,
+      playerSpeed: 0,
+      playerCrouch: 0,
+      ballistics: this.game.ballistics,
+      onBotFire: this.onBotFire,
+    };
     this.onBotFire = this.onBotFire.bind(this);
   }
 
@@ -51,31 +60,43 @@ export class Phase {
 
   begin() {}
 
+  // Contexto que reciben los bots en cada update (un solo objeto reutilizado: sin basura por cuadro).
   botContext() {
     const p = this.game.player;
-    return {
-      playerPos: p.position,
-      playerEye: p.eye,
-      playerSpeed: p.horizontalSpeed,
-      playerCrouch: p.crouch,
-      ballistics: this.game.ballistics,
-      onBotFire: this.onBotFire,
-    };
+    const c = this.ctx;
+    c.playerPos = p.position;
+    c.playerEye = p.eye;
+    c.playerSpeed = p.horizontalSpeed;
+    c.playerCrouch = p.crouch;
+    return c;
   }
 
   update(dt) {
     this.elapsed += dt;
     const ctx = this.botContext();
-    for (const bot of this.bots) bot.update(dt, ctx);
-    this.bots = this.bots.filter((bot) => {
-      if (!bot.removable) return true;
-      if (bot.escaped) this.onEscape(bot);
-      const spot = bot.opts.behavior.spot;
-      if (spot) this.usedSpots.delete(spot.id);
-      this.onRemoved(bot);
-      bot.dispose();
-      return false;
-    });
+    const bots = this.bots;
+    for (let i = 0; i < bots.length; i++) bots[i].update(dt, ctx);
+
+    // Compactación en el sitio (sin crear un arreglo nuevo cada cuadro). Los avisos (onEscape,
+    // onRemoved) se llaman DESPUÉS de compactar: pueden crear bots nuevos (p. ej. la siguiente diana
+    // en Flicking) y, si se llamaran durante el recorrido, esos bots se perderían.
+    let removed = null;
+    let n = 0;
+    for (let i = 0; i < bots.length; i++) {
+      const bot = bots[i];
+      if (bot.removable) (removed ??= []).push(bot);
+      else bots[n++] = bot;
+    }
+    bots.length = n;
+    if (removed) {
+      for (const bot of removed) {
+        if (bot.escaped) this.onEscape(bot);
+        const spot = bot.opts.behavior.spot;
+        if (spot) this.usedSpots.delete(spot.id);
+        this.onRemoved(bot);
+        bot.dispose();
+      }
+    }
     if (this.elapsed >= this.duration) this.finished = true;
   }
 
@@ -91,9 +112,14 @@ export class Phase {
     return this.bodies;
   }
 
+  // Mallas que pueden recibir balas. Devuelve siempre el mismo arreglo (no guardarlo: cambia).
   hitMeshes() {
-    const out = [];
-    for (const bot of this.bots) if (bot.alive) out.push(...bot.hitMeshes);
+    const out = this.hitList;
+    out.length = 0;
+    for (const bot of this.bots) {
+      if (!bot.alive) continue;
+      for (const m of bot.hitMeshes) out.push(m);
+    }
     return out;
   }
 

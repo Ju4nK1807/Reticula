@@ -91,8 +91,9 @@ export class HUD {
     this.refs.fps.hidden = !on;
   }
 
-  setFps(fps) {
-    this.text('fps', `${fps} FPS`);
+  // perf = { fps, ms, low1 } (ver core/PerfMeter.js). "1% low" = FPS de los cuadros más lentos.
+  setFps({ fps, ms, low1 }) {
+    this.text('fps', `${fps} FPS · ${ms} ms · 1% low ${low1}`);
   }
 
   restartAnimation(el, className) {

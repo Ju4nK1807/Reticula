@@ -7,6 +7,7 @@ export class Ballistics {
   constructor() {
     this.world = null;
     this.raycaster = new THREE.Raycaster();
+    this.targets = []; // sólidos + hitboxes, reutilizado en cada disparo
   }
 
   setWorld(world) {
@@ -19,7 +20,13 @@ export class Ballistics {
     const rc = this.raycaster;
     rc.set(origin, dir);
     rc.far = far;
-    const targets = extra.length ? this.world.solids.concat(extra) : this.world.solids;
+    let targets = this.world.solids;
+    if (extra.length) {
+      targets = this.targets;
+      targets.length = 0;
+      for (const m of this.world.solids) targets.push(m);
+      for (const m of extra) targets.push(m);
+    }
     const hit = rc.intersectObjects(targets, false)[0];
     if (!hit) return null;
     const normal = hit.face
