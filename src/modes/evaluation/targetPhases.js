@@ -256,7 +256,8 @@ export class SphereReactionPhase extends SpherePhase {
       lifetime: TIMEOUT,
     });
     this.state = 'show';
-    this.shownAt = this.elapsed;
+    // Reloj real: la medición no depende de los FPS ni del límite de dt del motor.
+    this.shownAt = performance.now();
   }
 
   nextTrial() {
@@ -285,7 +286,7 @@ export class SphereReactionPhase extends SpherePhase {
 
   onKill(target) {
     if (target !== this.current) return;
-    const rt = (this.elapsed - this.shownAt) * 1000;
+    const rt = Math.max(0, this.shotTime - this.shownAt);
     this.times.push(rt);
     this.score += Math.max(0, Math.round(800 - rt));
     this.game.hud.flash(`${Math.round(rt)} ms`, 'good');

@@ -27,7 +27,7 @@ const WORLDS = {
 };
 
 // Orquestador: conecta motor, entrada, jugador, arma, audio, guardado, UI y el modo activo.
-// Un modo implementa: start, update(dt), onShoot, onLock, onPause, wantsLock, weaponEnabled,
+// Un modo implementa: start, update(dt), onShoot(time), onLock, onPause, wantsLock, weaponEnabled,
 // hitMeshes, restartStage, dispose.
 export class Game {
   constructor(root) {
@@ -54,8 +54,8 @@ export class Game {
     this.useWorld('range');
     this.applySettings();
 
-    this.input.on('shoot', () => {
-      if (this.mode && !this.paused) this.mode.onShoot();
+    this.input.on('shoot', (time) => {
+      if (this.mode && !this.paused) this.mode.onShoot(time);
     });
     this.input.on('lock', () => this.onLock());
     this.input.on('unlock', () => this.onUnlock());

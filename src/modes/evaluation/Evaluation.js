@@ -51,8 +51,8 @@ export class Evaluation {
   start() {
     this.game.useWorld(this.variant.world);
     this.game.world.scene.add(this.root);
-    this.game.weapon.onShot = (hit) => {
-      if (this.state === 'running') this.phase.handleShot(hit);
+    this.game.weapon.onShot = (hit, spread, time) => {
+      if (this.state === 'running') this.phase.handleShot(hit, time);
     };
     this.showIntro();
   }
@@ -195,8 +195,8 @@ export class Evaluation {
     );
   }
 
-  onShoot() {
-    this.game.weapon.trigger();
+  onShoot(time) {
+    this.game.weapon.trigger(time);
   }
 
   onPause() {
