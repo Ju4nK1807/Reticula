@@ -100,6 +100,12 @@ export class SaveStore {
     return this.data.records[modeId];
   }
 
+  // Vuelve a la configuración por defecto, conservando el progreso.
+  resetSettings() {
+    this.data.settings = structuredClone(DEFAULT_SAVE.settings);
+    this.persist();
+  }
+
   // Borra rango, progreso y récords, conservando la configuración.
   resetProgress() {
     const settings = this.data.settings;

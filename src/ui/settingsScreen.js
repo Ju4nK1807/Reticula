@@ -3,6 +3,7 @@ import { button } from './components.js';
 import { crosshairSVG } from './Crosshair.js';
 import { ENEMY_COLORS } from '../config/defaults.js';
 import { FOV_PRESETS, GAMES, cmPer360, convertSens, formatSens, roundTo, valueForCm } from '../config/sensitivity.js';
+import { QUALITY_OPTIONS, QUALITY_PRESETS, RENDER_SCALE } from '../config/quality.js';
 
 const SHAPES = {
   cross: 'Cruz',
@@ -196,6 +197,30 @@ export function settingsScreen(game, onBack) {
     ),
   );
 
+  // Calidad: elegir un preset ajusta la resolución; mover la resolución a mano pasa a "Personalizada".
+  const scaleSlider = slider(s.video, 'renderScale', { ...RENDER_SCALE, fmt: (v) => `${Math.round(v * 100)}%` }, () => {
+    s.video.quality = 'custom';
+    qualitySelect.value = 'custom';
+    commit();
+  });
+  const qualitySelect = select(QUALITY_OPTIONS, s.video.quality, (v) => {
+    s.video.quality = v;
+    if (QUALITY_PRESETS[v]) {
+      s.video.renderScale = QUALITY_PRESETS[v].renderScale;
+      scaleSlider.sync();
+    }
+    commit();
+  });
+
+  const resetSettingsBtn = button('Restablecer configuración', () => {
+    if (confirm('¿Volver a la configuración por defecto (sensibilidad, FOV, mira, video, audio)? El progreso se conserva.')) {
+      game.store.resetSettings();
+      game.applySettings();
+      game.ui.toast('Configuración restablecida.');
+      game.showSettings(onBack);
+    }
+  });
+
   const resetBtn = button('Borrar progreso y rango', () => {
     if (confirm('¿Borrar rango, progreso y récords? La configuración se conserva.')) {
       game.store.resetProgress();
@@ -222,7 +247,9 @@ export function settingsScreen(game, onBack) {
         h('h3', {}, 'Video'),
         field('FOV horizontal', fovSlider, 'Equivalente en pantallas 16:9.'),
         fovPresets,
-        field('Mostrar FPS', checkbox(s.video, 'showFps', commit)),
+        field('Calidad', qualitySelect, 'Baja la resolución de render para ganar FPS en equipos modestos.'),
+        field('Resolución de render', scaleSlider, 'Porcentaje de la resolución de la pantalla (la interfaz no cambia).'),
+        field('Mostrar FPS', checkbox(s.video, 'showFps', commit), 'FPS promedio, ms por cuadro y 1 % low (tirones).'),
         h('h3', {}, 'Audio'),
         field('Volumen', slider(s.audio, 'volume', { min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)}%` }, () => {
           commit();
@@ -256,7 +283,7 @@ export function settingsScreen(game, onBack) {
         h('h3', {}, 'Controles'),
         h('dl', { class: 'controls' }, CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
         h('h3', {}, 'Datos'),
-        resetBtn,
+        h('div', { class: 'row' }, resetSettingsBtn, resetBtn),
       ),
     ),
   );

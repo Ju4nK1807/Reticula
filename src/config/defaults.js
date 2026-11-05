@@ -22,7 +22,7 @@ export const DEFAULT_SETTINGS = {
     autoReload: true, // recargar solo al intentar disparar con el cargador vacío
   },
   audio: { volume: 0.6 },
-  video: { showFps: true },
+  video: { showFps: true, quality: 'alta', renderScale: 1 }, // quality: alta | media | baja | custom
 };
 
 export const ENEMY_COLORS = {

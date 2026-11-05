@@ -96,6 +96,7 @@ export class Game {
     this.engine.setHorizontalFov(s.fov);
     this.hud.setCrosshair(s.crosshair);
     this.hud.showFps(s.video.showFps);
+    this.engine.setQuality(s.video);
     this.sfx.setVolume(s.audio.volume);
   }
 
