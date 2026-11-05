@@ -154,11 +154,13 @@ export function botProfile(d) {
       jumpChance: r2(lin(0, 0.02, 0.22, d)),
       stopChance: r2(lin(0.25, -0.012, 0.08, d)),
     },
+    // Daño por segundo de un bot ≈ accuracy × damage / interval: de ~3.6 (Bodega 1) a ~14 (Arena 4).
+    // Con 3 a la vez en el último nivel ya es muy exigente; más que eso no dejaría asomarse a nadie.
     shooter: {
       reaction: r2(lin(0.75, -0.04, 0.3, d)),
-      interval: r2(lin(0.45, -0.02, 0.24, d)),
-      accuracy: r2(lin(0.2, 0.025, 0.48, d)),
-      damage: Math.round(lin(8, 0.5, 13, d)),
+      interval: r2(lin(0.45, -0.012, 0.32, d)),
+      accuracy: r2(lin(0.2, 0.018, 0.4, d)),
+      damage: Math.round(lin(8, 0.28, 11, d)),
     },
   };
 }

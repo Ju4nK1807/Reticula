@@ -50,6 +50,7 @@ export class ArenaMap extends CampaignWorld {
       cyan: new THREE.MeshBasicMaterial({ color: '#36d6ff' }),
       magenta: new THREE.MeshBasicMaterial({ color: '#ff4fd8' }),
       accent: new THREE.MeshBasicMaterial({ color: '#00ffa3' }),
+      accentDim: new THREE.MeshBasicMaterial({ color: '#0d5a45' }),
       dark: L('#1a1d2c'),
     };
 
@@ -118,7 +119,7 @@ export class ArenaMap extends CampaignWorld {
 
     // --- Barrera del jugador (visual) y accesos -----------------------------------------------------------
     this.box(-HALF_W, HALF_W, 2.2, 2.5, 0.9, M.block, 0, false);
-    this.box(-HALF_W, HALF_W, 2.18, 2.52, 0.05, M.accent, 0.9, false);
+    this.box(-HALF_W, HALF_W, 2.18, 2.52, 0.05, M.accentDim, 0.9, false); // tenue: está justo delante de la vista
     for (const side of [-1, 1]) {
       this.addDoorSpot(side * 23.5, -8, side * 19.6, -8, 'flank');
       this.addDoorSpot(side * 23.5, -38, side * 19.6, -38, 'front');
