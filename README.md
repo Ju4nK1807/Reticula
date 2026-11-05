@@ -33,7 +33,7 @@ src/
   modes/evaluation/       Evaluación: dos variantes de 5 fases + scoring → rango
   modes/campaign/         (Fase 2)
   modes/coordination/     (Fase 3)
-  modes/endless/          (Fase 4)
+  modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
   ui/                     HUD, mira, pantallas (menú, ajustes, pausa, resultados, compatibilidad)
   utils/                  math, format
 tests/                    Pruebas de la lógica pura (guardado, rangos, sensibilidad, registros)
@@ -64,7 +64,7 @@ pasa el mismo `scale` a `randomOpenSpot` y `pickCoverSpot`.
 1. **Motor base + control FPS + evaluación inicial** ✅
 2. Campaña: bots, un mapa por rango, 3-5 niveles por mapa, desbloqueos, sugerencia de bajar de rango.
 3. Coordinación ojo-mano: secuencias, colores, visión periférica, doble tarea.
-4. Modo infinito: oleadas, vida del jugador, récords.
+4. **Modo infinito** ✅: oleadas, vida del jugador, botiquines, récords.
 5. Pulido: historial de progreso, más opciones de mira, ajustes de rendimiento.
 
 ## Evaluación
@@ -104,6 +104,33 @@ Rangos: Bronce 0+, Plata 30+, Oro 48+, Diamante 64+, Élite 80+ (`src/config/ran
 Cada variante guarda su propio rango. El **rango general** (el del menú, el que desbloquea modos) es el
 mejor rango actual entre las dos variantes. Los tiempos de reacción se miden con el reloj real
 (`performance.now()` y el instante del clic), así que no dependen de los FPS.
+
+## Modo infinito
+
+Se desbloquea al hacer cualquier evaluación. Oleadas sin fin en el **Bastión**, un patio de 48 m con
+8 puertas: los enemigos pueden llegar por cualquier lado.
+
+- **Enemigos**: entran por las puertas, combaten en el sitio (strafing, se agachan, saltan, disparan)
+  y avanzan hacia ti flanqueando, sin acercarse a menos de 6 m.
+- **Avisos**: la lámpara de la puerta se pone roja y suena un aviso en estéreo 0.9 s antes de cada
+  entrada. Las flechas alrededor de la mira señalan enemigos fuera de la vista; se ponen rojas si
+  te están apuntando.
+- **Dificultad** (`src/modes/endless/waves.js`):
+
+| Oleada | Bots (simultáneos) | Tamaño | Reacción | Precisión | Daño |
+|-------:|-------------------:|-------:|---------:|----------:|-----:|
+| 1      | 4 (2)              | 100 %  | 0.80 s   | 20 %      | 7    |
+| 5      | 12 (4)             | 90 %   | 0.66 s   | 28 %      | 9    |
+| 10     | 22 (6)             | 78 %   | 0.49 s   | 38 %      | 12   |
+| 15     | 32 (8)             | 65 %   | 0.31 s   | 48 %      | 14   |
+| 16+    | 34 → 40 (8)        | 63 → 62 % | 0.28 s | 50 %      | 14   |
+
+- **Supervivencia**: 100 de vida; +25 al superar una oleada; botiquines (+20) que caen con un 12 % de
+  probabilidad (30 % si tienes menos de 40 de vida).
+- **Puntos**: impactos y bajas × multiplicador de oleada (+10 % por oleada), +50 por baja a la cabeza,
+  racha (bajas sin recibir daño) y bonificación por oleada superada (×2.5 si fue perfecta).
+- **Controles extra**: `B` cambia entre disparo automático y semiautomático.
+- **Récords** en `records.endless`: mejor oleada, puntaje, bajas y racha, y las últimas 20 partidas.
 
 ## Sensibilidad
 
