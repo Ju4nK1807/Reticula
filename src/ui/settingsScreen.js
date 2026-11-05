@@ -216,7 +216,7 @@ export function settingsScreen(game, onBack) {
         h('h3', {}, 'Sensibilidad'),
         h('p', { class: 'muted small' }, 'Retícula gira exactamente lo mismo que tu juego por cada movimiento del mouse. Al cambiar de juego, el valor se convierte para mantener tus cm/360.'),
         sensitivityPanel(game),
-        h('p', { class: 'muted small' }, game.input.rawInput === false
+        h('p', { class: 'muted small' }, (game.input.rawInput ?? game.input.rawInputSupported) === false
           ? 'Tu navegador no admite raw input: desactiva "Mejorar precisión del puntero" en Windows para una conversión exacta.'
           : 'Se usa raw input (sin aceleración) cuando el navegador lo admite: Chrome o Edge.'),
         h('h3', {}, 'Video'),
