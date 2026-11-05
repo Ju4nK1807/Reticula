@@ -1,5 +1,16 @@
 import { Emitter } from './Emitter.js';
 
+const LOCK_ERROR_THROTTLE = 400; // ms: un fallo de captura dispara varios eventos a la vez
+
+// Solo Chromium (Chrome, Edge, Opera, Brave) aplica `unadjustedMovement`. Firefox y Safari aceptan
+// la llamada pero ignoran la opción, así que no se puede detectar por error: se detecta el motor.
+// userAgentData solo existe en contextos seguros; la cadena UA cubre el resto (p. ej. http en LAN).
+function detectRawInput() {
+  const brands = navigator.userAgentData?.brands;
+  if (brands) return brands.some((b) => b.brand === 'Chromium');
+  return /Chrome\/\d+/.test(navigator.userAgent) && !/Firefox\//.test(navigator.userAgent);
+}
+
 // Pointer Lock, mouse y teclado. Eventos: 'lock', 'unlock', 'lockerror', 'shoot' (timeStamp), 'key'.
 export class Input extends Emitter {
   constructor(lockTarget) {
@@ -7,7 +18,9 @@ export class Input extends Emitter {
     this.lockTarget = lockTarget;
     this.locked = false;
     this.mouseDown = false;
-    this.rawInput = null; // true si el navegador aceptó unadjustedMovement
+    this.rawInputSupported = detectRawInput();
+    this.rawInput = null; // tras la primera captura: true si se usa raw input (sin aceleración del SO)
+    this.lastLockError = -Infinity;
     this.keys = new Set();
     this.dx = 0;
     this.dy = 0;
@@ -20,7 +33,7 @@ export class Input extends Emitter {
       if (!locked) this.releaseAll();
       this.emit(locked ? 'lock' : 'unlock');
     });
-    document.addEventListener('pointerlockerror', () => this.emit('lockerror'));
+    document.addEventListener('pointerlockerror', () => this.lockError());
 
     document.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
@@ -58,24 +71,42 @@ export class Input extends Emitter {
     return this.keys.has(code);
   }
 
-  // Debe llamarse desde un gesto del usuario (clic).
+  // Debe llamarse desde un gesto del usuario (clic). Devuelve true si la petición se aceptó
+  // (en Safari la confirmación llega después por 'pointerlockchange' o 'pointerlockerror').
   async lock() {
     if (this.locked) return true;
+    const raw = this.rawInputSupported;
     try {
-      // Raw input: sin aceleración del sistema operativo (Chrome/Edge).
-      await this.lockTarget.requestPointerLock({ unadjustedMovement: true });
-      this.rawInput = true;
+      await this.requestLock(raw);
+      this.rawInput = raw;
       return true;
-    } catch {
-      try {
-        await this.lockTarget.requestPointerLock();
-        this.rawInput = false;
-        return true;
-      } catch {
-        this.emit('lockerror');
-        return false;
+    } catch (err) {
+      // Algunos sistemas (p. ej. Chromium en Linux) no admiten unadjustedMovement: se reintenta sin él.
+      // Otros errores (como el bloqueo de ~1 s tras salir con Esc) no se reintentan.
+      if (raw && err?.name === 'NotSupportedError') {
+        try {
+          await this.requestLock(false);
+          this.rawInput = false;
+          return true;
+        } catch {
+          // cae al aviso de abajo
+        }
       }
+      this.lockError();
+      return false;
     }
+  }
+
+  requestLock(raw) {
+    return this.lockTarget.requestPointerLock(raw ? { unadjustedMovement: true } : undefined);
+  }
+
+  // Un solo aviso por intento fallido, aunque lleguen el rechazo de la promesa y el evento del documento.
+  lockError() {
+    const now = performance.now();
+    if (now - this.lastLockError < LOCK_ERROR_THROTTLE) return;
+    this.lastLockError = now;
+    this.emit('lockerror');
   }
 
   unlock() {
