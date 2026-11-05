@@ -58,6 +58,29 @@ describe('Phase.update', () => {
     expect(phase.bots.map((b) => b.id)).toEqual(['nuevo']);
   });
 
+  it('los bots pueden disparar al jugador desde su update (regresión)', () => {
+    // Los bots llaman a ctx.onBotFire como función suelta: tiene que estar enlazada a la fase.
+    const mode = fakeMode();
+    let tracer = 0;
+    Object.assign(mode.game, {
+      effects: { tracer: () => tracer++ },
+      sfx: { ...mode.game.sfx, botShot() {}, hurt() {} },
+      panFor: () => 0,
+      angleTo: () => 0,
+      hud: { ...mode.game.hud, damage() {}, setHealth() {} },
+    });
+    const phase = new Phase(mode);
+    const shooter = fakeBot({
+      gunTip: new THREE.Object3D(),
+      update(dt, ctx) {
+        ctx.onBotFire(this, true, 10);
+      },
+    });
+    phase.bots.push(shooter);
+    expect(() => phase.update(0.016)).not.toThrow();
+    expect(tracer).toBe(1);
+  });
+
   it('hitMeshes solo incluye bots vivos y reutiliza el arreglo', () => {
     const phase = new Phase(fakeMode());
     phase.bots.push(fakeBot(), fakeBot({ alive: false }));

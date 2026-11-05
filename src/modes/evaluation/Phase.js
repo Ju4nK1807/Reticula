@@ -39,6 +39,8 @@ export class Phase {
     this.shotTime = 0; // instante (ms, reloj real) del último disparo; lo usan las fases de reacción
     this.bodies = []; // colisionadores de los bots vivos, reutilizados cada cuadro
     this.hitList = []; // mallas golpeables, reutilizadas en cada consulta
+    // Enlazar ANTES de guardarlo en ctx: los bots lo llaman como función suelta.
+    this.onBotFire = this.onBotFire.bind(this);
     this.ctx = {
       playerPos: null,
       playerEye: null,
@@ -47,7 +49,6 @@ export class Phase {
       ballistics: this.game.ballistics,
       onBotFire: this.onBotFire,
     };
-    this.onBotFire = this.onBotFire.bind(this);
   }
 
   get info() {
