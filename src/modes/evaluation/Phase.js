@@ -221,7 +221,8 @@ export class Phase {
   }
 
   // Posición aleatoria en terreno abierto (o en el balcón) visible desde donde está el jugador.
-  randomOpenSpot({ minDist = 8, maxDist = 38, maxYaw = 70, highChance = 0.15, minSep = 0 } = {}) {
+  // `scale`: tamaño del bot que va a aparecer (la cabeza de un bot pequeño está más abajo).
+  randomOpenSpot({ minDist = 8, maxDist = 38, maxYaw = 70, highChance = 0.15, minSep = 0, scale = 1 } = {}) {
     const w = this.world;
     const eye = this.game.player.eye;
     const a = w.openArea;
@@ -235,8 +236,8 @@ export class Phase {
       const dist = Math.hypot(dx, dz);
       if (dist < minDist || dist > maxDist) continue;
       if (Math.abs(Math.atan2(-dx, -dz) / DEG) > maxYaw) continue;
-      if (!w.isFree(pos.x, pos.z, 0.5, pos.y)) continue;
-      _head.set(pos.x, pos.y + BOT_DIMENSIONS.headCenter, pos.z);
+      if (!w.isFree(pos.x, pos.z, 0.5 * scale, pos.y, 1.8 * scale)) continue;
+      _head.set(pos.x, pos.y + BOT_DIMENSIONS.headCenter * scale, pos.z);
       if (minSep && this.angleFromAim(_head) < minSep) continue;
       if (!this.game.ballistics.lineOfSight(eye, _head)) continue;
       return pos;
@@ -245,7 +246,7 @@ export class Phase {
   }
 
   // Escondite libre cuyo punto de asomo es visible y cuyo escondite no lo es (desde la posición actual).
-  pickCoverSpot(areas) {
+  pickCoverSpot(areas, scale = 1) {
     const eye = this.game.player.eye;
     const los = this.game.ballistics;
     const candidates = this.world.coverSpots
@@ -253,10 +254,10 @@ export class Phase {
       .sort(() => Math.random() - 0.5);
     let fallback = null;
     for (const s of candidates) {
-      _head.copy(s.exposed).setY(s.exposed.y + BOT_DIMENSIONS.headCenter);
+      _head.copy(s.exposed).setY(s.exposed.y + BOT_DIMENSIONS.headCenter * scale);
       if (!los.lineOfSight(eye, _head)) continue;
       fallback ??= s;
-      const hiddenY = s.hidden.y + BOT_DIMENSIONS.headCenter - (s.kind === 'rise' ? BOT_DIMENSIONS.crouchDrop : 0);
+      const hiddenY = s.hidden.y + (BOT_DIMENSIONS.headCenter - (s.kind === 'rise' ? BOT_DIMENSIONS.crouchDrop : 0)) * scale;
       _head.copy(s.hidden).setY(hiddenY);
       if (los.lineOfSight(eye, _head)) continue;
       return s;
