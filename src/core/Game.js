@@ -65,6 +65,12 @@ export class Game {
     );
     // El audio solo puede iniciar tras un gesto del usuario.
     window.addEventListener('pointerdown', () => this.sfx.unlock());
+    // Pérdida del contexto WebGL: soltar el mouse (pausa si hay partida) y avisar.
+    this.engine.onContextLost = () => {
+      this.input.unlock();
+      this.ui.toast('La tarjeta gráfica se reinició. Restaurando gráficos…', 6000);
+    };
+    this.engine.onContextRestored = () => this.ui.toast('Gráficos restaurados.');
   }
 
   get settings() {
