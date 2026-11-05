@@ -1,0 +1,81 @@
+/* Estilos propios de la campaña (se cargan con el modo; no tocan style.css). */
+
+/* ---------- HUD ---------- */
+
+.cg-panel {
+  position: absolute; top: 44px; left: 22px;
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 14px; border-radius: 10px;
+  background: rgba(8, 12, 17, 0.6); border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cg-remaining { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.cg-remaining small { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.cg-remaining strong { font-family: var(--mono); font-size: 28px; font-weight: 800; color: var(--accent); }
+.cg-goals { display: flex; flex-direction: column; gap: 1px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.cg-goals i { font-style: normal; color: #f2c14e; letter-spacing: -1px; }
+
+/* ---------- Estrellas ---------- */
+
+.cp-stars { display: inline-flex; gap: 2px; font-size: 18px; line-height: 1; }
+.cp-stars i { font-style: normal; color: #3a4357; }
+.cp-stars i.on { color: #f2c14e; text-shadow: 0 0 8px rgba(242, 193, 78, 0.45); }
+.cp-stars.big { font-size: 44px; gap: 8px; }
+
+/* ---------- Mapas ---------- */
+
+.cp-maps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.cp-map { position: relative; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.cp-map-band { position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--map); }
+.cp-map-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cp-map-head h3 { font-size: 22px; text-transform: uppercase; color: var(--map); }
+.cp-map-ranks { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.cp-map p { margin: 0; }
+.cp-map-foot, .cp-level-foot { margin-top: auto; padding-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cp-progress { font-family: var(--mono); font-size: 14px; }
+.cp-progress i { font-style: normal; color: #f2c14e; }
+.cp-lock { font-size: 12px; color: var(--muted); text-align: right; }
+.cp-map.locked, .cp-level.locked { opacity: 0.6; }
+
+/* ---------- Niveles ---------- */
+
+.cp-levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.cp-level { position: relative; display: flex; flex-direction: column; gap: 6px; border-top: 3px solid var(--map); }
+.cp-level h3 { padding-right: 34px; }
+.cp-level p { margin: 0; }
+.cp-level-num {
+  position: absolute; top: 16px; right: 16px; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-weight: 700; color: var(--map); border: 1px solid var(--map);
+}
+.cp-kind { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.cp-facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 6px 0 0; font-size: 13px; }
+.cp-facts dt { color: var(--muted); }
+.cp-facts dd { margin: 0; font-family: var(--mono); }
+
+.cp-suggest {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 18px; border-radius: var(--radius);
+  background: #2a1d10; border: 1px solid #a8742c; color: #ffd9a0;
+}
+.cp-suggest p { margin: 4px 0 0; font-size: 14px; }
+
+/* ---------- Resultados ---------- */
+
+.cp-hero { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; border-color: var(--map); }
+.cp-hero.fail { border-color: var(--danger); }
+.cp-hero p { margin: 0; }
+.cp-rating strong { font-family: var(--mono); font-size: 48px; font-weight: 800; line-height: 1; }
+.cp-rating span { color: var(--muted); }
+.cp-notices { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.cp-notices li {
+  padding: 4px 12px; border-radius: 99px; font-size: 13px; font-weight: 700;
+  color: var(--accent-ink); background: var(--accent);
+}
+
+@media (max-width: 1100px) {
+  .cp-levels { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 860px) {
+  .cp-maps, .cp-levels { grid-template-columns: 1fr; }
+  .cp-suggest { flex-direction: column; align-items: flex-start; }
+}
