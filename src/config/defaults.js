@@ -13,6 +13,11 @@ export const DEFAULT_SETTINGS = {
     gap: 3,
     outline: true,
     opacity: 1,
+    dot: false, // punto central además de la forma
+    dotSize: 2,
+    outlineThickness: 1,
+    outlineColor: '#000000',
+    dynamic: false, // se abre con la dispersión real del arma (moverse, saltar, ráfaga)
   },
   enemyColor: '#ff3b4f',
   gameplay: {

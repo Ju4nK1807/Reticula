@@ -49,6 +49,16 @@ export class HUD {
 
   setCrosshair(config) {
     this.refs.crosshair.innerHTML = crosshairSVG(config);
+    this.spread = null;
+    this.setSpread(0);
+  }
+
+  // Separación extra de la mira dinámica, en px (variable CSS que leen los brazos del SVG).
+  setSpread(px) {
+    const v = Math.round(px * 2) / 2;
+    if (v === this.spread) return;
+    this.spread = v;
+    this.refs.crosshair.style.setProperty('--xh-spread', `${v}px`);
   }
 
   setLabel(text) {

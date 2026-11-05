@@ -17,6 +17,7 @@ import { settingsScreen } from '../ui/settingsScreen.js';
 import { pauseScreen } from '../ui/pauseScreen.js';
 import { getMode } from '../modes/index.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
+import { spreadToPixels } from '../ui/Crosshair.js';
 
 const _v = new THREE.Vector3();
 const NO_BODIES = [];
@@ -141,6 +142,11 @@ export class Game {
     if (this.mode && !this.paused) {
       this.weapon.update(dt);
       this.mode.update(dt);
+    }
+    // Mira dinámica: se abre exactamente lo que se desvían las balas (movimiento, salto, ráfaga).
+    if (this.settings.crosshair.dynamic) {
+      const spread = this.weapon.enabled ? this.weapon.currentSpread() : 0;
+      this.hud.setSpread(spreadToPixels(spread, this.engine.camera.fov, window.innerHeight));
     }
     this.effects.update(dt);
     this.viewmodel.update(dt, this.player);

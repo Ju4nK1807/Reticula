@@ -163,7 +163,7 @@ p { line-height: 1.5; }
 .f-label { font-size: 14px; }
 .f-hint { grid-column: 2; font-size: 12px; color: var(--muted); }
 
-input[type='number'], select {
+input[type='number'], input[type='text'], select {
   font: inherit;
   color: var(--text);
   background: #0e141c;
@@ -172,7 +172,7 @@ input[type='number'], select {
   padding: 7px 10px;
   width: 100%;
 }
-input[type='number']:focus, select:focus { outline: none; border-color: var(--accent); }
+input[type='number']:focus, input[type='text']:focus, select:focus { outline: none; border-color: var(--accent); }
 input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--accent); justify-self: start; }
 input[type='color'] { width: 56px; height: 32px; border: 1px solid var(--line-2); border-radius: 6px; background: none; padding: 2px; cursor: pointer; }
 .slider { display: flex; align-items: center; gap: 10px; }
@@ -194,12 +194,17 @@ input[type='color'] { width: 56px; height: 32px; border: 1px solid var(--line-2)
   height: 120px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background:
-    linear-gradient(135deg, #3d4a5c 0 50%, #a8b3c2 50% 100%);
+  overflow: hidden;
   display: grid;
-  place-items: center;
+  grid-template-columns: 1fr 1fr;
   margin-bottom: 8px;
 }
+/* Vista previa sobre fondo oscuro y claro: la mira tiene que leerse en ambos. */
+.xh-preview > div { display: grid; place-items: center; }
+.xh-dark { background: #2b3442; }
+.xh-light { background: #b9c3cf; }
+.xh-code-row { display: flex; gap: 6px; width: 100%; }
+.xh-code { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; user-select: text; }
 
 /* ---------- Evaluación ---------- */
 

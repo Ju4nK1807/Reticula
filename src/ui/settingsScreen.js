@@ -1,6 +1,6 @@
 import { h } from './dom.js';
 import { button } from './components.js';
-import { crosshairSVG } from './Crosshair.js';
+import { CROSSHAIR_PRESETS, crosshairCode, crosshairSVG, normalizeCrosshair, parseCrosshairCode } from './Crosshair.js';
 import { ENEMY_COLORS } from '../config/defaults.js';
 import { FOV_PRESETS, GAMES, cmPer360, convertSens, formatSens, roundTo, valueForCm } from '../config/sensitivity.js';
 import { QUALITY_OPTIONS, QUALITY_PRESETS, RENDER_SCALE } from '../config/quality.js';
@@ -168,17 +168,86 @@ export function sensitivityPanel(game, { compact = false } = {}) {
   );
 }
 
+// Panel de la mira: presets, forma, colores, tamaños, punto, contorno, mira dinámica y código.
+// Al aplicar un preset o un código se reconstruye el panel (todos los controles cambian a la vez).
+function crosshairPanel(game, commit) {
+  const xh = game.settings.crosshair;
+  const section = h('section', { class: 'panel' });
+  const preview = h('div', { class: 'xh-preview' }, h('div', { class: 'xh-dark' }), h('div', { class: 'xh-light' }));
+  const codeInput = h('input', { type: 'text', class: 'xh-code', spellcheck: false, 'aria-label': 'Código de la mira' });
+
+  const refresh = () => {
+    const svg = crosshairSVG(xh);
+    preview.children[0].innerHTML = svg;
+    preview.children[1].innerHTML = svg;
+    codeInput.value = crosshairCode(xh);
+  };
+  const change = () => {
+    commit();
+    refresh();
+  };
+  const apply = (config) => {
+    Object.assign(xh, normalizeCrosshair(config));
+    commit();
+    section.replaceWith(crosshairPanel(game, commit));
+  };
+
+  const presets = h(
+    'div',
+    { class: 'chips' },
+    CROSSHAIR_PRESETS.map((p) => h('button', { class: 'chip', type: 'button', onclick: () => apply(p.config) }, p.label)),
+  );
+
+  const copyBtn = button('Copiar', async () => {
+    try {
+      await navigator.clipboard.writeText(codeInput.value);
+      game.ui.toast('Código de la mira copiado.');
+    } catch {
+      codeInput.select();
+      game.ui.toast('Selecciona el código y cópialo con Ctrl+C.');
+    }
+  });
+  const applyBtn = button('Aplicar', () => {
+    const config = parseCrosshairCode(codeInput.value);
+    if (!config) {
+      game.ui.toast('Ese código no es válido. Debe empezar por RTC1;');
+      return;
+    }
+    apply(config);
+    game.ui.toast('Mira aplicada.');
+  });
+
+  section.append(
+    h('h3', {}, 'Mira'),
+    preview,
+    field('Presets', presets),
+    field('Forma', select(SHAPES, xh.shape, (v) => {
+      xh.shape = v;
+      change();
+    })),
+    field('Color', h('input', { type: 'color', value: xh.color, oninput: (e) => { xh.color = e.target.value; change(); } })),
+    field('Largo', slider(xh, 'size', { min: 0, max: 20 }, change)),
+    field('Grosor', slider(xh, 'thickness', { min: 1, max: 6 }, change)),
+    field('Separación', slider(xh, 'gap', { min: 0, max: 14 }, change)),
+    field('Opacidad', slider(xh, 'opacity', { min: 0.2, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)}%` }, change)),
+    field('Punto central', checkbox(xh, 'dot', change), 'Se suma a cualquier forma.'),
+    field('Tamaño del punto', slider(xh, 'dotSize', { min: 1, max: 6 }, change)),
+    field('Contorno', checkbox(xh, 'outline', change)),
+    field('Grosor del contorno', slider(xh, 'outlineThickness', { min: 1, max: 3 }, change)),
+    field('Color del contorno', h('input', { type: 'color', value: xh.outlineColor, oninput: (e) => { xh.outlineColor = e.target.value; change(); } })),
+    field('Mira dinámica', checkbox(xh, 'dynamic', change), 'Se abre exactamente lo que se desvían tus balas al moverte, saltar o disparar en ráfaga.'),
+    field('Código para compartir', h('div', { class: 'xh-code-row' }, codeInput, copyBtn, applyBtn), 'Copia tu mira o pega la de otra persona.'),
+  );
+  refresh();
+  return section;
+}
+
 export function settingsScreen(game, onBack) {
   const s = game.settings;
   const commit = () => {
     game.store.persist();
     game.applySettings();
-    preview.innerHTML = crosshairSVG(xh);
   };
-
-  const xh = s.crosshair;
-  const preview = h('div', { class: 'xh-preview' });
-  preview.innerHTML = crosshairSVG(xh);
 
   const fovSlider = slider(s, 'fov', { min: 70, max: 130, fmt: (v) => `${v}°` }, commit);
   const fovPresets = h(
@@ -256,21 +325,10 @@ export function settingsScreen(game, onBack) {
           game.sfx.hit();
         })),
       ),
+      crosshairPanel(game, commit),
       h(
         'section',
         { class: 'panel' },
-        h('h3', {}, 'Mira'),
-        preview,
-        field('Forma', select(SHAPES, xh.shape, (v) => {
-          xh.shape = v;
-          commit();
-        })),
-        field('Color', h('input', { type: 'color', value: xh.color, oninput: (e) => { xh.color = e.target.value; commit(); } })),
-        field('Largo', slider(xh, 'size', { min: 0, max: 20 }, commit)),
-        field('Grosor', slider(xh, 'thickness', { min: 1, max: 6 }, commit)),
-        field('Separación', slider(xh, 'gap', { min: 0, max: 14 }, commit)),
-        field('Opacidad', slider(xh, 'opacity', { min: 0.2, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)}%` }, commit)),
-        field('Contorno', checkbox(xh, 'outline', commit)),
         h('h3', {}, 'Juego'),
         field('Color de enemigos', select(ENEMY_COLORS, s.enemyColor, (v) => {
           s.enemyColor = v;
