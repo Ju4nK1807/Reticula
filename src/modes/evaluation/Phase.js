@@ -14,6 +14,8 @@ const _v = new THREE.Vector3();
 const _head = new THREE.Vector3();
 const _from = new THREE.Vector3();
 const _to = new THREE.Vector3();
+const _side = new THREE.Vector3();
+const _aim = new THREE.Vector3();
 
 // Base de las fases de evaluación: bots, conteo de disparos, puntos, vida del jugador y spawns.
 export class Phase {
@@ -179,13 +181,13 @@ export class Phase {
     bot.gunTip.getWorldPosition(_from);
     const eye = g.player.eye;
     _v.subVectors(eye, _from).normalize();
-    const side = new THREE.Vector3(-_v.z, 0, _v.x);
+    _side.set(-_v.z, 0, _v.x);
     const miss = hit ? 0.35 : rand(0.9, 1.6);
     _to
       .copy(eye)
-      .addScaledVector(side, (Math.random() < 0.5 ? -1 : 1) * miss)
-      .add(new THREE.Vector3(0, rand(-0.3, 0.3), 0))
+      .addScaledVector(_side, (Math.random() < 0.5 ? -1 : 1) * miss)
       .addScaledVector(_v, 6);
+    _to.y += rand(-0.3, 0.3);
     g.effects.tracer(_from, _to, 'enemy');
     g.sfx.botShot(g.panFor(_from));
     if (hit && this.info.health) this.takeDamage(damage, _from);
@@ -216,8 +218,8 @@ export class Phase {
   angleFromAim(point) {
     const cam = this.game.engine.camera;
     _v.set(0, 0, -1).applyQuaternion(cam.quaternion);
-    const to = point.clone().sub(cam.position).normalize();
-    return Math.acos(Math.min(1, _v.dot(to))) / DEG;
+    _aim.subVectors(point, cam.position).normalize();
+    return Math.acos(Math.min(1, _v.dot(_aim))) / DEG;
   }
 
   // Posición aleatoria en terreno abierto (o en el balcón) visible desde donde está el jugador.
