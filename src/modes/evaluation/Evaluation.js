@@ -85,6 +85,10 @@ export class Evaluation {
     return this.state === 'running' ? this.phase.hitMeshes() : [];
   }
 
+  bodyColliders() {
+    return this.state === 'running' ? this.phase.bodyColliders() : [];
+  }
+
   onLock() {
     if (this.state !== 'intro') return;
     this.game.ui.hide();

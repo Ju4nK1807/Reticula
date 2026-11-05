@@ -14,6 +14,8 @@ const SPEED_CROUCH = 1.9;
 const JUMP_VELOCITY = 5.0;
 const GRAVITY = 16;
 
+const NO_BODIES = [];
+
 const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _wish = new THREE.Vector3();
@@ -34,6 +36,8 @@ export class PlayerController {
     this.radPerCount = degPerCount('reticula', 1.25) * DEG;
     this.invertY = false;
     this.world = null;
+    // Cuerpos móviles que bloquean al jugador (bots vivos): [{ x, z, r, y0, h }]. Los aporta el modo.
+    this.bodies = NO_BODIES;
     this.mouseDelta = { dx: 0, dy: 0 };
   }
 
@@ -131,6 +135,8 @@ export class PlayerController {
     }
 
     const height = HEIGHT_STAND + (HEIGHT_CROUCH - HEIGHT_STAND) * this.crouch;
+    // Primero los bots y después el mapa: si un bot empuja al jugador contra un muro, gana el muro.
+    this.collideBodies(this.bodies, height);
     this.collide(this.world.colliders, height);
     this.collide(this.world.playerBlockers, height);
     const z = this.world.playerZone;
@@ -164,6 +170,26 @@ export class PlayerController {
         exits.sort((a, c) => Math.abs(a[0] + a[1]) - Math.abs(c[0] + c[1]));
         p.x += exits[0][0];
         p.z += exits[0][1];
+      }
+    }
+  }
+
+  // Empuja al jugador fuera de cada cuerpo cilíndrico (bots) que se solape en altura.
+  collideBodies(bodies, height) {
+    const p = this.position;
+    for (const b of bodies) {
+      if (b.y0 >= p.y + height || b.y0 + b.h <= p.y + 0.01) continue;
+      const dx = p.x - b.x;
+      const dz = p.z - b.z;
+      const min = RADIUS + b.r;
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= min * min) continue;
+      const d = Math.sqrt(d2);
+      if (d > 1e-6) {
+        p.x += (dx / d) * (min - d);
+        p.z += (dz / d) * (min - d);
+      } else {
+        p.z += min; // exactamente en el centro: salir hacia atrás
       }
     }
   }

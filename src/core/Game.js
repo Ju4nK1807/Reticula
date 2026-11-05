@@ -19,6 +19,7 @@ import { Evaluation } from '../modes/evaluation/Evaluation.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
 
 const _v = new THREE.Vector3();
+const NO_BODIES = [];
 
 // Mapas disponibles; se construyen la primera vez que se usan y se reutilizan.
 const WORLDS = {
@@ -28,7 +29,7 @@ const WORLDS = {
 
 // Orquestador: conecta motor, entrada, jugador, arma, audio, guardado, UI y el modo activo.
 // Un modo implementa: start, update(dt), onShoot(time), onLock, onPause, wantsLock, weaponEnabled,
-// hitMeshes, restartStage, dispose.
+// hitMeshes, restartStage, dispose. Opcional: bodyColliders() → cuerpos que bloquean al jugador.
 export class Game {
   constructor(root) {
     this.store = new SaveStore();
@@ -133,6 +134,7 @@ export class Game {
     this.time += dt;
     const playing = this.playing;
 
+    this.player.bodies = this.mode?.bodyColliders?.() ?? NO_BODIES;
     this.player.update(dt, playing);
     if (!this.mode) {
       // Paneo lento de fondo en el menú.

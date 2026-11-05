@@ -35,6 +35,7 @@ export class Phase {
     this.died = false;
     this.stats = { shots: 0, hits: 0, head: 0, body: 0, legs: 0, kills: 0, escaped: 0, damageTaken: 0 };
     this.shotTime = 0; // instante (ms, reloj real) del último disparo; lo usan las fases de reacción
+    this.bodies = []; // colisionadores de los bots vivos, reutilizados cada cuadro
     this.onBotFire = this.onBotFire.bind(this);
   }
 
@@ -74,6 +75,18 @@ export class Phase {
       return false;
     });
     if (this.elapsed >= this.duration) this.finished = true;
+  }
+
+  // Cuerpos que bloquean al jugador: bots vivos (las dianas flotan y no bloquean).
+  bodyColliders() {
+    let n = 0;
+    for (const bot of this.bots) {
+      if (!bot.alive || !bot.bodyCollider) continue;
+      this.bodies[n] ??= {};
+      bot.bodyCollider(this.bodies[n++]);
+    }
+    this.bodies.length = n;
+    return this.bodies;
   }
 
   hitMeshes() {
