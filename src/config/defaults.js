@@ -32,16 +32,18 @@ export const ENEMY_COLORS = {
   '#36d6ff': 'Cian',
 };
 
+// Al cambiar la forma del guardado: subir `version` y añadir el paso en storage/SaveStore.js (MIGRATIONS).
 export const DEFAULT_SAVE = {
-  version: 2,
+  version: 3,
   settings: DEFAULT_SETTINGS,
   profile: {
-    rank: null, // rango de la última evaluación (cualquier variante) o null si nunca se evaluó
-    score: null,
-    bestScore: null,
+    // Rango general = el mejor rango actual entre las variantes (ver storage/profile.js).
+    rank: null,
+    score: null, // puntuación de la variante que da el rango general
+    bestScore: null, // mejor puntuación histórica en cualquier variante
     variants: {}, // por variante ('targets' | 'bots'): { rank, score, best, date }
     evaluations: [], // historial: { date, variant, total, rank, subscores, tiles, results }
   },
   campaign: { unlocked: {}, best: {} }, // Fase 2
-  records: {}, // Fases 3 y 4
+  records: {}, // por modo: records[modeId] = { ... } (lo define cada modo; ver SaveStore.modeRecord)
 };

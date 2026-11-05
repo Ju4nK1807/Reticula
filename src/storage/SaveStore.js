@@ -1,39 +1,103 @@
 import { DEFAULT_SAVE } from '../config/defaults.js';
+import { refreshProfile } from './profile.js';
 
 const KEY = 'reticula.save.v1';
+const BACKUP_KEY = 'reticula.save.corrupt'; // copia de un guardado ilegible, para no perderlo
+export const SAVE_VERSION = DEFAULT_SAVE.version;
 
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
+// ¿`v` puede reemplazar a `base`? Evita que un guardado corrupto (p. ej. crosshair: null o
+// sens.value: "abc") rompa el juego: si el valor por defecto tiene tipo, el guardado debe respetarlo.
+function compatible(base, v) {
+  if (base === null || base === undefined) return true;
+  if (Array.isArray(base)) return Array.isArray(v);
+  if (isPlainObject(base)) return isPlainObject(v);
+  if (typeof base === 'number') return typeof v === 'number' && Number.isFinite(v);
+  return typeof v === typeof base;
+}
+
 // Mezcla `over` sobre `base` para que claves nuevas en DEFAULT_SAVE aparezcan en partidas viejas.
-function deepMerge(base, over) {
+export function deepMerge(base, over) {
   for (const [k, v] of Object.entries(over ?? {})) {
     if (isPlainObject(base[k]) && isPlainObject(v)) deepMerge(base[k], v);
-    else base[k] = v;
+    else if (compatible(base[k], v)) base[k] = v;
   }
   return base;
 }
 
+// Pasos de migración: MIGRATIONS[n] convierte un guardado de la versión n a la n + 1.
+// Se aplican sobre el guardado ya mezclado con los valores por defecto.
+export const MIGRATIONS = {
+  // v1 → v2: aparecieron las variantes de evaluación; no hay datos que transformar.
+  1: () => {},
+  // v2 → v3: el rango general deja de ser "el de la última evaluación" y pasa a ser el mejor
+  // rango actual entre variantes; se descartan entradas del historial sin variante.
+  2: (data) => {
+    data.profile.evaluations = data.profile.evaluations.filter((e) => isPlainObject(e) && e.variant);
+    refreshProfile(data.profile);
+  },
+};
+
+// Lleva un guardado (ya mezclado) a la versión actual. Devuelve true si cambió algo.
+export function migrate(data, fromVersion) {
+  let v = Number.isInteger(fromVersion) && fromVersion > 0 ? fromVersion : 1;
+  if (v >= SAVE_VERSION) {
+    data.version = Math.max(v, SAVE_VERSION);
+    return false;
+  }
+  for (; v < SAVE_VERSION; v++) MIGRATIONS[v]?.(data);
+  data.version = SAVE_VERSION;
+  return true;
+}
+
 export class SaveStore {
-  constructor() {
+  constructor(storage = globalThis.localStorage) {
+    this.storage = storage;
     this.data = this.load();
   }
 
   load() {
     const fresh = structuredClone(DEFAULT_SAVE);
+    let raw = null;
     try {
-      const raw = localStorage.getItem(KEY);
-      return raw ? deepMerge(fresh, JSON.parse(raw)) : fresh;
+      raw = this.storage?.getItem(KEY);
     } catch {
-      return fresh;
+      return fresh; // almacenamiento bloqueado (modo privado estricto)
+    }
+    if (!raw) return fresh;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!isPlainObject(parsed)) throw new Error('guardado inválido');
+      const data = deepMerge(fresh, parsed);
+      if (migrate(data, parsed.version)) {
+        this.data = data;
+        this.persist();
+      }
+      return data;
+    } catch {
+      // Guardado ilegible: se guarda una copia antes de que el siguiente persist() lo reemplace.
+      try {
+        this.storage.setItem(BACKUP_KEY, raw);
+      } catch {
+        // sin espacio: no se puede hacer más
+      }
+      return structuredClone(DEFAULT_SAVE);
     }
   }
 
   persist() {
     try {
-      localStorage.setItem(KEY, JSON.stringify(this.data));
+      this.storage?.setItem(KEY, JSON.stringify(this.data));
     } catch {
       // Sin almacenamiento disponible (modo privado, cuota llena): el juego sigue funcionando.
     }
+  }
+
+  // Datos propios de un modo (récords, progreso). Cada modo define su forma; llamar a persist() al cambiarlos.
+  modeRecord(modeId) {
+    this.data.records[modeId] ??= {};
+    return this.data.records[modeId];
   }
 
   // Borra rango, progreso y récords, conservando la configuración.
