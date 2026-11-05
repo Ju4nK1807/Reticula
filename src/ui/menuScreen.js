@@ -3,6 +3,7 @@ import { LOGO_SVG, rankBadge } from './components.js';
 import { getRank } from '../config/ranks.js';
 import { sensSummary } from '../config/sensitivity.js';
 import { shortDate } from '../utils/format.js';
+import { PLANNED_MODES, getMode, listModes } from '../modes/registry.js';
 
 function menuItem(title, sub, { onClick, disabled = false, primary = false, tag = null }) {
   return h(
@@ -72,12 +73,24 @@ function variantRow(label, data) {
   );
 }
 
-export function menuScreen(game, { onEvaluation, onSettings }) {
+// Botones de modos: los registrados (modes/registry.js) y, desactivados, los planeados que aún no existen.
+function modeItems(game, rank, onMode) {
+  const registered = listModes().map((m) => {
+    const locked = m.locked?.(game) ?? null;
+    return { order: m.order, item: menuItem(m.title, m.desc, { onClick: () => onMode(m.id), primary: m.primary, disabled: !!locked, tag: locked }) };
+  });
+  const planned = PLANNED_MODES.filter((p) => !getMode(p.id)).map((p) => ({
+    order: p.order,
+    item: menuItem(p.title, p.desc, { disabled: true, tag: p.needsRank && !rank ? 'Requiere evaluación' : 'Próximamente' }),
+  }));
+  return [...registered, ...planned].sort((a, b) => a.order - b.order).map((x) => x.item);
+}
+
+export function menuScreen(game, { onMode, onSettings }) {
   const { profile, settings } = game.store.data;
   const rank = getRank(profile.rank);
   const last = profile.evaluations.at(-1);
   const v = profile.variants ?? {};
-  const lockedTag = rank ? 'Próximamente' : 'Requiere evaluación';
 
   const profileCard = h(
     'aside',
@@ -111,17 +124,7 @@ export function menuScreen(game, { onEvaluation, onSettings }) {
       h(
         'nav',
         { class: 'menu-list' },
-        menuItem('Evaluación · Dianas', 'Clásica: flicking, tracking, reacción, multi-objetivo y precisión', {
-          onClick: () => onEvaluation('targets'),
-          primary: true,
-        }),
-        menuItem('Evaluación · Enemigos', 'Bots reales: flicks, tracking, peeks, headshots y combate en movimiento', {
-          onClick: () => onEvaluation('bots'),
-          primary: true,
-        }),
-        menuItem('Campaña', 'Mapas y bots según tu rango', { disabled: true, tag: lockedTag }),
-        menuItem('Coordinación ojo-mano', 'Secuencias, colores, periferia, doble tarea', { disabled: true, tag: 'Próximamente' }),
-        menuItem('Modo infinito', 'Oleadas sin fin hasta caer', { disabled: true, tag: lockedTag }),
+        modeItems(game, rank, onMode),
         menuItem('Configuración', 'Sensibilidad de cualquier juego, FOV, mira, controles', { onClick: onSettings }),
       ),
       profileCard,
