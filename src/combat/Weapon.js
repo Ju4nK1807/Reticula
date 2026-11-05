@@ -19,7 +19,8 @@ const _end = new THREE.Vector3();
 const _muzzle = new THREE.Vector3();
 
 // Disparo hitscan desde el centro de la cámara, con desviación por movimiento y por ráfaga,
-// cargador limitado y recarga. El modo activo recibe cada disparo en `onShot(hit)`.
+// cargador limitado y recarga. El modo activo recibe cada disparo en `onShot(hit, spread, time)`,
+// donde `time` es el instante del clic (ms, misma base que performance.now()).
 export class Weapon {
   constructor(game) {
     this.game = game;
@@ -62,8 +63,9 @@ export class Weapon {
     this.game.viewmodel.startReload(this.stats.reloadTime);
   }
 
-  trigger() {
-    if (this.enabled && !this.auto) this.tryFire();
+  // Disparo semiautomático; `time` = timeStamp del clic.
+  trigger(time = performance.now()) {
+    if (this.enabled && !this.auto) this.tryFire(time);
   }
 
   update(dt) {
@@ -77,10 +79,10 @@ export class Weapon {
         this.game.sfx.reloadEnd();
       }
     }
-    if (this.enabled && this.auto && this.game.input.mouseDown) this.tryFire();
+    if (this.enabled && this.auto && this.game.input.mouseDown) this.tryFire(performance.now());
   }
 
-  tryFire() {
+  tryFire(time) {
     if (this.cooldown > 0 || this.reloading) return;
     if (this.ammo <= 0) {
       // Cargador vacío: "clic" en seco y, si está activada, recarga automática.
@@ -92,7 +94,7 @@ export class Weapon {
     }
     this.cooldown = 1 / this.stats.rps;
     this.ammo--;
-    this.fire();
+    this.fire(time);
   }
 
   currentSpread() {
@@ -100,7 +102,7 @@ export class Weapon {
     return this.bloom + (g.settings.gameplay.moveInaccuracy ? g.player.inaccuracy : 0);
   }
 
-  fire() {
+  fire(time = performance.now()) {
     const g = this.game;
     const cam = g.engine.camera;
     const spread = this.currentSpread();
@@ -129,6 +131,6 @@ export class Weapon {
       g.effects.burst(hit.point, hit.normal, '#c9c2b4', 6, 2.5);
     }
 
-    this.onShot?.(hit, spread);
+    this.onShot?.(hit, spread, time);
   }
 }

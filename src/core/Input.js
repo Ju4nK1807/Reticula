@@ -1,6 +1,6 @@
 import { Emitter } from './Emitter.js';
 
-// Pointer Lock, mouse y teclado. Eventos: 'lock', 'unlock', 'lockerror', 'shoot', 'key'.
+// Pointer Lock, mouse y teclado. Eventos: 'lock', 'unlock', 'lockerror', 'shoot' (timeStamp), 'key'.
 export class Input extends Emitter {
   constructor(lockTarget) {
     super();
@@ -30,7 +30,9 @@ export class Input extends Emitter {
     document.addEventListener('mousedown', (e) => {
       if (!this.locked || e.button !== 0) return;
       this.mouseDown = true;
-      this.emit('shoot');
+      // timeStamp comparte origen con performance.now(): sirve para medir reacción sin
+      // depender de los FPS.
+      this.emit('shoot', e.timeStamp);
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouseDown = false;

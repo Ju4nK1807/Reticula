@@ -34,6 +34,7 @@ export class Phase {
     this.health = 100;
     this.died = false;
     this.stats = { shots: 0, hits: 0, head: 0, body: 0, legs: 0, kills: 0, escaped: 0, damageTaken: 0 };
+    this.shotTime = 0; // instante (ms, reloj real) del último disparo; lo usan las fases de reacción
     this.onBotFire = this.onBotFire.bind(this);
   }
 
@@ -118,9 +119,11 @@ export class Phase {
   }
 
   // Recibe cada disparo del jugador (hit = resultado de Ballistics.cast o null).
-  handleShot(hit) {
+  // `time`: instante del clic en ms (misma base que performance.now()).
+  handleShot(hit, time = performance.now()) {
     const s = this.stats;
     const { hud, sfx } = this.game;
+    this.shotTime = time;
     s.shots++;
     if (!hit?.bot || !hit.bot.alive) {
       this.score += this.points.miss;
