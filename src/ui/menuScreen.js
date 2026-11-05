@@ -14,23 +14,49 @@ function menuItem(title, sub, { onClick, disabled = false, primary = false, tag 
   );
 }
 
-// Mini gráfica de las últimas evaluaciones (0-100).
+const HISTORY_POINTS = 12;
+const HISTORY_SERIES = [
+  { id: 'targets', label: 'Dianas', color: 'var(--accent)' },
+  { id: 'bots', label: 'Enemigos', color: 'var(--accent-2)' },
+];
+
+// Mini gráfica de las últimas evaluaciones (0-100), una línea por variante: mezclarlas hacía
+// que la curva subiera y bajara solo por alternar entre dianas y enemigos.
 function historyChart(evaluations) {
-  const points = evaluations.slice(-12).map((e) => e.total);
-  if (points.length < 2) return null;
   const W = 220;
   const H = 54;
-  const step = W / (points.length - 1);
   const y = (v) => H - 4 - (v / 100) * (H - 8);
-  const path = points.map((v, i) => `${i ? 'L' : 'M'}${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const series = HISTORY_SERIES.map((s) => ({
+    ...s,
+    points: evaluations.filter((e) => e.variant === s.id).slice(-HISTORY_POINTS).map((e) => e.total),
+  })).filter((s) => s.points.length);
+  if (!series.some((s) => s.points.length >= 2)) return null;
+
+  const marks = series
+    .map((s) => {
+      const step = s.points.length > 1 ? W / (s.points.length - 1) : 0;
+      const xy = s.points.map((v, i) => [(s.points.length > 1 ? i * step : W).toFixed(1), y(v).toFixed(1)]);
+      const path = xy.map(([px, py], i) => `${i ? 'L' : 'M'}${px},${py}`).join(' ');
+      const [lx, ly] = xy.at(-1);
+      return `<path d="${path}" fill="none" style="stroke:${s.color}" stroke-width="2" vector-effect="non-scaling-stroke"/>` +
+        `<circle cx="${lx}" cy="${ly}" r="2.5" style="fill:${s.color}"/>`;
+    })
+    .join('');
+
   return h(
     'div',
     { class: 'history' },
-    h('div', { class: 'history-title' }, `Últimas ${points.length} evaluaciones`),
+    h('div', { class: 'history-title' }, 'Progreso por evaluación'),
     h('div', {
-      html: `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" aria-label="Historial de puntuación">
-        <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`,
+      html: `<svg viewBox="-3 0 ${W + 6} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="Historial de puntuación por evaluación">${marks}</svg>`,
     }),
+    h(
+      'div',
+      { class: 'history-legend' },
+      series.map((s) =>
+        h('span', {}, h('i', { style: { background: s.color } }), `${s.label} · ${s.points.at(-1)}`, h('small', {}, ` (${s.points.length})`)),
+      ),
+    ),
   );
 }
 
