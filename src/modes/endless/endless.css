@@ -1,0 +1,77 @@
+/* Estilos propios del modo infinito (se cargan con el modo; no tocan style.css). */
+
+/* ---------- HUD ---------- */
+
+.eh-root { position: absolute; inset: 0; pointer-events: none; }
+
+.eh-panel {
+  position: absolute; top: 44px; left: 22px;
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 14px; border-radius: 10px;
+  background: rgba(8, 12, 17, 0.6); border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.eh-wave { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.eh-wave small { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.eh-wave strong { font-family: var(--mono); font-size: 30px; font-weight: 800; color: var(--accent); }
+.eh-meta { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.eh-streak { font-family: var(--mono); font-weight: 700; color: #ffb020; }
+.eh-streak:empty { display: none; }
+
+.eh-banner {
+  position: absolute; left: 50%; top: 26%; transform: translateX(-50%);
+  min-width: min(440px, calc(100% - 32px)); padding: 14px 26px;
+  text-align: center; border-radius: 12px;
+  background: rgba(8, 12, 17, 0.72); border: 1px solid var(--line-2);
+  animation: eh-banner-in 0.25s ease-out;
+}
+.eh-banner.perfect { border-color: var(--accent); box-shadow: 0 0 24px rgba(0, 255, 163, 0.18); }
+.eh-b-title { font-size: 28px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.eh-b-sub { margin-top: 4px; font-size: 14px; color: var(--text); }
+.eh-b-count { font-family: var(--mono); font-size: 40px; font-weight: 800; line-height: 1.1; }
+.eh-b-count:empty { display: none; }
+@keyframes eh-banner-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translateX(-50%); } }
+
+.eh-arrows { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.eh-arrow {
+  position: absolute; left: -11px; top: -9px; width: 22px; height: 18px;
+  transform-origin: 11px 9px;
+  background: #ffb020;
+  clip-path: polygon(50% 0, 100% 100%, 50% 72%, 0 100%);
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+.eh-arrow.threat { background: var(--danger); }
+
+/* ---------- Pantallas ---------- */
+
+.eh-records { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 4px; }
+.eh-records div { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); }
+.eh-records small { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.eh-records strong { font-family: var(--mono); font-size: 20px; }
+
+.eh-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; border-color: var(--accent); }
+.eh-hero p { margin: 0; }
+.eh-hero-wave { display: flex; flex-direction: column; line-height: 1; }
+.eh-hero-wave small { font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.eh-hero-wave strong { font-size: 56px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.eh-new-record {
+  margin-top: 6px; padding: 4px 14px; border-radius: 99px;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent-ink); background: var(--accent);
+}
+.metric.eh-best { border-color: var(--accent); }
+.metric.eh-best .m-value { color: var(--accent); }
+
+.eh-table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 14px; }
+.eh-table th { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; text-align: left; padding: 6px 8px; }
+.eh-table td { padding: 6px 8px; border-top: 1px solid var(--line); font-family: var(--mono); }
+.eh-table .tag { font-family: var(--font); }
+
+.eh-runs { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.eh-runs li { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); font-size: 14px; }
+.eh-runs li.current { outline: 1px solid var(--accent); }
+.eh-runs strong { font-family: var(--mono); }
+
+@media (max-width: 860px) {
+  .eh-records { grid-template-columns: repeat(2, 1fr); }
+  .eh-hero-wave strong { font-size: 40px; }
+}
