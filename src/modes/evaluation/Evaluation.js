@@ -8,6 +8,7 @@ import {
   SpherePrecisionPhase,
 } from './targetPhases.js';
 import { scoreEvaluation } from './scoring.js';
+import { recordEvaluation } from '../../storage/profile.js';
 import { evalIntroScreen, evalResultsScreen } from '../../ui/evaluationScreens.js';
 
 // Dos evaluaciones independientes, cada una con su mapa y su rango.
@@ -31,7 +32,6 @@ export const VARIANTS = {
 };
 
 const BRIEF_TIME = 5; // segundos de instrucciones + cuenta regresiva antes de cada fase
-const MAX_HISTORY = 40;
 
 // Modo Evaluación: encadena las fases de una variante, calcula el rango y lo guarda.
 // Estados: intro → brief → running → (brief → running)… → done
@@ -165,20 +165,7 @@ export class Evaluation {
     this.phase = null;
 
     const summary = scoreEvaluation(this.variant.id, this.results);
-    const profile = g.store.data.profile;
-    const previous = profile.evaluations.filter((e) => e.variant === this.variant.id).at(-1) ?? null;
-    profile.evaluations.push({ date: new Date().toISOString(), ...summary, results: this.results });
-    if (profile.evaluations.length > MAX_HISTORY) profile.evaluations.shift();
-    const v = profile.variants[this.variant.id] ?? {};
-    profile.variants[this.variant.id] = {
-      rank: summary.rank,
-      score: summary.total,
-      best: Math.max(v.best ?? 0, summary.total),
-      date: new Date().toISOString(),
-    };
-    profile.rank = summary.rank;
-    profile.score = summary.total;
-    profile.bestScore = Math.max(profile.bestScore ?? 0, summary.total);
+    const previous = recordEvaluation(g.store.data.profile, this.variant.id, summary, this.results);
     g.store.persist();
 
     g.input.unlock();
