@@ -91,6 +91,9 @@ export class CoordTarget {
 
     parent.add(this.mesh);
     this.applyScale(spawnTime > 0 ? 0.01 : 1);
+    // Matriz al día desde el primer instante: si no, un disparo en el mismo cuadro en que aparece
+    // atravesaría el objetivo (el raycast usa matrixWorld, que si no se actualiza hasta el render).
+    this.mesh.updateMatrixWorld();
   }
 
   get position() {
