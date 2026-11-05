@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { resolveQuality } from '../config/quality.js';
 
 // Renderer, cámara y loop. La escena activa la aporta el mapa cargado.
 // `overlay` ({ scene, camera, resize }) se dibuja encima sin depth del mundo: el arma en primera persona.
@@ -6,6 +7,7 @@ export class Engine {
   constructor(canvas) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.video = null; // configuración de calidad (setQuality)
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.autoClear = false;
 
@@ -49,7 +51,14 @@ export class Engine {
     overlay?.resize(this.camera.aspect);
   }
 
+  // Calidad gráfica: ajusta la resolución interna de render (ver config/quality.js).
+  setQuality(video) {
+    this.video = video;
+    this.resize();
+  }
+
   resize() {
+    if (this.video) this.renderer.setPixelRatio(resolveQuality(this.video, window.devicePixelRatio).pixelRatio);
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.renderer.setSize(w, h, false);

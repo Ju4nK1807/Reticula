@@ -38,7 +38,8 @@ src/
   modes/campaign/         Campaña: mapas Bodega/Ciudad/Arena, 12 niveles, misiones, progreso y estrellas
   modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
   modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
-  ui/                     HUD, mira, pantallas (menú, ajustes, pausa, resultados, compatibilidad)
+  ui/                     HUD, mira, gráficas y pantallas (menú, progreso, ajustes, pausa, resultados, compatibilidad)
+  stats/                  history.js: series e historial unificado para la pantalla de Progreso
   utils/                  math, format
 tests/                    Pruebas de la lógica pura (guardado, rangos, sensibilidad, registros)
 ```
@@ -69,7 +70,7 @@ pasa el mismo `scale` a `randomOpenSpot` y `pickCoverSpot`.
 2. **Campaña** ✅: un mapa por rango, 4 niveles por mapa con estrellas, desbloqueos, sugerencia de bajar de mapa.
 3. **Coordinación ojo-mano** ✅: secuencias, colores, visión periférica, doble tarea.
 4. **Modo infinito** ✅: oleadas, vida del jugador, botiquines, récords.
-5. Pulido: historial de progreso, más opciones de mira, ajustes de rendimiento.
+5. **Pulido** ✅: progreso e historial con gráficas, copia de seguridad, mira avanzada, calidad gráfica, rendimiento y publicación.
 
 ## Evaluación
 
@@ -182,6 +183,43 @@ Se desbloquea al hacer cualquier evaluación. Oleadas sin fin en el **Bastión**
   racha (bajas sin recibir daño) y bonificación por oleada superada (×2.5 si fue perfecta).
 - **Controles extra**: `B` cambia entre disparo automático y semiautomático.
 - **Récords** en `records.endless`: mejor oleada, puntaje, bajas y racha, y las últimas 20 partidas.
+
+## Progreso
+
+La pantalla **Progreso** del menú reúne todo lo jugado:
+
+- **Evaluaciones**: puntuación total de dianas y enemigos a lo largo del tiempo y una gráfica por fase.
+- **Modos**: estrellas por mapa de campaña, oleada alcanzada en el modo infinito, índice del circuito y
+  puntuación de cada ejercicio de coordinación.
+- **Historial**: todas las sesiones de los cuatro modos, filtrables por modo.
+- **Datos**: exportar todo (progreso y configuración) a un archivo `.json` e importarlo en otro navegador
+  o computador. El progreso vive solo en el navegador (`localStorage`), así que conviene guardar una copia.
+
+Las gráficas (`src/ui/charts.js`) son SVG sin librerías: paleta validada para daltonismo sobre la
+superficie del juego, un solo eje, línea vertical y tooltip al pasar el puntero (también con teclado) y
+una tabla de datos por gráfica.
+
+## Mira y video
+
+- **Mira**: cruz, cruz + punto, punto, círculo o T; color, largo, grosor, separación, opacidad, punto
+  central independiente, contorno (grosor y color) y **mira dinámica**, que se abre exactamente lo que se
+  desvían las balas al moverse, saltar o disparar en ráfaga. Incluye 7 presets y **códigos para
+  compartir** (`RTC1;s=cross;c=00ffa3;…`).
+- **Calidad gráfica**: Alta, Media, Baja o Personalizada (resolución de render del 50 % al 100 %). Es lo
+  que más FPS gana en equipos modestos.
+- **Contador de FPS**: FPS promedio, ms por cuadro y *1 % low* (los cuadros más lentos, que se sienten
+  como tirones), medidos con el reloj real.
+
+## Publicación
+
+`.github/workflows/deploy.yml` prueba, compila y publica el juego en **GitHub Pages** en cada push a `main`
+(o a mano desde la pestaña *Actions*). Para activarlo, el dueño del repositorio debe ir una vez a
+*Settings → Pages → Build and deployment → Source* y elegir **GitHub Actions**. Mientras no esté activado,
+el flujo deja un aviso y no falla. Una vez activo, el juego queda en
+`https://ju4nk1807.github.io/Reticula/`.
+
+La versión compilada usa rutas relativas (`base: './'` en `vite.config.js`), así que también funciona en
+cualquier subcarpeta o servidor estático.
 
 ## Sensibilidad
 

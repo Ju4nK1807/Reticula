@@ -4,6 +4,7 @@ import { getRank } from '../config/ranks.js';
 import { sensSummary } from '../config/sensitivity.js';
 import { shortDate } from '../utils/format.js';
 import { PLANNED_MODES, getMode, listModes } from '../modes/registry.js';
+import { SERIES_COLORS } from './charts.js';
 
 function menuItem(title, sub, { onClick, disabled = false, primary = false, tag = null }) {
   return h(
@@ -16,9 +17,10 @@ function menuItem(title, sub, { onClick, disabled = false, primary = false, tag 
 }
 
 const HISTORY_POINTS = 12;
+// Mismos colores (validados para daltonismo sobre la superficie oscura) que las gráficas de Progreso.
 const HISTORY_SERIES = [
-  { id: 'targets', label: 'Dianas', color: 'var(--accent)' },
-  { id: 'bots', label: 'Enemigos', color: 'var(--accent-2)' },
+  { id: 'targets', label: 'Dianas', color: SERIES_COLORS[0] },
+  { id: 'bots', label: 'Enemigos', color: SERIES_COLORS[1] },
 ];
 
 // Mini gráfica de las últimas evaluaciones (0-100), una línea por variante: mezclarlas hacía
@@ -86,7 +88,7 @@ function modeItems(game, rank, onMode) {
   return [...registered, ...planned].sort((a, b) => a.order - b.order).map((x) => x.item);
 }
 
-export function menuScreen(game, { onMode, onSettings }) {
+export function menuScreen(game, { onMode, onProgress, onSettings }) {
   const { profile, settings } = game.store.data;
   const rank = getRank(profile.rank);
   const last = profile.evaluations.at(-1);
@@ -125,6 +127,7 @@ export function menuScreen(game, { onMode, onSettings }) {
         'nav',
         { class: 'menu-list' },
         modeItems(game, rank, onMode),
+        menuItem('Progreso', 'Gráficas, historial de sesiones y copia de seguridad', { onClick: onProgress }),
         menuItem('Configuración', 'Sensibilidad de cualquier juego, FOV, mira, controles', { onClick: onSettings }),
       ),
       profileCard,

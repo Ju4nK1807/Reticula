@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Engine } from './Engine.js';
+import { PerfMeter } from './PerfMeter.js';
 import { Input } from './Input.js';
 import { PlayerController } from './PlayerController.js';
 import { Sfx } from '../audio/Sfx.js';
@@ -14,8 +15,10 @@ import { UI } from '../ui/UI.js';
 import { menuScreen } from '../ui/menuScreen.js';
 import { settingsScreen } from '../ui/settingsScreen.js';
 import { pauseScreen } from '../ui/pauseScreen.js';
+import { progressScreen } from '../ui/progressScreen.js';
 import { getMode } from '../modes/index.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
+import { spreadToPixels } from '../ui/Crosshair.js';
 
 const _v = new THREE.Vector3();
 const NO_BODIES = [];
@@ -41,8 +44,7 @@ export class Game {
     this.mode = null;
     this.paused = false;
     this.time = 0;
-    this.fpsFrames = 0;
-    this.fpsTime = 0;
+    this.perf = new PerfMeter();
 
     this.worlds = {};
     this.useWorld('range');
@@ -96,6 +98,7 @@ export class Game {
     this.engine.setHorizontalFov(s.fov);
     this.hud.setCrosshair(s.crosshair);
     this.hud.showFps(s.video.showFps);
+    this.engine.setQuality(s.video);
     this.sfx.setVolume(s.audio.volume);
   }
 
@@ -141,19 +144,19 @@ export class Game {
       this.weapon.update(dt);
       this.mode.update(dt);
     }
+    // Mira dinámica: se abre exactamente lo que se desvían las balas (movimiento, salto, ráfaga).
+    if (this.settings.crosshair.dynamic) {
+      const spread = this.weapon.enabled ? this.weapon.currentSpread() : 0;
+      this.hud.setSpread(spreadToPixels(spread, this.engine.camera.fov, window.innerHeight));
+    }
     this.effects.update(dt);
     this.viewmodel.update(dt, this.player);
     if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress);
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked;
     this.world.update(dt);
 
-    this.fpsFrames++;
-    this.fpsTime += dt;
-    if (this.fpsTime >= 0.5) {
-      this.hud.setFps(Math.round(this.fpsFrames / this.fpsTime));
-      this.fpsFrames = 0;
-      this.fpsTime = 0;
-    }
+    const perf = this.perf.tick();
+    if (perf) this.hud.setFps(perf);
   }
 
   // Paneo estéreo (-1…1) de un punto del mundo respecto a la cámara.
@@ -216,6 +219,7 @@ export class Game {
     this.ui.show(
       menuScreen(this, {
         onMode: (id) => this.startModeById(id),
+        onProgress: () => this.ui.show(progressScreen(this, { onBack: () => this.showMenu() })),
         onSettings: () => this.showSettings(() => this.showMenu()),
       }),
     );

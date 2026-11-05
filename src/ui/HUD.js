@@ -49,6 +49,16 @@ export class HUD {
 
   setCrosshair(config) {
     this.refs.crosshair.innerHTML = crosshairSVG(config);
+    this.spread = null;
+    this.setSpread(0);
+  }
+
+  // Separación extra de la mira dinámica, en px (variable CSS que leen los brazos del SVG).
+  setSpread(px) {
+    const v = Math.round(px * 2) / 2;
+    if (v === this.spread) return;
+    this.spread = v;
+    this.refs.crosshair.style.setProperty('--xh-spread', `${v}px`);
   }
 
   setLabel(text) {
@@ -91,8 +101,9 @@ export class HUD {
     this.refs.fps.hidden = !on;
   }
 
-  setFps(fps) {
-    this.text('fps', `${fps} FPS`);
+  // perf = { fps, ms, low1 } (ver core/PerfMeter.js). "1% low" = FPS de los cuadros más lentos.
+  setFps({ fps, ms, low1 }) {
+    this.text('fps', `${fps} FPS · ${ms} ms · 1% low ${low1}`);
   }
 
   restartAnimation(el, className) {
