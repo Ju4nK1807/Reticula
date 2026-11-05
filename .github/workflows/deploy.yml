@@ -1,0 +1,73 @@
+# Publicación: en cada push a main (y a mano desde la pestaña Actions) se prueba, se compila y se
+# publica el juego en GitHub Pages. Si Pages aún no está activado en el repositorio
+# (Settings → Pages → Source: GitHub Actions), se deja un aviso y no se publica (sin fallar).
+name: Publicar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Nunca cancelar una publicación a medias; la siguiente espera su turno.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Compilar
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      enabled: ${{ steps.pages.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas
+        run: npm test
+
+      - name: Compilar
+        run: npm run build
+
+      - name: ¿GitHub Pages está activado?
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" --silent 2>/dev/null; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=GitHub Pages desactivado::Activa Settings → Pages → Source: GitHub Actions para publicar el juego."
+          fi
+
+      - name: Subir el sitio
+        if: steps.pages.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Publicar en GitHub Pages
+    needs: build
+    if: needs.build.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
