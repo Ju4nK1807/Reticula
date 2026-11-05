@@ -16,6 +16,16 @@ export class Engine {
     this.overlay = null;
     this.showOverlay = true;
 
+    // Si el driver reinicia la GPU se pierde el contexto. preventDefault permite que Three.js
+    // lo restaure solo; Game decide qué mostrar.
+    this.onContextLost = null;
+    this.onContextRestored = null;
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.onContextLost?.();
+    });
+    canvas.addEventListener('webglcontextrestored', () => this.onContextRestored?.());
+
     this.timer = new THREE.Timer();
     window.addEventListener('resize', () => this.resize());
     this.resize();
