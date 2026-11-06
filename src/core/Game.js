@@ -45,6 +45,7 @@ export class Game {
     this.sfx = new Sfx();
     this.hud = new HUD(root.querySelector('#hud'));
     this.ui = new UI(root.querySelector('#ui'), root.querySelector('#toast'));
+    this.ui.onBack = () => this.sfx.uiBack();
     this.engine.setOverlay(this.viewmodel);
     this.weapon.onChange = () => this.onWeaponChange();
 
@@ -84,6 +85,7 @@ export class Game {
     window.addEventListener('reticula-back', () => this.handleBack());
     // El audio solo puede iniciar tras un gesto del usuario.
     window.addEventListener('pointerdown', () => this.sfx.unlock());
+    window.addEventListener('keydown', () => this.sfx.unlock());
     // Pérdida del contexto WebGL: soltar el mouse (pausa si hay partida) y avisar.
     this.engine.onContextLost = () => {
       this.input.unlock();
@@ -308,9 +310,13 @@ export class Game {
   // --- Navegación ----------------------------------------------------------------
 
   handleBack() {
-    if (this.mode && this.input.locked) this.input.unlock(); // en partida → pausa
-    else if (this.mode && this.paused) this.quitToMenu();
-    else if (this.mode || !this.ui.el.querySelector('.hub')) this.quitToMenu();
+    if (this.mode && this.input.locked) return this.input.unlock(); // en partida → pausa
+    if (this.mode && this.paused) return this.quitToMenu();
+    // Igual que Esc: lo atienden el submenú abierto o el botón Volver de la pantalla (UI.js).
+    const esc = new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true, cancelable: true });
+    document.dispatchEvent(esc);
+    if (esc.defaultPrevented) return;
+    if (this.mode) this.quitToMenu();
     else this.ui.toast('Para salir, usa el botón de inicio del teléfono.');
   }
 
@@ -359,7 +365,9 @@ export class Game {
       this.ui.toast(locked);
       return;
     }
-    this.startMode(entry.create(this));
+    const mode = entry.create(this);
+    mode.title ??= entry.title; // lo muestra la pausa
+    this.startMode(mode);
   }
 
   quitToMenu() {

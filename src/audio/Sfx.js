@@ -172,6 +172,20 @@ export class Sfx {
     this.tone('square', 180, 120, 0.16, 0.08);
   }
 
+  // Sonidos de la interfaz: muy cortos y bajos para que navegar el menú no canse.
+  uiMove() {
+    this.tone('sine', 2100, 1700, 0.03, 0.025);
+  }
+
+  uiSelect() {
+    this.tone('triangle', 520, 880, 0.08, 0.06);
+    this.tone('sine', 1760, 1760, 0.06, 0.02, 0.025);
+  }
+
+  uiBack() {
+    this.tone('triangle', 640, 380, 0.08, 0.05);
+  }
+
   complete() {
     [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.15, i * 0.08));
   }

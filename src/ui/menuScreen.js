@@ -1,15 +1,19 @@
+// Pantalla de título: la escena 3D en vivo de fondo, el logo, un menú vertical de texto y un panel
+// que describe la opción enfocada. Submenú "Jugar" con todos los modos.
 import './menu.css';
 import { h } from './dom.js';
 import { LOGO_SVG, rankBadge } from './components.js';
 import { icon, MODE_ICONS } from './icons.js';
 import { weaponIcon } from './weaponIcons.js';
 import { SERIES_COLORS } from './charts.js';
+import { menuList } from './menuList.js';
 import { modeSummary, nextStep } from './menuData.js';
 import { getRank } from '../config/ranks.js';
 import { sensSummary } from '../config/sensitivity.js';
 import { getWeapon } from '../combat/weapons.js';
 import { shortDate } from '../utils/format.js';
 import { PLANNED_MODES, getMode, listModes } from '../modes/registry.js';
+import { version } from '../../package.json';
 
 const HISTORY_POINTS = 12;
 // Mismos colores (validados para daltonismo sobre la superficie oscura) que las gráficas de Progreso.
@@ -18,6 +22,12 @@ const HISTORY_SERIES = [
   { id: 'bots', label: 'Enemigos', color: SERIES_COLORS[1] },
 ];
 const QUALITY_LABELS = { alta: 'Alta', media: 'Media', baja: 'Baja', custom: 'Personalizada' };
+
+// Dónde estaba el jugador la última vez (al volver de un modo o de Configuración se reabre ahí).
+const memory = { path: 'main', focus: null, introPlayed: false };
+
+/** True si corre como app de escritorio (Electron sirve el juego desde reticula://). */
+export const isDesktopApp = () => typeof location !== 'undefined' && location.protocol === 'reticula:';
 
 // Mini gráfica de las últimas evaluaciones (0-100), una línea por variante.
 function historyChart(evaluations) {
@@ -47,144 +57,239 @@ function historyChart(evaluations) {
   );
 }
 
-function variantRow(label, data) {
+// Filas "dato · valor" del panel de detalle.
+function rows(list) {
+  return h(
+    'dl',
+    { class: 'td-rows' },
+    list.filter(Boolean).map(([k, v, color]) => [h('dt', {}, k), h('dd', { style: color ? { color } : null }, v)]),
+  );
+}
+
+function variantValue(data) {
   const rank = getRank(data?.rank);
-  return h(
-    'div',
-    { class: 'variant-row' },
-    h('span', { class: 'vr-label' }, label),
-    rank
-      ? h('span', { class: 'vr-rank', style: { color: rank.color } }, `${rank.name} · ${data.score}`, h('small', {}, ` récord ${data.best}`))
-      : h('span', { class: 'vr-rank muted' }, 'Sin evaluar'),
-  );
+  return rank ? [`${rank.name} · ${data.score}`, rank.color] : ['Sin evaluar', null];
 }
 
-// Tarjeta de un modo: ícono, título, descripción y su dato propio (rango, estrellas, récord…).
-function modeCard(game, entry, data, onMode) {
-  const locked = entry.locked?.(game) ?? null;
-  const summary = modeSummary(entry.id, data);
-  const meta = h('span', { class: 'hm-meta' });
-  if (locked) {
-    const lock = h('span', { class: 'hm-lock', html: icon('lock', 14) });
-    lock.append(h('span', {}, locked));
-    meta.append(lock);
-  } else if (summary) {
-    meta.append(h('strong', { style: summary.color ? { color: summary.color } : null }, summary.text), h('small', {}, summary.sub));
+// Contenido del panel de detalle para cada opción.
+function detailFor(item, ctx) {
+  const { data, rank, step, weapon, settings } = ctx;
+  const d = item.detail ?? {};
+  const parts = [];
+  if (d.art) parts.push(h('div', { class: 'td-art', 'aria-hidden': 'true', html: d.art }));
+  parts.push(h('div', { class: 'eyebrow' }, d.eyebrow ?? ''), h('h2', {}, d.title ?? item.label));
+  if (d.desc) parts.push(h('p', { class: 'td-desc' }, d.desc));
+  if (item.locked) parts.push(h('div', { class: 'td-lock', html: icon('lock', 14) }, h('span', {}, item.locked)));
+
+  switch (d.kind) {
+    case 'play':
+      parts.push(rows(listModes().map((m) => {
+        const s = modeSummary(m.id, data);
+        return [m.title, m.locked?.(ctx.game) ? 'Bloqueado' : s?.text ?? '—', s?.color];
+      })));
+      break;
+    case 'mode': {
+      const s = modeSummary(item.id, data);
+      if (s && !item.locked) parts.push(rows([['Tu progreso', s.text, s.color], s.sub && ['', s.sub]]));
+      break;
+    }
+    case 'arsenal':
+      parts.push(
+        rows([
+          ['Arma equipada', weapon.name],
+          ['Tipo', weapon.category],
+          ['Cargador', `${weapon.magazine} balas`],
+        ]),
+      );
+      break;
+    case 'progress': {
+      const [tv, tc] = variantValue(data.profile.variants?.targets);
+      const [bv, bc] = variantValue(data.profile.variants?.bots);
+      const last = data.profile.evaluations.at(-1);
+      parts.push(
+        rows([
+          ['Rango general', rank ? rank.name : 'Sin rango', rank?.color],
+          ['Dianas', tv, tc],
+          ['Enemigos', bv, bc],
+          last && ['Última evaluación', shortDate(last.date)],
+        ]),
+      );
+      const chart = historyChart(data.profile.evaluations);
+      if (chart) parts.push(chart);
+      break;
+    }
+    case 'settings':
+      parts.push(
+        rows([
+          ['Sensibilidad', sensSummary(settings.sens).split(' · ').at(-1)],
+          ['Campo de visión', `${settings.fov}°`],
+          ['Calidad', QUALITY_LABELS[settings.video.quality] ?? 'Alta'],
+        ]),
+      );
+      break;
+    case 'continue':
+      if (step.modeId && !item.locked) {
+        const s = modeSummary(step.modeId, data);
+        if (s) parts.push(rows([[getMode(step.modeId)?.title ?? 'Modo', [s.text, s.sub].filter(Boolean).join(' · '), s.color]]));
+      }
+      break;
+    default:
   }
-  return h(
-    'button',
-    { class: `hub-mode${entry.primary ? ' primary' : ''}`, type: 'button', disabled: !!locked, onclick: () => onMode(entry.id) },
-    h('span', { class: 'hm-icon', html: icon(MODE_ICONS[entry.id] ?? 'target', 22) }),
-    h('span', { class: 'hm-body' }, h('span', { class: 'hm-title' }, entry.title), h('span', { class: 'hm-desc' }, entry.desc)),
-    meta,
-  );
-}
-
-function plannedCard(p, rank) {
-  return h(
-    'button',
-    { class: 'hub-mode', type: 'button', disabled: true },
-    h('span', { class: 'hm-icon', html: icon('lock', 22) }),
-    h('span', { class: 'hm-body' }, h('span', { class: 'hm-title' }, p.title), h('span', { class: 'hm-desc' }, p.desc)),
-    h('span', { class: 'hm-meta' }, h('span', { class: 'hm-lock' }, p.needsRank && !rank ? 'Requiere evaluación' : 'Próximamente')),
-  );
-}
-
-function iconLabel(cls, iconName, label, size = 18) {
-  const el = h('span', { class: cls, html: icon(iconName, size) });
-  el.append(h('span', {}, label));
-  return el;
+  return parts;
 }
 
 export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) {
   const data = game.store.data;
   const { profile, settings } = data;
   const rank = getRank(profile.rank);
-  const last = profile.evaluations.at(-1);
   const step = nextStep(data);
-  const stepLocked = getMode(step.modeId)?.locked?.(game);
   const weapon = getWeapon(settings.weapon);
+  const ctx = { game, data, rank, step, weapon, settings };
+  const sfx = game.sfx;
+  const touch = !!game.touchMode;
 
-  const modes = [
-    ...listModes().map((m) => ({ order: m.order, el: modeCard(game, m, data, onMode) })),
-    ...PLANNED_MODES.filter((p) => !getMode(p.id)).map((p) => ({ order: p.order, el: plannedCard(p, rank) })),
-  ]
-    .sort((a, b) => a.order - b.order)
-    .map((x) => x.el);
-
-  const navButton = (label, iconName, onClick) => {
-    const b = h('button', { class: 'hub-nav-btn', type: 'button', onclick: onClick });
-    b.append(iconLabel('hub-nav-inner', iconName, label));
-    return b;
+  const remember = (path, focus) => {
+    memory.path = path;
+    memory.focus = focus;
   };
-  const cta = h('button', { class: 'btn primary', type: 'button', disabled: !!stepLocked, onclick: () => onMode(step.modeId) });
-  cta.append(iconLabel('btn-inner', 'play', step.cta, 16));
 
-  return h(
+  // --- Opciones ---------------------------------------------------------------
+  const hasProgress = profile.evaluations.length > 0;
+  const mainItems = [
+    {
+      id: 'continue',
+      label: hasProgress ? 'Continuar' : 'Empezar',
+      locked: getMode(step.modeId)?.locked?.(game) ?? null,
+      onSelect: () => {
+        remember('main', 'continue');
+        onMode(step.modeId);
+      },
+      detail: { kind: 'continue', eyebrow: step.eyebrow, title: step.title, desc: step.desc, art: icon(MODE_ICONS[step.modeId] ?? 'target', 150) },
+    },
+    {
+      id: 'play',
+      label: 'Jugar',
+      badge: `${listModes().length} modos`,
+      onSelect: () => openList('play', null, 'right'),
+      detail: { kind: 'play', eyebrow: 'Modos de juego', title: 'Jugar', desc: 'Elige cualquier modo: evaluación, campaña, coordinación ojo-mano o el modo infinito.', art: icon('target', 150) },
+    },
+    {
+      id: 'arsenal',
+      label: 'Arsenal',
+      onSelect: () => {
+        remember('main', 'arsenal');
+        onArsenal();
+      },
+      detail: { kind: 'arsenal', eyebrow: 'Equipamiento', title: 'Arsenal', desc: 'Cinco armas con su propio manejo, sonido y mira. La evaluación usa siempre el rifle.', art: weaponIcon(weapon.id) },
+    },
+    {
+      id: 'progress',
+      label: 'Progreso',
+      onSelect: () => {
+        remember('main', 'progress');
+        onProgress();
+      },
+      detail: { kind: 'progress', eyebrow: 'Estadísticas', title: 'Progreso', desc: 'Tu rango, el historial de evaluaciones y los récords de cada modo.', art: icon('chart', 150) },
+    },
+    {
+      id: 'settings',
+      label: 'Configuración',
+      onSelect: () => {
+        remember('main', 'settings');
+        onSettings();
+      },
+      detail: { kind: 'settings', eyebrow: 'Ajustes', title: 'Configuración', desc: 'Sensibilidad, mira, video, sonido y controles.', art: icon('gear', 150) },
+    },
+    isDesktopApp() && {
+      id: 'quit',
+      label: 'Salir',
+      tone: 'quiet',
+      onSelect: () => window.close(),
+      detail: { eyebrow: 'Escritorio', title: 'Salir', desc: 'Cierra Retícula. Tu progreso ya está guardado.' },
+    },
+  ].filter(Boolean);
+
+  const modeItems = () => [
+    ...[
+      ...listModes().map((m) => ({
+        order: m.order,
+        item: {
+          id: m.id,
+          label: m.title,
+          locked: m.locked?.(game) ?? null,
+          onSelect: () => {
+            remember('play', m.id);
+            onMode(m.id);
+          },
+          detail: { kind: 'mode', eyebrow: m.primary ? 'Recomendado' : 'Modo', title: m.title, desc: m.desc, art: icon(MODE_ICONS[m.id] ?? 'target', 150) },
+        },
+      })),
+      ...PLANNED_MODES.filter((p) => !getMode(p.id)).map((p) => ({
+        order: p.order,
+        item: { id: p.id, label: p.title, locked: p.needsRank && !rank ? 'Requiere evaluación' : 'Próximamente', detail: { title: p.title, desc: p.desc } },
+      })),
+    ]
+      .sort((a, b) => a.order - b.order)
+      .map((x) => x.item),
+    { id: 'back', label: 'Volver', back: true, tone: 'quiet', onSelect: () => openList('main', 'play', 'left'), detail: { title: 'Volver', desc: 'Regresar al menú principal.' } },
+  ];
+
+  // --- Estructura -------------------------------------------------------------
+  const detail = h('aside', { class: 'ts-detail', 'aria-live': 'polite' });
+  const heading = h('div', { class: 'ts-heading' });
+  const listSlot = h('div', { class: 'ts-list' });
+
+  const showDetail = (item) => detail.replaceChildren(...detailFor(item, ctx));
+
+  function openList(path, focus, enter = null) {
+    memory.path = path;
+    const items = path === 'play' ? modeItems() : mainItems;
+    heading.replaceChildren(...(path === 'play' ? [h('span', { class: 'eyebrow' }, 'Jugar'), h('span', { class: 'ts-crumb' }, 'Elige un modo')] : []));
+    heading.hidden = path !== 'play';
+    const list = menuList(items, {
+      sfx,
+      initial: focus ?? items[0].id,
+      enter,
+      onFocus: showDetail,
+      onBack: path === 'play' ? () => openList('main', 'play', 'left') : null,
+    });
+    listSlot.querySelector('[data-disposable]')?._dispose?.();
+    listSlot.replaceChildren(list);
+    showDetail(items.find((it) => it.id === focus) ?? items[0]);
+  }
+
+  const profileChip = h(
+    'button',
+    { class: 'ts-profile', type: 'button', onclick: () => { sfx.uiSelect(); remember('main', 'progress'); onProgress(); }, 'aria-label': `Rango: ${rank ? rank.name : 'sin rango'}. Abrir Progreso` },
+    rankBadge(rank, 44),
+    h('span', {}, h('small', {}, 'Rango'), h('strong', { style: rank ? { color: rank.color } : null }, rank ? rank.name : 'Sin rango')),
+  );
+
+  const hints = touch
+    ? []
+    : [['↑ ↓', 'Navegar'], ['Enter', 'Elegir'], ['Esc', 'Volver']].map(([k, v]) => h('span', {}, h('kbd', {}, k), v));
+
+  const screen = h(
     'div',
-    { class: 'screen hub' },
-    // Barra superior: marca y navegación.
+    { class: `screen title-screen${memory.introPlayed ? '' : ' intro'}` },
     h(
       'header',
-      { class: 'hub-top' },
-      h('div', { class: 'hub-brand' }, h('div', { class: 'logo', html: LOGO_SVG }), h('div', {}, h('h1', {}, 'Retícula'), h('p', {}, 'Entrenador de puntería 3D'))),
-      h('nav', { class: 'hub-nav', 'aria-label': 'Secciones' }, navButton('Arsenal', 'gun', onArsenal), navButton('Progreso', 'chart', onProgress), navButton('Configuración', 'gear', onSettings)),
+      { class: 'ts-brand' },
+      h('div', { class: 'ts-logo', html: LOGO_SVG }),
+      h('div', { class: 'ts-word' }, h('h1', {}, 'Retícula'), h('p', {}, 'Entrenador de puntería 3D')),
     ),
-    h(
-      'div',
-      { class: 'hub-grid' },
-      h(
-        'main',
-        { class: 'hub-main' },
-        // Siguiente paso recomendado: lo más útil que puede hacer el jugador ahora.
-        h(
-          'section',
-          { class: 'hub-hero' },
-          h('div', { class: 'hh-glow', 'aria-hidden': 'true' }),
-          h('div', { class: 'hh-body' }, h('div', { class: 'eyebrow' }, step.eyebrow), h('h2', {}, step.title), h('p', {}, step.desc), h('div', { class: 'row' }, cta)),
-          h('div', { class: 'hh-art', 'aria-hidden': 'true', html: icon(MODE_ICONS[step.modeId] ?? 'target', 120) }),
-        ),
-        h('div', { class: 'hub-section-title' }, h('h3', {}, 'Modos de juego')),
-        h('section', { class: 'hub-modes' }, modes),
-      ),
-      h(
-        'aside',
-        { class: 'hub-side' },
-        h(
-          'section',
-          { class: 'panel hub-profile' },
-          rankBadge(rank, 84),
-          h(
-            'div',
-            { class: 'hp-rank' },
-            h('small', {}, 'Rango general'),
-            h('strong', { style: rank ? { color: rank.color } : null }, rank ? rank.name : 'Sin rango'),
-            last && h('span', { class: 'muted small' }, `Última evaluación: ${shortDate(last.date)}`),
-          ),
-          h('div', { class: 'variants' }, variantRow('Dianas', profile.variants?.targets), variantRow('Enemigos', profile.variants?.bots)),
-          historyChart(profile.evaluations),
-        ),
-        h(
-          'section',
-          { class: 'panel hub-loadout' },
-          h('h3', {}, 'Equipamiento'),
-          h(
-            'button',
-            { class: 'hl-weapon', type: 'button', onclick: onArsenal, 'aria-label': `Arma: ${weapon.name}. Abrir el arsenal` },
-            h('span', { class: 'hl-icon', html: weaponIcon(weapon.id) }),
-            h('span', {}, h('strong', {}, weapon.name), h('small', {}, weapon.category)),
-            h('span', { class: 'hl-go', html: icon('arrow', 16) }),
-          ),
-          h('div', { class: 'hl-line' }, h('span', {}, 'Sensibilidad'), h('strong', {}, sensSummary(settings.sens).split(' · ').at(-1))),
-          h('div', { class: 'hl-line' }, h('span', {}, 'FOV'), h('strong', {}, `${settings.fov}°`)),
-          h('div', { class: 'hl-line' }, h('span', {}, 'Calidad'), h('strong', {}, QUALITY_LABELS[settings.video.quality] ?? 'Alta')),
-        ),
-      ),
-    ),
+    profileChip,
+    h('nav', { class: 'ts-menu', 'aria-label': 'Menú principal' }, heading, listSlot),
+    detail,
     h(
       'footer',
-      { class: 'hub-footer' },
-      [['Esc', 'pausa'], ['R', 'recargar'], ['1–5', 'armas'], ['B', 'modo de disparo'], ['[ ]', 'sensibilidad']].map(([k, v]) => h('span', {}, h('kbd', {}, k), ` ${v}`)),
+      { class: 'ts-footer' },
+      h('div', { class: 'ts-hints' }, hints),
+      h('div', { class: 'ts-version' }, h('span', {}, weapon.name), h('span', {}, `v${version}`)),
     ),
   );
+  memory.introPlayed = true;
+
+  openList(memory.path, memory.focus);
+  return screen;
 }
