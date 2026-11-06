@@ -67,7 +67,7 @@ export class TouchControls {
       ${btn('pause', 'Pausa', 'gear')}
       <div class="tc-cluster">
         ${btn('fire', 'Disparar', 'target')}
-        ${btn('aim', 'Mira telescópica', 'eye')}
+        ${btn('aim', 'Apuntar', 'eye')}
         ${btn('reload', 'Recargar', 'bolt')}
         ${btn('jump', 'Saltar', 'arrow')}
         ${btn('crouch', 'Agacharse', 'back')}
@@ -94,7 +94,8 @@ export class TouchControls {
 
   update() {
     const w = this.game.weapon;
-    this.el.classList.toggle('has-zoom', !!w.stats.zoom);
+    // Botón de apuntar: mira telescópica o, en las demás armas, las miras (salvo en la evaluación).
+    this.el.classList.toggle('has-zoom', !!w.stats.zoom || (!!w.stats.ads && this.game.adsAllowed()));
     this.el.classList.toggle('aiming', this.input.aimDown);
     this.el.classList.toggle('crouched', this.crouched);
     if (this.weaponKey.textContent !== w.stats.key) this.weaponKey.textContent = w.stats.key;

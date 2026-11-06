@@ -16,7 +16,7 @@ const SHAPES = {
 
 export const CONTROLS = [
   ['Mouse', 'Apuntar · clic izquierdo dispara'],
-  ['Clic derecho', 'Mira telescópica (francotirador)'],
+  ['Clic derecho', 'Apuntar con las miras · mira telescópica (francotirador)'],
   ['W A S D', 'Moverse'],
   ['Shift', 'Caminar (más preciso)'],
   ['C', 'Agacharse'],
@@ -34,7 +34,7 @@ export const TOUCH_CONTROLS = [
   ['Joystick', 'Moverse: apoya el dedo en la mitad izquierda'],
   ['Arrastrar', 'Apuntar: desliza el dedo en la mitad derecha'],
   ['Disparo', 'Botón grande de la derecha (mantenlo para ráfaga)'],
-  ['Mira', 'Mira telescópica (solo armas con zoom)'],
+  ['Mira', 'Apuntar con las miras (o la mira telescópica del francotirador)'],
   ['Recarga', 'Recargar el cargador'],
   ['Salto · Agachar', 'Saltar y agacharse'],
   ['Arma', 'Cambiar de arma (no en la evaluación)'],

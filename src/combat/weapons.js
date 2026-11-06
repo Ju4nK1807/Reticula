@@ -10,6 +10,8 @@
 // pellets / pelletSpread: perdigones por disparo y su cono (grados) — escopeta
 // hipSpread: dispersión fija sin apuntar (grados) — francotirador
 // zoom: aumento al apuntar con clic derecho (null = sin mira telescópica)
+// ads: apuntar con las miras (clic derecho) en las armas sin mira telescópica: aumento, multiplicador de
+//   la dispersión (ráfaga y movimiento) y de la velocidad al caminar apuntando
 // recoil: fuerza del retroceso visual (0-1) · sound: perfil de sonido (audio/Sfx.js)
 
 export const WEAPONS = {
@@ -33,6 +35,7 @@ export const WEAPONS = {
     pelletSpread: 0,
     hipSpread: 0,
     zoom: null,
+    ads: { zoom: 1.2, spread: 0.55, speed: 0.85 },
     recoil: 0.5,
     sound: 'pistol',
     crosshair: { shape: 'cross', color: '#ffffff', size: 4, thickness: 2, gap: 2, outline: true, opacity: 1, dot: false, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false },
@@ -57,6 +60,7 @@ export const WEAPONS = {
     pelletSpread: 0,
     hipSpread: 0,
     zoom: null,
+    ads: { zoom: 1.25, spread: 0.6, speed: 0.8 },
     recoil: 0.3,
     sound: 'smg',
     crosshair: { shape: 'cross', color: '#36d6ff', size: 5, thickness: 2, gap: 3, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: true },
@@ -81,6 +85,7 @@ export const WEAPONS = {
     pelletSpread: 0,
     hipSpread: 0,
     zoom: null,
+    ads: { zoom: 1.35, spread: 0.45, speed: 0.75 },
     recoil: 0.55,
     sound: 'rifle',
     crosshair: { shape: 'cross', color: '#00ffa3', size: 6, thickness: 2, gap: 3, outline: true, opacity: 1, dot: false, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false },
@@ -105,6 +110,7 @@ export const WEAPONS = {
     pelletSpread: 3.2,
     hipSpread: 0,
     zoom: null,
+    ads: { zoom: 1.15, spread: 0.8, speed: 0.8 },
     recoil: 1,
     sound: 'shotgun',
     crosshair: { shape: 'circle', color: '#ffb020', size: 10, thickness: 2, gap: 6, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false },
@@ -129,6 +135,7 @@ export const WEAPONS = {
     pelletSpread: 0,
     hipSpread: 5,
     zoom: 4,
+    ads: null,
     recoil: 1,
     sound: 'sniper',
     crosshair: { shape: 'dot', color: '#ff4d6d', size: 4, thickness: 2, gap: 2, outline: true, opacity: 1, dot: false, dotSize: 3, outlineThickness: 1, outlineColor: '#000000', dynamic: false },

@@ -216,6 +216,35 @@ export class Sfx {
     this.tone('square', 180, 120, 0.16, 0.08);
   }
 
+  // Golpe cuerpo a cuerpo: silbido del arma al cortar el aire y golpe sordo si acierta.
+  swing() {
+    this.noiseBurst({ type: 'highpass', f0: 700, f1: 2600, q: 0.7, peak: 0.14, decay: 0.14 });
+  }
+
+  meleeHit() {
+    this.tone('sine', 150, 55, 0.14, 0.42);
+    this.noiseBurst({ type: 'lowpass', f0: 1200, f1: 200, q: 0.6, peak: 0.32, decay: 0.09 });
+  }
+
+  // Granada: explosión grave con cola larga (y más lejos, más apagada).
+  explosion(distance = 0, pan = 0) {
+    const k = Math.max(0.25, 1 - distance / 60);
+    this.tone('sine', 90, 28, 0.9, 0.85 * k, 0, pan);
+    this.noiseBurst({ type: 'lowpass', f0: 2600, f1: 120, q: 0.4, peak: 0.75 * k, decay: 0.85, pan });
+    this.noiseBurst({ type: 'bandpass', f0: 900, f1: 300, q: 0.8, peak: 0.25 * k, decay: 1.4, delay: 0.08, pan });
+  }
+
+  // Granada que rebota en el suelo.
+  bounce(pan = 0) {
+    this.noiseBurst({ type: 'bandpass', f0: 1700, f1: 900, q: 3, peak: 0.08, decay: 0.05, pan });
+  }
+
+  // Lanzar la granada (quitar la anilla + lanzamiento).
+  throwGrenade() {
+    this.tone('square', 2400, 2100, 0.03, 0.04);
+    this.noiseBurst({ type: 'highpass', f0: 500, f1: 1800, q: 0.7, peak: 0.1, decay: 0.16, delay: 0.06 });
+  }
+
   // Sonidos de la interfaz: muy cortos y bajos para que navegar el menú no canse.
   uiMove() {
     this.tone('sine', 2100, 1700, 0.03, 0.025);

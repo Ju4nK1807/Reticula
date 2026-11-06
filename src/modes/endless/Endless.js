@@ -82,6 +82,15 @@ export class Endless extends Mode {
     return this.run && COMBAT_STATES.has(this.state) ? this.run.hitMeshes() : [];
   }
 
+  // Golpe cuerpo a cuerpo (V): cuenta como un acierto que mantiene la racha.
+  meleeAllowed() {
+    return this.state === 'wave';
+  }
+
+  onMeleeHit(hit, damage) {
+    if (this.state === 'wave') this.run.handleMelee(hit, damage);
+  }
+
   bodyColliders() {
     return this.run ? this.run.bodyColliders() : [];
   }

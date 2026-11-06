@@ -45,6 +45,7 @@ export class Weapon {
     this.bloom = 0;
     this.reloadLeft = 0;
     this.drawLeft = 0;
+    this.aiming = false; // apuntando con las miras (lo decide Game.updateScope)
     this.ammoBy = Object.fromEntries(WEAPON_ORDER.map((id) => [id, WEAPONS[id].magazine]));
     this.onShot = null;
     this.onChange = null;
@@ -155,7 +156,7 @@ export class Weapon {
   }
 
   tryFire(time) {
-    if (this.cooldown > 0 || this.reloading || this.drawing) return;
+    if (this.cooldown > 0 || this.reloading || this.drawing || this.game.melee?.busy) return;
     if (this.ammo <= 0) {
       // Cargador vacío: "clic" en seco y, si está activada, recarga automática.
       this.cooldown = DRY_FIRE_COOLDOWN;
@@ -169,13 +170,19 @@ export class Weapon {
     this.fire(time);
   }
 
-  // Dispersión actual (grados): ráfaga + disparo sin apuntar + movimiento según el arma.
+  // Dispersión actual (grados): ráfaga + disparo sin apuntar + movimiento según el arma. Apuntando con
+  // las miras (ADS) la ráfaga y el movimiento pesan menos (stats.ads.spread).
   currentSpread() {
     const g = this.game;
     const s = this.stats;
     const move = g.settings.gameplay.moveInaccuracy ? g.player.inaccuracy * s.moveSpread : 0;
     const hip = s.zoom && !this.scoped ? s.hipSpread : 0;
-    return this.bloom + hip + move;
+    return (this.bloom + move) * this.aimFactor + hip;
+  }
+
+  // Multiplicador de dispersión por apuntar con las miras (1 = sin apuntar).
+  get aimFactor() {
+    return this.aiming && this.stats.ads ? this.stats.ads.spread : 1;
   }
 
   fire(time = performance.now()) {
@@ -196,7 +203,7 @@ export class Weapon {
     _muzzle.set(0.16, -0.14, -0.6).applyMatrix4(cam.matrixWorld);
     for (let i = 0; i < s.pellets; i++) {
       _shot.copy(_dir);
-      jitter(_shot, s.pelletSpread, _right, _up);
+      jitter(_shot, s.pelletSpread * this.aimFactor, _right, _up);
       const hit = g.ballistics.cast(cam.position, _shot, targets);
       if (hit) _end.copy(hit.point);
       else _end.copy(cam.position).addScaledVector(_shot, 200);

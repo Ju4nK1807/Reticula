@@ -35,6 +35,7 @@ export class PlayerController {
     this.movementEnabled = true;
     this.radPerCount = degPerCount('reticula', 1.25) * DEG;
     this.sensScale = 1; // con mira telescópica la sensibilidad baja en proporción al zoom
+    this.speedScale = 1; // multiplicador de velocidad (apuntar)
     this.invertY = false;
     this.world = null;
     // Cuerpos móviles que bloquean al jugador (bots vivos): [{ x, z, r, y0, h }]. Los aporta el modo.
@@ -114,7 +115,8 @@ export class PlayerController {
       if (_wish.lengthSq() > 1) _wish.normalize();
     }
 
-    const max = crouching ? SPEED_CROUCH : active && keys.isDown('ShiftLeft') ? SPEED_WALK : SPEED_RUN;
+    // speedScale: apuntar con las miras o con la mira telescópica obliga a caminar más lento.
+    const max = (crouching ? SPEED_CROUCH : active && keys.isDown('ShiftLeft') ? SPEED_WALK : SPEED_RUN) * this.speedScale;
     // En el suelo la velocidad responde rápido (frenar es casi instantáneo, como el counter-strafe);
     // en el aire hay poco control.
     const response = this.onGround ? (_wish.lengthSq() > 0 ? 11 : 16) : 1.5;

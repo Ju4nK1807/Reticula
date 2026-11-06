@@ -16,6 +16,7 @@ import { MenuShowcase } from '../effects/MenuShowcase.js';
 import { applyShadowQuality, environment, prepareWorld } from '../gfx/lighting.js';
 import { AutoQuality, guessDetail } from '../gfx/AutoQuality.js';
 import { whenSurfacesReady } from '../gfx/surfaces.js';
+import { Melee } from '../combat/Melee.js';
 import { BotSkin, acquireSkin, loadSoldier, pooledSkins, releaseSkin } from '../bots/botSkin.js';
 import { HUD } from '../ui/HUD.js';
 import { UI } from '../ui/UI.js';
@@ -49,6 +50,7 @@ export class Game {
     this.player = new PlayerController(this.engine.camera, this.input);
     this.ballistics = new Ballistics();
     this.weapon = new Weapon(this);
+    this.melee = new Melee(this); // golpe cuerpo a cuerpo (V)
     this.viewmodel = new Viewmodel();
     this.effects = new Effects();
     this.ambience = new Ambience(); // polvo y chispas de la pantalla de título
@@ -274,6 +276,7 @@ export class Game {
       if (this.mode?.fireModeLocked?.()) this.hud.flash('El modo de disparo lo fija esta fase', 'info');
       else this.hud.flash(this.weapon.toggleMode() ? 'Disparo automático' : 'Disparo semiautomático', 'info');
     }
+    else if (e.code === 'KeyV' && !e.repeat) this.melee.trigger();
     else if (e.code === 'Backspace' && !e.repeat) {
       e.preventDefault();
       this.mode.restartStage?.();
@@ -306,6 +309,7 @@ export class Game {
     this.updateScope(dt, playing);
     if (this.mode && !this.paused) {
       this.weapon.update(dt);
+      this.melee.update(dt);
       this.mode.update(dt);
     }
     // Mira dinámica: se abre exactamente lo que se desvían las balas (movimiento, salto, ráfaga).
@@ -318,7 +322,8 @@ export class Game {
     this.showcase.update(dt, !this.mode);
     this.viewmodel.update(dt, this.player);
     if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress);
-    this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && this.zoomLevel < 1.15;
+    // El arma se oculta solo dentro de la mira telescópica (con las miras de hierro se sigue viendo).
+    this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && !(this.weapon.scoped && this.zoomLevel > 1.15);
     this.world.update(dt);
 
     const now = performance.now();
@@ -351,15 +356,26 @@ export class Game {
 
   // Mira telescópica: clic derecho con un arma con zoom. Entra y sale suave; baja la sensibilidad en
   // proporción al zoom (multiplicada por el ajuste "sensibilidad con zoom").
+  // Clic derecho: con el francotirador, mira telescópica; con las demás armas, apuntar con las miras
+  // (ADS: algo de aumento, menos dispersión y caminar más lento). El ADS no está en la evaluación, que
+  // fija el arma para que los rangos sean comparables.
   updateScope(dt, playing) {
     const w = this.weapon;
-    w.scoped = playing && !!w.stats.zoom && this.input.aimDown && w.enabled && !w.reloading && !w.drawing;
-    const target = w.scoped ? w.stats.zoom : 1;
+    const ready = playing && this.input.aimDown && w.enabled && !w.reloading && !w.drawing && !this.melee?.busy;
+    w.scoped = ready && !!w.stats.zoom;
+    w.aiming = ready && !!w.stats.ads && this.adsAllowed();
+    const target = w.scoped ? w.stats.zoom : w.aiming ? w.stats.ads.zoom : 1;
     this.zoomLevel += (target - this.zoomLevel) * Math.min(1, dt * ZOOM_SPEED);
     if (Math.abs(target - this.zoomLevel) < 0.01) this.zoomLevel = target;
     this.engine.setZoom(this.zoomLevel);
     this.player.sensScale = this.zoomLevel > 1 ? (1 / this.zoomLevel) * this.settings.gameplay.zoomSensitivity : 1;
-    this.hud.setScoped(this.zoomLevel > w.stats.zoom * 0.85 && w.scoped);
+    this.player.speedScale = w.aiming ? w.stats.ads.speed : w.scoped ? 0.7 : 1;
+    this.viewmodel.aimTarget = w.aiming ? 1 : 0;
+    this.hud.setScoped(!!w.stats.zoom && this.zoomLevel > w.stats.zoom * 0.85 && w.scoped);
+  }
+
+  adsAllowed() {
+    return !this.mode?.weaponLocked?.();
   }
 
   // Paneo estéreo (-1…1) de un punto del mundo respecto a la cámara.
@@ -460,6 +476,7 @@ export class Game {
   }
 
   startMode(mode) {
+    this.melee.reset();
     this.mode?.dispose();
     this.paused = false;
     this.mode = mode;
@@ -484,6 +501,7 @@ export class Game {
   }
 
   quitToMenu() {
+    this.melee.reset();
     this.mode?.dispose();
     this.mode = null;
     this.paused = false;
