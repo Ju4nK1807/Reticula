@@ -57,6 +57,41 @@ function historyChart(evaluations) {
   );
 }
 
+// Micro-gráfica de barras con las últimas evaluaciones (junto al título del panel). Sin datos, nada.
+function microBars(evaluations) {
+  const vals = evaluations.slice(-18).map((e) => e.total);
+  if (vals.length < 2) return null;
+  const W = 72;
+  const H = 26;
+  const bw = W / vals.length;
+  const bars = vals
+    .map((v, i) => {
+      const bh = Math.max(2, (v / 100) * H);
+      return `<rect x="${(i * bw + 0.5).toFixed(1)}" y="${(H - bh).toFixed(1)}" width="${Math.max(1, bw - 1.5).toFixed(1)}" height="${bh.toFixed(1)}"/>`;
+    })
+    .join('');
+  return h('div', { class: 'td-micro', title: 'Últimas evaluaciones', html: `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${bars}</svg>` });
+}
+
+// Tabla de modos: nombre · ícono de estado · estado (los bloqueados con candado y en gris).
+function modeTable(game, data) {
+  return h(
+    'div',
+    { class: 'td-table' },
+    listModes().map((m) => {
+      const locked = m.locked?.(game);
+      const s = modeSummary(m.id, data);
+      return h(
+        'div',
+        { class: `td-tr${locked ? ' locked' : ''}` },
+        h('span', { class: 'td-name' }, m.title),
+        h('span', { class: 'td-ico', html: icon(locked ? 'lock' : MODE_ICONS[m.id] ?? 'target', 15) }),
+        h('span', { class: 'td-val', style: !locked && s?.color ? { color: s.color } : null }, locked ? 'Bloqueado' : s?.text ?? '—'),
+      );
+    }),
+  );
+}
+
 // Filas "dato · valor" del panel de detalle.
 function rows(list) {
   return h(
@@ -77,16 +112,13 @@ function detailFor(item, ctx) {
   const d = item.detail ?? {};
   const parts = [];
   if (d.art) parts.push(h('div', { class: 'td-art', 'aria-hidden': 'true', html: d.art }));
-  parts.push(h('div', { class: 'eyebrow' }, d.eyebrow ?? ''), h('h2', {}, d.title ?? item.label));
+  parts.push(h('div', { class: 'eyebrow' }, d.eyebrow ?? ''), h('div', { class: 'td-title' }, h('h2', {}, d.title ?? item.label), microBars(data.profile.evaluations)));
   if (d.desc) parts.push(h('p', { class: 'td-desc' }, d.desc));
   if (item.locked) parts.push(h('div', { class: 'td-lock', html: icon('lock', 14) }, h('span', {}, item.locked)));
 
   switch (d.kind) {
     case 'play':
-      parts.push(rows(listModes().map((m) => {
-        const s = modeSummary(m.id, data);
-        return [m.title, m.locked?.(ctx.game) ? 'Bloqueado' : s?.text ?? '—', s?.color];
-      })));
+      parts.push(modeTable(ctx.game, data));
       break;
     case 'mode': {
       const s = modeSummary(item.id, data);
@@ -138,7 +170,7 @@ function detailFor(item, ctx) {
   return parts;
 }
 
-export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) {
+export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings, onHelp }) {
   const data = game.store.data;
   const { profile, settings } = data;
   const rank = getRank(profile.rank);
@@ -158,6 +190,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
   const mainItems = [
     {
       id: 'continue',
+      icon: 'play',
       label: hasProgress ? 'Continuar' : 'Empezar',
       locked: getMode(step.modeId)?.locked?.(game) ?? null,
       onSelect: () => {
@@ -168,6 +201,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
     },
     {
       id: 'play',
+      icon: 'target',
       label: 'Jugar',
       badge: `${listModes().length} modos`,
       onSelect: () => openList('play', null, 'right'),
@@ -175,6 +209,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
     },
     {
       id: 'arsenal',
+      icon: 'gun',
       label: 'Arsenal',
       onSelect: () => {
         remember('main', 'arsenal');
@@ -184,6 +219,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
     },
     {
       id: 'progress',
+      icon: 'chart',
       label: 'Progreso',
       onSelect: () => {
         remember('main', 'progress');
@@ -193,6 +229,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
     },
     {
       id: 'settings',
+      icon: 'gear',
       label: 'Configuración',
       onSelect: () => {
         remember('main', 'settings');
@@ -202,6 +239,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
     },
     isDesktopApp() && {
       id: 'quit',
+      icon: 'back',
       label: 'Salir',
       tone: 'quiet',
       onSelect: () => window.close(),
@@ -215,6 +253,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
         order: m.order,
         item: {
           id: m.id,
+          icon: MODE_ICONS[m.id] ?? 'target',
           label: m.title,
           locked: m.locked?.(game) ?? null,
           onSelect: () => {
@@ -231,7 +270,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
     ]
       .sort((a, b) => a.order - b.order)
       .map((x) => x.item),
-    { id: 'back', label: 'Volver', back: true, tone: 'quiet', onSelect: () => openList('main', 'play', 'left'), detail: { title: 'Volver', desc: 'Regresar al menú principal.' } },
+    { id: 'back', icon: 'back', label: 'Volver', back: true, tone: 'quiet', onSelect: () => openList('main', 'play', 'left'), detail: { title: 'Volver', desc: 'Regresar al menú principal.' } },
   ];
 
   // --- Estructura -------------------------------------------------------------
@@ -258,11 +297,23 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) 
     showDetail(items.find((it) => it.id === focus) ?? items[0]);
   }
 
+  const evals = profile.evaluations.length;
   const profileChip = h(
-    'button',
-    { class: 'ts-profile', type: 'button', onclick: () => { sfx.uiSelect(); remember('main', 'progress'); onProgress(); }, 'aria-label': `Rango: ${rank ? rank.name : 'sin rango'}. Abrir Progreso` },
-    rankBadge(rank, 44),
-    h('span', {}, h('small', {}, 'Rango'), h('strong', { style: rank ? { color: rank.color } : null }, rank ? rank.name : 'Sin rango')),
+    'div',
+    { class: 'ts-rank' },
+    h(
+      'button',
+      { class: 'ts-profile', type: 'button', onclick: () => { sfx.uiSelect(); remember('main', 'progress'); onProgress(); }, 'aria-label': `Rango: ${rank ? rank.name : 'sin rango'}. Abrir Progreso` },
+      rankBadge(rank, 46),
+      h('span', {}, h('small', {}, 'Rango'), h('strong', { style: rank ? { color: rank.color } : null }, rank ? rank.name : 'Sin rango')),
+    ),
+    h(
+      'div',
+      { class: 'ts-rank-meta' },
+      h('span', { class: 'ts-ticks', 'aria-hidden': 'true' }),
+      h('span', {}, `${evals} ${evals === 1 ? 'evaluación' : 'evaluaciones'}`),
+      onHelp && h('button', { class: 'ts-help', type: 'button', 'aria-label': 'Ayuda: controles', title: 'Controles', onclick: () => { sfx.uiSelect(); remember(memory.path, memory.focus); onHelp(); } }, '?'),
+    ),
   );
 
   const hints = touch

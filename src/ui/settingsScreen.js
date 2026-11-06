@@ -300,6 +300,7 @@ function crosshairPanel(game, commit, editing = null) {
 let lastTab = 'sens';
 
 // opts.crosshairWeapon: abre la pestaña de la mira editando esa arma (desde el Arsenal).
+// opts.tab: abre directamente esa pestaña (p. ej. 'datos' desde el botón de ayuda del menú).
 export function settingsScreen(game, onBack, opts = {}) {
   const s = game.settings;
   const commit = () => {
@@ -431,7 +432,7 @@ export function settingsScreen(game, onBack, opts = {}) {
   for (const [id, [label]] of Object.entries(TABS)) {
     tabs.append(h('button', { class: 'settings-tab', type: 'button', role: 'tab', 'data-tab': id, onclick: () => show(id) }, label));
   }
-  show(opts.crosshairWeapon ? 'mira' : lastTab);
+  show(opts.crosshairWeapon ? 'mira' : opts.tab ?? lastTab);
 
   return h(
     'div',

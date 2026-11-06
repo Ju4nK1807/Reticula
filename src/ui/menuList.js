@@ -13,11 +13,12 @@ const PREV_KEYS = new Set(['ArrowUp', 'KeyW']);
 const BACK_KEYS = new Set(['Escape', 'Backspace']);
 
 /**
- * @param {Array<{id:string,label:string,onSelect?:Function,locked?:string|null,badge?:string}>} items
+ * @param {Array<{id:string,label:string,onSelect?:Function,locked?:string|null,badge?:string,icon?:string}>} items
  * @param {{onBack?:Function,onFocus?:Function,sfx?:object,initial?:string,enter?:'left'|'right'|null}} opts
  */
 export function menuList(items, { onBack, onFocus, sfx, initial, enter = null } = {}) {
-  const bar = h('span', { class: 'ml-bar', 'aria-hidden': 'true' });
+  // Recuadro de la opción activa, con esquinas tácticas (cuatro marcas en L).
+  const bar = h('span', { class: 'ml-bar', 'aria-hidden': 'true' }, ['tl', 'tr', 'bl', 'br'].map((c) => h('i', { class: c })));
   let active = -1;
 
   const buttons = items.map((it, i) =>
@@ -35,7 +36,12 @@ export function menuList(items, { onBack, onFocus, sfx, initial, enter = null } 
         onfocus: () => setActive(i),
       },
       h('span', { class: 'ml-label' }, it.label),
-      it.locked ? h('span', { class: 'ml-lock', html: icon('lock', 14) }) : it.badge ? h('span', { class: 'ml-badge' }, it.badge) : null,
+      h(
+        'span',
+        { class: 'ml-end' },
+        it.badge && h('span', { class: 'ml-badge' }, it.badge),
+        it.locked ? h('span', { class: 'ml-lock', html: icon('lock', 14) }) : it.icon && h('span', { class: 'ml-icon', html: icon(it.icon, 16) }),
+      ),
     ),
   );
   const el = h('div', { class: `menu-list${enter ? ` enter-${enter}` : ''}`, role: 'menu', 'data-disposable': '' }, bar, buttons);
