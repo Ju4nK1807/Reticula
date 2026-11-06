@@ -75,6 +75,9 @@ texturas, las convierte a WebP en 1K y 512 y calcula su color medio.
 
 ### Créditos
 - Texturas: [Poly Haven](https://polyhaven.com) (CC0, dominio público).
+- Disparos: grabaciones reales de [The Free Firearm Sound Library](https://opengameart.org/content/the-free-firearm-sound-library)
+  (CC0): 1911, PPSh, AR-15, Benelli Nova y Mosin-Nagant, más un disparo a media distancia para los
+  enemigos (`public/sounds/credits.json`). Si no cargan, suenan los disparos procedurales.
 - Armas en primera persona: modelos de **Pichuliru** en [Poly Pizza](https://poly.pizza) (CC0). Fuentes y
   comando de optimización en `public/models/weapons/credits.json`. Se cargan bajo demanda; mientras
   llegan (o si fallan) se ve la versión de cajas.
