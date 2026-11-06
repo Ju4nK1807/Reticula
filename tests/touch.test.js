@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JOYSTICK_DEADZONE, JOYSTICK_RADIUS, TOUCH_DEG_PER_PX, joystickAxis, resolveTouchMode, touchLookCounts } from '../src/core/TouchControls.js';
+import { JOYSTICK_DEADZONE, JOYSTICK_RADIUS, TOUCH_DEG_PER_PX, isNativeAndroid, joystickAxis, resolveTouchMode, touchLookCounts } from '../src/core/TouchControls.js';
 
 describe('joystick táctil', () => {
   it('centro y zona muerta = quieto', () => {
@@ -48,5 +48,11 @@ describe('modo táctil', () => {
     expect(resolveTouchMode('on', media(false, true))).toBe(true);
     expect(resolveTouchMode('off', media(true, false))).toBe(false);
     expect(resolveTouchMode('auto', undefined)).toBe(false);
+    // En la app de Android, 'auto' es táctil aunque se anuncie un puntero fino; 'off' sigue mandando.
+    expect(resolveTouchMode('auto', media(false, true), true)).toBe(true);
+    expect(resolveTouchMode('off', media(true, false), true)).toBe(false);
+    expect(isNativeAndroid({ isNativePlatform: () => true, getPlatform: () => 'android' })).toBe(true);
+    expect(isNativeAndroid({ isNativePlatform: () => false, getPlatform: () => 'web' })).toBe(false);
+    expect(isNativeAndroid(undefined)).toBe(false);
   });
 });

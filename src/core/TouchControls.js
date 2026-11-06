@@ -7,9 +7,17 @@ export const JOYSTICK_DEADZONE = 0.14; // zona muerta (fracción del radio)
 export const TOUCH_DEG_PER_PX = 0.16; // grados que gira la cámara por píxel arrastrado con sensibilidad 1
 
 // ¿Usar controles táctiles? mode: 'auto' (sin mouse y con pantalla táctil) | 'on' | 'off'.
-export function resolveTouchMode(mode, media = globalThis.matchMedia?.bind(globalThis)) {
+// ¿Corre dentro de la app nativa de Android (Capacitor)? Ahí 'auto' siempre es táctil, aunque el
+// sistema anuncie un puntero fino (emuladores, teléfonos con lápiz o mouse Bluetooth conectado).
+export function isNativeAndroid(cap = globalThis.Capacitor) {
+  return !!cap?.isNativePlatform?.() && cap.getPlatform?.() === 'android';
+}
+
+export function resolveTouchMode(mode, media = globalThis.matchMedia?.bind(globalThis), native = isNativeAndroid()) {
   if (mode === 'on') return true;
-  if (mode === 'off' || !media) return false;
+  if (mode === 'off') return false;
+  if (native) return true;
+  if (!media) return false;
   return media('(any-pointer: coarse)').matches && !media('(any-pointer: fine)').matches;
 }
 

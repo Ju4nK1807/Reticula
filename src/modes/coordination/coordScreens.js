@@ -1,6 +1,6 @@
 import { h } from '../../ui/dom.js';
 import { button } from '../../ui/components.js';
-import { CONTROLS } from '../../ui/settingsScreen.js';
+import { controlList } from '../../ui/settingsScreen.js';
 import { sensSummary } from '../../config/sensitivity.js';
 import { DRILL_TIME, DRILLS, COLOR_RULES } from './drills.js';
 import { levelFor } from './coordScoring.js';
@@ -65,7 +65,7 @@ export function coordSelectScreen(game, { record, onDrill, onCircuit, onSettings
       'section',
       { class: 'panel' },
       h('h3', {}, 'Controles'),
-      h('dl', { class: 'controls compact' }, CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
+      h('dl', { class: 'controls compact' }, controlList().map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h('div', { class: 'row' }, button('Configuración', onSettings)),
     ),
