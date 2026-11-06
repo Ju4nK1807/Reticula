@@ -11,6 +11,7 @@ import { Ballistics } from '../combat/Ballistics.js';
 import { Weapon } from '../combat/Weapon.js';
 import { Viewmodel } from '../combat/Viewmodel.js';
 import { Effects } from '../effects/Effects.js';
+import { Ambience } from '../effects/Ambience.js';
 import { HUD } from '../ui/HUD.js';
 import { UI } from '../ui/UI.js';
 import { menuScreen } from '../ui/menuScreen.js';
@@ -42,6 +43,7 @@ export class Game {
     this.weapon = new Weapon(this);
     this.viewmodel = new Viewmodel();
     this.effects = new Effects();
+    this.ambience = new Ambience(); // polvo y chispas de la pantalla de título
     this.sfx = new Sfx();
     this.hud = new HUD(root.querySelector('#hud'));
     this.ui = new UI(root.querySelector('#ui'), root.querySelector('#toast'));
@@ -112,6 +114,7 @@ export class Game {
     this.world = world;
     this.engine.scene = world.scene;
     this.effects.attach(world.scene);
+    this.ambience.attach(world.scene, world.spawn);
     this.player.setWorld(world);
     this.ballistics.setWorld(world);
     this.player.reset(world.spawn);
@@ -228,6 +231,7 @@ export class Game {
       this.hud.setSpread(spreadToPixels(spread, this.engine.camera.fov, window.innerHeight));
     }
     this.effects.update(dt);
+    this.ambience.update(dt, !this.mode);
     this.viewmodel.update(dt, this.player);
     if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress);
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && this.zoomLevel < 1.15;
@@ -328,6 +332,7 @@ export class Game {
         onArsenal: () => this.showArsenal(),
         onProgress: () => this.ui.show(progressScreen(this, { onBack: () => this.showMenu() })),
         onSettings: () => this.showSettings(() => this.showMenu()),
+        onHelp: () => this.showSettings(() => this.showMenu(), { tab: 'datos' }),
       }),
     );
   }
