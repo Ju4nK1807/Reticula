@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Engine } from './Engine.js';
 import { PerfMeter } from './PerfMeter.js';
+import { TouchControls, resolveTouchMode } from './TouchControls.js';
 import { Input } from './Input.js';
 import { PlayerController } from './PlayerController.js';
 import { Sfx } from '../audio/Sfx.js';
@@ -46,6 +47,19 @@ export class Game {
     this.ui = new UI(root.querySelector('#ui'), root.querySelector('#toast'));
     this.engine.setOverlay(this.viewmodel);
     this.weapon.onChange = () => this.onWeaponChange();
+
+    // Modo táctil (teléfonos y tabletas): sin Pointer Lock, con joystick y botones en pantalla.
+    this.touchMode = resolveTouchMode(this.store.data.settings.touch?.mode);
+    this.input.touch = this.touchMode;
+    this.touch = null;
+    if (this.touchMode) {
+      root.classList.add('touch-mode');
+      this.touch = new TouchControls(this, root);
+      const hint = document.createElement('div');
+      hint.className = 'rotate-hint';
+      hint.textContent = 'Gira el teléfono a horizontal para jugar';
+      root.append(hint);
+    }
     this.zoomLevel = 1;
 
     this.mode = null;
@@ -193,6 +207,10 @@ export class Game {
     this.engine.camera.updateMatrixWorld();
 
     this.weapon.enabled = playing && !!this.mode?.weaponEnabled();
+    if (this.touch) {
+      this.touch.setVisible(playing);
+      if (playing) this.touch.update();
+    }
     this.updateScope(dt, playing);
     if (this.mode && !this.paused) {
       this.weapon.update(dt);
@@ -246,6 +264,10 @@ export class Game {
 
   onLock() {
     this.sfx.unlock();
+    // En táctil: pantalla completa y horizontal al entrar en partida (necesita el gesto del toque).
+    if (this.touchMode && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+    }
     if (this.paused) this.resume();
     else this.mode?.onLock();
   }

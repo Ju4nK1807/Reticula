@@ -34,6 +34,8 @@ export const DEFAULT_SETTINGS = {
     zoomSensitivity: 1, // multiplicador de sensibilidad con mira telescópica (1 = misma sensación que sin zoom)
   },
   audio: { volume: 0.6 },
+  // Controles táctiles (teléfono/tableta). mode: auto | on | off. sensitivity: independiente del mouse.
+  touch: { mode: 'auto', sensitivity: 1, invertY: false },
   video: { showFps: true, quality: 'alta', renderScale: 1 }, // quality: alta | media | baja | custom
 };
 

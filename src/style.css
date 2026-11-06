@@ -597,3 +597,25 @@ input[type='range']:active::-webkit-slider-thumb { transform: scale(1.15); }
 .cp-level h3, .cs-drill h3, .cs-circuit h3 { font-size: 18px; color: var(--text); }
 /* Sin backdrop-filter en el HUD: con la escena 3D detrás se recalcularía en cada cuadro (cuesta FPS). */
 .hud-top, .hud-ammo-box, .eh-panel, .cg-panel, .ch-panel { background: rgba(9, 13, 19, 0.7); border: 1px solid var(--line); }
+
+/* ---------- Pantallas bajas (teléfonos en horizontal, ventanas pequeñas) ---------- */
+@media (max-height: 520px) {
+  #ui { padding: 14px 16px; }
+  .screen { gap: 12px; }
+  h2 { font-size: 22px; }
+  .panel { padding: 16px; }
+  .hud-top { top: 8px; gap: 16px; padding: 4px 14px; }
+  .hud-stat { min-width: 80px; }
+  .hud-stat .v { font-size: 15px; }
+  .hud-timer { font-size: 20px; min-width: 64px; }
+  .hud-ammo span { font-size: 26px; }
+  .hud-ammo-box { min-width: 120px; padding: 6px 10px; }
+  .hud-brief { width: min(440px, calc(100% - 32px)); padding: 12px 16px; transform: translate(-50%, calc(-50% - 60px)); }
+  .hud-brief .name { font-size: 20px; }
+  .hud-brief .desc { font-size: 13px; }
+  .hud-brief .count { font-size: 30px; }
+  #hud .eh-banner { top: 22%; padding: 8px 18px; min-width: 0; }
+  #hud .eh-b-title { font-size: 18px; }
+  #hud .eh-b-count { font-size: 26px; }
+  #hud .eh-b-sub { font-size: 12px; }
+}

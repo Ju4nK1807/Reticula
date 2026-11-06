@@ -1,0 +1,59 @@
+/* Controles táctiles (solo en modo táctil y en partida). */
+
+.touch-controls { position: absolute; inset: 0; z-index: 5; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tc-stick-zone { position: absolute; left: 0; top: 0; bottom: 0; width: 42%; }
+.tc-look-zone { position: absolute; right: 0; top: 0; bottom: 0; width: 58%; }
+
+/* Joystick flotante: aparece donde se apoya el dedo. */
+.tc-stick {
+  position: absolute; left: 0; top: 0; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.06); border: 2px solid rgba(255, 255, 255, 0.22);
+}
+.tc-stick i {
+  position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.32); border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.tc-btn {
+  position: absolute; display: grid; place-items: center; width: 56px; height: 56px; padding: 0;
+  color: rgba(255, 255, 255, 0.9); background: rgba(8, 12, 17, 0.45); border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%; touch-action: none;
+  transition: transform 120ms var(--ease-out), background-color 120ms ease;
+}
+.tc-btn:active { transform: scale(0.92); background: rgba(0, 245, 160, 0.25); }
+
+.tc-btn.pause { left: 16px; top: 16px; width: 44px; height: 44px; }
+.tc-cluster { position: absolute; right: 0; bottom: 0; width: 280px; height: 260px; pointer-events: none; }
+.tc-cluster .tc-btn { pointer-events: auto; }
+.tc-btn.fire { right: 40px; bottom: 56px; width: 88px; height: 88px; border-color: var(--accent-line); color: var(--accent); }
+.tc-btn.aim { right: 148px; bottom: 34px; display: none; }
+.touch-controls.has-zoom .tc-btn.aim { display: grid; }
+.touch-controls.aiming .tc-btn.aim, .touch-controls.crouched .tc-btn.crouch { background: rgba(0, 245, 160, 0.3); border-color: var(--accent); }
+.tc-btn.reload { right: 142px; bottom: 104px; }
+.tc-btn.jump { right: 48px; bottom: 160px; }
+.tc-btn.jump svg { transform: rotate(-90deg); }
+.tc-btn.crouch { right: 120px; bottom: 170px; }
+.tc-btn.crouch svg { transform: rotate(-90deg); }
+.tc-btn.weapon { right: 210px; bottom: 150px; }
+.tc-weapon-key { position: absolute; right: -2px; bottom: -2px; font: 700 11px var(--mono); background: var(--surface-3); border-radius: 6px; padding: 1px 4px; }
+
+/* En vertical no se puede jugar: pedir girar el teléfono. */
+.rotate-hint { display: none; }
+@media (orientation: portrait) {
+  .touch-mode .rotate-hint {
+    position: absolute; inset: 0; z-index: 50; display: grid; place-items: center; padding: 32px; text-align: center;
+    background: var(--bg); color: var(--text); font-family: var(--font-display); font-size: 20px; letter-spacing: 0.04em;
+  }
+}
+
+/* En modo táctil, el HUD deja sitio a los botones. */
+.touch-mode .hud-slots { display: none; }
+.touch-mode .hud-ammo-box { bottom: auto; top: 70px; }
+.touch-mode .hud-health { left: auto; right: 22px; top: 140px; bottom: auto; }
+
+/* HUD compacto en modo táctil: deja sitio al botón de pausa y a los controles. */
+.touch-mode .hud-label { left: 72px; top: 18px; }
+.touch-mode .eh-panel, .touch-mode .cg-panel { left: 72px; top: 40px; }
+.touch-mode .hud-health { top: 128px; right: 22px; }
+.touch-mode .hud-health .bar { width: 120px; }
+.touch-mode .hud-weapon { font-size: 10px; }

@@ -19,6 +19,10 @@ export class Input extends Emitter {
     this.locked = false;
     this.mouseDown = false;
     this.aimDown = false; // clic derecho mantenido (apuntar con mira telescópica)
+    // Modo táctil: no hay Pointer Lock; "capturar" es solo entrar en partida y los controles
+    // táctiles (core/TouchControls.js) aportan el movimiento analógico y la mirada.
+    this.touch = false;
+    this.axis = { x: 0, y: 0 }; // joystick: x derecha, y adelante (-1…1)
     this.rawInputSupported = detectRawInput();
     this.rawInput = null; // tras la primera captura: true si se usa raw input (sin aceleración del SO)
     this.lastLockError = -Infinity;
@@ -27,6 +31,7 @@ export class Input extends Emitter {
     this.dy = 0;
 
     document.addEventListener('pointerlockchange', () => {
+      if (this.touch) return;
       const locked = document.pointerLockElement === this.lockTarget;
       if (locked === this.locked) return;
       this.locked = locked;
@@ -68,6 +73,7 @@ export class Input extends Emitter {
   releaseAll() {
     this.mouseDown = false;
     this.aimDown = false;
+    this.axis.x = this.axis.y = 0;
     this.keys.clear();
   }
 
@@ -79,6 +85,10 @@ export class Input extends Emitter {
   // (en Safari la confirmación llega después por 'pointerlockchange' o 'pointerlockerror').
   async lock() {
     if (this.locked) return true;
+    if (this.touch) {
+      this.setTouchLocked(true);
+      return true;
+    }
     const raw = this.rawInputSupported;
     try {
       await this.requestLock(raw);
@@ -113,7 +123,20 @@ export class Input extends Emitter {
     this.emit('lockerror');
   }
 
+  // Equivalente táctil de capturar / soltar el puntero.
+  setTouchLocked(locked) {
+    if (locked === this.locked) return;
+    this.locked = locked;
+    this.dx = this.dy = 0;
+    if (!locked) this.releaseAll();
+    this.emit(locked ? 'lock' : 'unlock');
+  }
+
   unlock() {
+    if (this.touch) {
+      this.setTouchLocked(false);
+      return;
+    }
     if (document.pointerLockElement) document.exitPointerLock();
   }
 

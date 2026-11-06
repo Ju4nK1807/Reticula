@@ -377,6 +377,13 @@ export function settingsScreen(game, onBack, opts = {}) {
         field('Recarga automática', checkbox(s.gameplay, 'autoReload', commit), 'Recarga sola al disparar con el cargador vacío. Desactívala para recargar siempre con R.'),
         field('Balas visibles', checkbox(s.gameplay, 'tracers', commit)),
         field('Arma en pantalla', checkbox(s.gameplay, 'viewmodel', commit)),
+        field('Controles táctiles', select({ auto: 'Automático (sin mouse)', on: 'Activados', off: 'Desactivados' }, s.touch.mode, (v) => {
+          s.touch.mode = v;
+          commit();
+          game.ui.toast('Se aplica al volver a abrir Retícula.');
+        }), 'Joystick, botones y apuntar arrastrando el dedo, para teléfonos y tabletas.'),
+        field('Sensibilidad táctil', slider(s.touch, 'sensitivity', { min: 0.3, max: 3, step: 0.05, fmt: (v) => `×${v.toFixed(2)}` }, commit), 'Cuánto gira la cámara al arrastrar el dedo (independiente de la del mouse).'),
+        field('Invertir eje Y táctil', checkbox(s.touch, 'invertY', commit)),
         field('Sensibilidad con zoom', slider(s.gameplay, 'zoomSensitivity', { min: 0.5, max: 1.5, step: 0.05, fmt: (v) => `×${v.toFixed(2)}` }, commit), 'Con la mira telescópica la sensibilidad baja en proporción al zoom; ×1 se siente igual que sin zoom.')),
     ]],
     datos: ['Controles y datos', () => [
