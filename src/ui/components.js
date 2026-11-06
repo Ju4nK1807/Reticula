@@ -37,6 +37,9 @@ export function rankLadder(currentId) {
   );
 }
 
-export function button(label, onClick, { variant = '', disabled = false } = {}) {
-  return h('button', { class: `btn ${variant}`, onclick: onClick, disabled }, label);
+// Los botones "Volver" se marcan con [data-back]: Esc / Retroceso los activan (ver UI.js).
+const BACK_LABEL = /^(←\s*)?Volver\b/;
+
+export function button(label, onClick, { variant = '', disabled = false, back = BACK_LABEL.test(label) } = {}) {
+  return h('button', { class: `btn ${variant}`, onclick: onClick, disabled, 'data-back': back }, label);
 }
