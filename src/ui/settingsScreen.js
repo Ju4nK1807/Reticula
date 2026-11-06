@@ -56,10 +56,14 @@ function slider(obj, key, { min, max, step = 1, fmt = (v) => v }, onChange) {
       onChange();
     },
   });
+  const fill = () => input.style.setProperty('--p', `${((Number(input.value) - min) / (max - min)) * 100}%`);
+  input.addEventListener('input', fill);
+  fill();
   const wrap = h('div', { class: 'slider' }, input, out);
   wrap.sync = () => {
     input.value = obj[key];
     out.textContent = fmt(obj[key]);
+    fill();
   };
   return wrap;
 }
@@ -274,7 +278,10 @@ function crosshairPanel(game, commit, editing = null) {
   return section;
 }
 
-// opts.crosshairWeapon: abre la sección de la mira editando esa arma (desde el Arsenal).
+// Última pestaña abierta (se recuerda durante la sesión).
+let lastTab = 'sens';
+
+// opts.crosshairWeapon: abre la pestaña de la mira editando esa arma (desde el Arsenal).
 export function settingsScreen(game, onBack, opts = {}) {
   const s = game.settings;
   const commit = () => {
@@ -330,38 +337,37 @@ export function settingsScreen(game, onBack, opts = {}) {
     }
   }, { variant: 'danger' });
 
-  return h(
-    'div',
-    { class: 'screen' },
-    h('header', { class: 'screen-head' }, h('h2', {}, 'Configuración'), button('← Volver', onBack, { variant: 'ghost' })),
-    h(
-      'div',
-      { class: 'settings-grid' },
-      h(
-        'section',
-        { class: 'panel' },
+  const rawNote = h('p', { class: 'muted small' }, (game.input.rawInput ?? game.input.rawInputSupported) === false
+    ? 'Tu navegador no admite raw input: desactiva "Mejorar precisión del puntero" en Windows para una conversión exacta.'
+    : 'Se usa raw input (sin aceleración) cuando el navegador lo admite: Chrome, Edge y la app de escritorio.');
+
+  // Cada pestaña construye su contenido al mostrarse (los controles leen el valor actual).
+  const TABS = {
+    sens: ['Sensibilidad', () => [
+      h('section', { class: 'panel' },
         h('h3', {}, 'Sensibilidad'),
         h('p', { class: 'muted small' }, 'Retícula gira exactamente lo mismo que tu juego por cada movimiento del mouse. Al cambiar de juego, el valor se convierte para mantener tus cm/360.'),
         sensitivityPanel(game),
-        h('p', { class: 'muted small' }, (game.input.rawInput ?? game.input.rawInputSupported) === false
-          ? 'Tu navegador no admite raw input: desactiva "Mejorar precisión del puntero" en Windows para una conversión exacta.'
-          : 'Se usa raw input (sin aceleración) cuando el navegador lo admite: Chrome o Edge.'),
+        rawNote),
+    ]],
+    mira: ['Mira', () => [crosshairPanel(game, commit, opts.crosshairWeapon ?? null)]],
+    video: ['Video y audio', () => [
+      h('section', { class: 'panel' },
         h('h3', {}, 'Video'),
         field('FOV horizontal', fovSlider, 'Equivalente en pantallas 16:9.'),
         fovPresets,
         field('Calidad', qualitySelect, 'Baja la resolución de render para ganar FPS en equipos modestos.'),
         field('Resolución de render', scaleSlider, 'Porcentaje de la resolución de la pantalla (la interfaz no cambia).'),
-        field('Mostrar FPS', checkbox(s.video, 'showFps', commit), 'FPS promedio, ms por cuadro y 1 % low (tirones).'),
+        field('Mostrar FPS', checkbox(s.video, 'showFps', commit), 'FPS promedio, ms por cuadro y 1 % low (tirones).')),
+      h('section', { class: 'panel' },
         h('h3', {}, 'Audio'),
         field('Volumen', slider(s.audio, 'volume', { min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)}%` }, () => {
           commit();
           game.sfx.hit();
-        })),
-      ),
-      crosshairPanel(game, commit, opts.crosshairWeapon ?? null),
-      h(
-        'section',
-        { class: 'panel' },
+        }))),
+    ]],
+    juego: ['Juego', () => [
+      h('section', { class: 'panel' },
         h('h3', {}, 'Juego'),
         field('Color de enemigos', select(ENEMY_COLORS, s.enemyColor, (v) => {
           s.enemyColor = v;
@@ -371,12 +377,42 @@ export function settingsScreen(game, onBack, opts = {}) {
         field('Recarga automática', checkbox(s.gameplay, 'autoReload', commit), 'Recarga sola al disparar con el cargador vacío. Desactívala para recargar siempre con R.'),
         field('Balas visibles', checkbox(s.gameplay, 'tracers', commit)),
         field('Arma en pantalla', checkbox(s.gameplay, 'viewmodel', commit)),
-        field('Sensibilidad con zoom', slider(s.gameplay, 'zoomSensitivity', { min: 0.5, max: 1.5, step: 0.05, fmt: (v) => `×${v.toFixed(2)}` }, commit), 'Con la mira telescópica la sensibilidad baja en proporción al zoom; ×1 se siente igual que sin zoom.'),
+        field('Sensibilidad con zoom', slider(s.gameplay, 'zoomSensitivity', { min: 0.5, max: 1.5, step: 0.05, fmt: (v) => `×${v.toFixed(2)}` }, commit), 'Con la mira telescópica la sensibilidad baja en proporción al zoom; ×1 se siente igual que sin zoom.')),
+    ]],
+    datos: ['Controles y datos', () => [
+      h('section', { class: 'panel' },
         h('h3', {}, 'Controles'),
-        h('dl', { class: 'controls' }, CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
+        h('dl', { class: 'controls' }, CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)]))),
+      h('section', { class: 'panel' },
         h('h3', {}, 'Datos'),
-        h('div', { class: 'row' }, resetSettingsBtn, resetBtn),
-      ),
-    ),
+        h('p', { class: 'muted small' }, 'Para guardar una copia de tu progreso usa Progreso → Datos → Exportar.'),
+        h('div', { class: 'row' }, resetSettingsBtn, resetBtn)),
+    ]],
+  };
+
+  const content = h('div', { class: 'settings-grid' });
+  const tabs = h('nav', { class: 'settings-tabs', role: 'tablist', 'aria-label': 'Secciones de configuración' });
+  const show = (id) => {
+    lastTab = id;
+    for (const b of tabs.children) {
+      const on = b.dataset.tab === id;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    const panels = TABS[id][1]();
+    content.classList.toggle('single', panels.length === 1);
+    content.replaceChildren(...panels);
+  };
+  for (const [id, [label]] of Object.entries(TABS)) {
+    tabs.append(h('button', { class: 'settings-tab', type: 'button', role: 'tab', 'data-tab': id, onclick: () => show(id) }, label));
+  }
+  show(opts.crosshairWeapon ? 'mira' : lastTab);
+
+  return h(
+    'div',
+    { class: 'screen' },
+    h('header', { class: 'screen-head' }, h('div', {}, h('div', { class: 'eyebrow' }, 'Ajustes'), h('h2', {}, 'Configuración')), button('← Volver', onBack, { variant: 'ghost' })),
+    tabs,
+    content,
   );
 }
