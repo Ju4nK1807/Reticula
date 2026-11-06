@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildBotModel, BOT_DIMENSIONS } from './botModel.js';
+import { BotSkin, loadSoldier } from './botSkin.js';
 import { rand, randSign } from '../utils/math.js';
 
 const JUMP_TIME = 0.6;
@@ -71,6 +72,18 @@ export class Bot {
     this.applyPose();
     parent.add(this.group);
     this.group.updateMatrixWorld(true);
+
+    // Apariencia: soldado animado (botSkin.js). Las cajas siguen siendo las hitboxes, ahora invisibles.
+    this.skin = null;
+    this.shotT = 9;
+    this.moveSpeed = 0;
+    this.prevPos = this.group.position.clone();
+    loadSoldier(opts.color).then((template) => {
+      if (!template || this.disposed || this.state === 'gone') return;
+      this.skin = new BotSkin(template, opts.color);
+      this.group.add(this.skin.root);
+      for (const m of Object.values(this.mats)) m.visible = false;
+    });
   }
 
   get position() {
@@ -189,6 +202,29 @@ export class Bot {
     }
     this.flashT -= dt;
     this.applyPose();
+    this.updateSkin(dt);
+  }
+
+  // Animación del soldado según el movimiento real del bot (en su espacio: adelante y lateral).
+  updateSkin(dt) {
+    if (!this.skin) return;
+    this.shotT += dt;
+    const p = this.group.position;
+    const dx = p.x - this.prevPos.x;
+    const dz = p.z - this.prevPos.z;
+    this.prevPos.copy(p);
+    const speed = dt > 0 ? Math.hypot(dx, dz) / dt / this.scale : 0;
+    this.moveSpeed += (speed - this.moveSpeed) * Math.min(1, dt * 10);
+    const r = this.group.rotation.y;
+    this.skin.update(dt, {
+      forward: dx * Math.sin(r) + dz * Math.cos(r),
+      lateral: dx * Math.cos(r) - dz * Math.sin(r),
+      speed: this.moveSpeed,
+      crouch: this.crouch,
+      shotT: this.shotT,
+      dying: this.state === 'dying',
+      flash: this.flashT > 0 ? 0.9 : 0,
+    });
   }
 
   face(target) {
@@ -300,6 +336,7 @@ export class Bot {
     this.fireCooldown -= dt;
     if (this.fireCooldown > 0) return;
     this.fireCooldown = s.interval * rand(0.8, 1.2);
+    this.shotT = 0;
     // Moverse rápido o agacharse hace más difícil que el bot acierte.
     const moving = Math.min(1, ctx.playerSpeed / 5.4);
     const chance = s.accuracy * (1 - 0.5 * moving) * (ctx.playerCrouch > 0.5 ? 0.85 : 1);
@@ -309,11 +346,12 @@ export class Bot {
   updateDeath(dt) {
     this.deathT += dt;
     const k = Math.min(1, this.deathT / 0.35);
-    this.group.rotation.x = -k * k * 1.45;
+    if (!this.skin) this.group.rotation.x = -k * k * 1.45; // el soldado tiene su animación de muerte
     if (this.deathT > 0.55) this.group.position.y = this.baseY - (this.deathT - 0.55) * 2.5;
     if (this.deathT > DEATH_TIME) this.state = 'gone';
     this.flashT -= dt;
     this.applyPose();
+    this.updateSkin(dt);
   }
 
   applyPose() {
@@ -343,6 +381,8 @@ export class Bot {
   }
 
   dispose() {
+    this.disposed = true;
+    this.skin?.dispose();
     this.group.removeFromParent();
     for (const m of Object.values(this.mats)) m.dispose();
   }

@@ -78,6 +78,9 @@ texturas, las convierte a WebP en 1K y 512 y calcula su color medio.
 - Armas en primera persona: modelos de **Pichuliru** en [Poly Pizza](https://poly.pizza) (CC0). Fuentes y
   comando de optimización en `public/models/weapons/credits.json`. Se cargan bajo demanda; mientras
   llegan (o si fallan) se ve la versión de cajas.
+- Enemigos: soldado animado de **Quaternius** en [Poly Pizza](https://poly.pizza) (CC0). Es solo la
+  apariencia: los impactos los siguen decidiendo las hitboxes de siempre (invisibles), así la puntería y
+  los rangos no cambian. Se une en una sola malla por color de enemigo (1 llamada de dibujo por soldado).
 
 ## Estructura
 
