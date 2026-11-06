@@ -93,12 +93,25 @@ describe('migraciones', () => {
       }),
     });
     const store = new SaveStore(storage);
-    expect(store.data.version).toBe(3);
+    expect(store.data.version).toBe(SAVE_VERSION);
     expect(store.data.profile.rank).toBe('oro');
     expect(store.data.profile.score).toBe(55);
     expect(store.data.profile.bestScore).toBe(60);
     expect(store.data.profile.evaluations).toHaveLength(1);
-    expect(JSON.parse(storage.getItem(SAVE_KEY)).version).toBe(3);
+    expect(JSON.parse(storage.getItem(SAVE_KEY)).version).toBe(SAVE_VERSION);
+  });
+
+  it('v3 → v4: la calidad por defecto (Alta) y la Media puesta sola en teléfonos pasan a Automática', () => {
+    const load = (video) =>
+      new SaveStore(memoryStorage({ [SAVE_KEY]: JSON.stringify({ version: 3, settings: { video } }) })).data.settings.video;
+    expect(load({ quality: 'alta', renderScale: 1 }).quality).toBe('auto');
+    const phone = load({ quality: 'media', renderScale: 0.85, touchTuned: true });
+    expect(phone.quality).toBe('auto');
+    expect(phone.touchTuned).toBeUndefined();
+    // Las elecciones explícitas se respetan.
+    expect(load({ quality: 'baja', renderScale: 0.7 }).quality).toBe('baja');
+    expect(load({ quality: 'media', renderScale: 0.85 }).quality).toBe('media');
+    expect(load({ quality: 'custom', renderScale: 0.6, detail: 'baja' }).quality).toBe('custom');
   });
 
   it('un guardado sin versión se trata como v1', () => {

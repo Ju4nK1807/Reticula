@@ -13,13 +13,25 @@ export const QUALITY_PRESETS = {
 };
 export const DETAIL_LEVELS = ['alta', 'media', 'baja'];
 
-export const QUALITY_OPTIONS = { ...Object.fromEntries(Object.entries(QUALITY_PRESETS).map(([k, v]) => [k, v.label])), custom: 'Personalizada' };
+export const QUALITY_OPTIONS = {
+  auto: 'Automática (recomendada)',
+  ...Object.fromEntries(Object.entries(QUALITY_PRESETS).map(([k, v]) => [k, v.label])),
+  custom: 'Personalizada',
+};
+// En automática la resolución máxima se limita a 1.5× (pantallas 4K / alta densidad): la resolución
+// dinámica parte de ahí.
+const AUTO_MAX_PIXEL_RATIO = 1.5;
 
 export const RENDER_SCALE = { min: 0.5, max: 1, step: 0.05 };
 
 // Resolución y detalle efectivos a partir de la configuración de video: { quality, renderScale, detail }.
 // En "Personalizada" el detalle es el elegido (por defecto, medio).
 export function resolveQuality(video, devicePixelRatio = 1) {
+  if (video?.quality === 'auto') {
+    const scale = clampScale(video.autoScale ?? 1);
+    const detail = DETAIL_LEVELS.includes(video.autoDetail) ? video.autoDetail : 'media';
+    return { renderScale: scale, pixelRatio: Math.min(devicePixelRatio, AUTO_MAX_PIXEL_RATIO) * scale, detail, auto: true };
+  }
   const preset = QUALITY_PRESETS[video?.quality] ?? null;
   const scale = preset ? preset.renderScale : clampScale(video?.renderScale ?? 1);
   const maxRatio = preset ? preset.maxPixelRatio : 2;

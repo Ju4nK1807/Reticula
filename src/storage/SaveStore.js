@@ -37,6 +37,13 @@ export const MIGRATIONS = {
     data.profile.evaluations = data.profile.evaluations.filter((e) => isPlainObject(e) && e.variant);
     refreshProfile(data.profile);
   },
+  // v4: calidad automática. Quien seguía con la calidad por defecto (Alta) o con la Media que se
+  // ponía sola en teléfonos pasa a Automática; las elecciones explícitas (Baja, Personalizada) se respetan.
+  3: (data) => {
+    const v = data.settings.video;
+    if (v.quality === 'alta' || (v.quality === 'media' && v.touchTuned)) v.quality = 'auto';
+    delete v.touchTuned;
+  },
 };
 
 // Lleva un guardado (ya mezclado) a la versión actual. Devuelve true si cambió algo.
