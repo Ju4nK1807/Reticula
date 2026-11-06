@@ -12,7 +12,7 @@ import { Weapon } from '../combat/Weapon.js';
 import { Viewmodel } from '../combat/Viewmodel.js';
 import { Effects } from '../effects/Effects.js';
 import { Ambience } from '../effects/Ambience.js';
-import { applyShadowQuality, prepareWorld } from '../gfx/lighting.js';
+import { applyShadowQuality, environment, prepareWorld } from '../gfx/lighting.js';
 import { QUALITY_PRESETS } from '../config/quality.js';
 import { HUD } from '../ui/HUD.js';
 import { UI } from '../ui/UI.js';
@@ -51,6 +51,10 @@ export class Game {
     this.ui = new UI(root.querySelector('#ui'), root.querySelector('#toast'));
     this.ui.onBack = () => this.sfx.uiBack();
     this.engine.setOverlay(this.viewmodel);
+    // Armas 3D: reflejos del mismo entorno que los mapas y descarga anticipada de los modelos.
+    this.viewmodel.scene.environment = environment(this.engine.renderer);
+    this.viewmodel.scene.environmentIntensity = 0.6;
+    this.viewmodel.preload();
     this.weapon.onChange = () => this.onWeaponChange();
 
     // Modo táctil (teléfonos y tabletas): sin Pointer Lock, con joystick y botones en pantalla.

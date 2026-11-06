@@ -1,0 +1,33 @@
+{
+  "_info": "Modelos de armas en primera persona. Fuente: Poly Pizza. Optimizados con: npx @gltf-transform/cli optimize <in> <out> --compress false --texture-compress false --simplify false --instance false --palette false",
+  "pistol": {
+    "file": "pistol.glb",
+    "source": "https://poly.pizza/m/r8RjoAwN5A",
+    "author": "Pichuliru",
+    "license": "CC0 1.0"
+  },
+  "smg": {
+    "file": "smg.glb",
+    "source": "https://poly.pizza/m/7Dh5JSbZcp",
+    "author": "Pichuliru",
+    "license": "CC0 1.0"
+  },
+  "rifle": {
+    "file": "rifle.glb",
+    "source": "https://poly.pizza/m/ss1nz3gJnx",
+    "author": "Pichuliru",
+    "license": "CC0 1.0"
+  },
+  "shotgun": {
+    "file": "shotgun.glb",
+    "source": "https://poly.pizza/m/NfQETBKOiw",
+    "author": "Pichuliru",
+    "license": "CC0 1.0"
+  },
+  "sniper": {
+    "file": "sniper.glb",
+    "source": "https://poly.pizza/m/R1qESvHtZH",
+    "author": "Pichuliru",
+    "license": "CC0 1.0"
+  }
+}

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { WEAPON_MODELS, loadWeaponModel } from './weaponModels.js';
 
 const BASE = new THREE.Vector3(0.2, -0.2, -0.45);
 
@@ -15,8 +16,8 @@ const MAT = {
   accent: new THREE.MeshBasicMaterial({ color: '#00ffa3' }),
 };
 
-// Modelos de cada arma: [ancho, alto, largo, material, x, y, z, rotX] y la posición de la boca
-// del cañón (destello). Hechos solo con cajas, en el mismo estilo que el resto del juego.
+// Modelos de respaldo de cada arma: [ancho, alto, largo, material, x, y, z, rotX] y la boca del
+// cañón (destello). Hechos con cajas; se ven mientras carga el modelo 3D (weaponModels.js) o si falla.
 const MODELS = {
   pistol: {
     muzzle: -0.36,
@@ -129,6 +130,7 @@ export class Viewmodel {
     this.scene.add(this.gun);
 
     this.weaponId = null;
+    this.loaded = new Map(); // id → modelo 3D listo
     this.offset = new THREE.Vector3();
     this.recoil = 0;
     this.kickStrength = 0.55;
@@ -147,6 +149,12 @@ export class Viewmodel {
     if (this.weaponId === id) return;
     this.weaponId = id;
     this.model.clear();
+    this.offset.fromArray(model.offset);
+    const ready = this.loaded.get(id);
+    if (ready) {
+      this.showLoaded(ready);
+      return;
+    }
     for (const [w, h, d, mat, x, y, z, rx = 0] of model.parts) {
       const m = new THREE.Mesh(boxGeo(w, h, d), MAT[mat]);
       m.position.set(x, y, z);
@@ -154,7 +162,28 @@ export class Viewmodel {
       this.model.add(m);
     }
     this.flash.position.set(0, 0.012, model.muzzle);
-    this.offset.fromArray(model.offset);
+    // Modelo 3D: reemplaza a las cajas en cuanto llega (si el jugador sigue con esa arma).
+    loadWeaponModel(id).then((m) => {
+      if (!m) return;
+      this.loaded.set(id, m);
+      if (this.weaponId === id) {
+        this.model.clear();
+        this.showLoaded(m);
+      }
+    });
+  }
+
+  showLoaded({ object, muzzle }) {
+    this.offset.set(0, 0, 0); // el modelo ya viene colocado
+    this.model.add(object);
+    this.flash.position.copy(muzzle);
+  }
+
+  // Descarga en segundo plano todos los modelos (son pequeños): cambiar de arma no espera.
+  preload() {
+    for (const id of Object.keys(WEAPON_MODELS)) {
+      loadWeaponModel(id).then((m) => m && this.loaded.set(id, m));
+    }
   }
 
   resize(aspect) {

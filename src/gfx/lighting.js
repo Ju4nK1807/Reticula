@@ -15,7 +15,8 @@ const MAX_HALF_EXTENT = 48; // m: más allá, la sombra pierde definición y no 
 const ENV_INTENSITY = 0.35;
 let envTexture = null;
 
-function environment(renderer) {
+/** Mapa de entorno compartido (reflejos de los materiales PBR). */
+export function environment(renderer) {
   if (!envTexture) {
     const pmrem = new THREE.PMREMGenerator(renderer);
     const room = new RoomEnvironment();
