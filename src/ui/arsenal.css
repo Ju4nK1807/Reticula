@@ -1,29 +1,47 @@
-/* Arsenal (se carga con la pantalla). */
+/* Arsenal: lista de armas + ficha del arma enfocada (se carga con la pantalla). */
 
-.ar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-.ar-card { display: flex; flex-direction: column; gap: 8px; padding: 16px; transition: border-color 0.15s ease; }
-.ar-card.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(0, 255, 163, 0.25); }
-.ar-head { display: flex; align-items: center; gap: 8px; }
-.ar-cat { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.ar-head .tag { margin-left: auto; }
-.ar-icon { color: var(--text); opacity: 0.9; height: 46px; }
-.ar-icon svg { width: 100%; height: 100%; }
-.ar-card.active .ar-icon { color: var(--accent); }
-.ar-card h3 { font-size: 18px; }
-.ar-card p { margin: 0; min-height: 52px; }
+.ar-layout { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 28px; align-items: start; }
+.ar-list { padding-top: 8px; }
+.ar-list .menu-list { width: 100%; }
 
-.ar-stats { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
-.ar-stat { display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-.ar-track { height: 6px; border-radius: 3px; background: #1f2836; overflow: hidden; }
-.ar-track i { display: block; height: 100%; border-radius: 3px; background: var(--accent-2); }
-.ar-card.active .ar-track i { background: var(--accent); }
+.ar-show { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding: 26px 28px; }
+.ar-show-head { display: flex; align-items: center; gap: 12px; }
+.ar-show-head .eyebrow { margin: 0; }
+.ar-show-head .tag { margin-left: 0; }
+.ar-name { font-size: 40px; letter-spacing: 0.1em; }
 
-.ar-facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; margin: 4px 0 0; font-size: 12px; }
-.ar-facts dt { color: var(--muted); }
-.ar-facts dd { margin: 0; font-family: var(--mono); text-align: right; }
+/* Silueta grande del arma sobre un suelo de luz: es la "vitrina". */
+.ar-hero {
+  position: relative; height: clamp(90px, 14vh, 150px); margin: 4px 0 6px; padding: 10px 6%;
+  color: var(--text-2);
+  background: radial-gradient(ellipse 60% 40% at 50% 92%, rgba(54, 214, 255, 0.1), transparent 70%);
+  border-bottom: 1px solid var(--line);
+}
+.ar-hero svg { width: 100%; height: 100%; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55)); }
+.ar-hero.equipped { color: var(--accent); background: radial-gradient(ellipse 60% 40% at 50% 92%, rgba(0, 245, 160, 0.14), transparent 70%); }
+.ar-desc { margin: 0; color: var(--text-2); max-width: 64ch; }
 
-.ar-foot { margin-top: auto; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ar-xh { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 8px; background: #2b3442; }
+.ar-body { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 6px; }
+.ar-stats { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; }
+.ar-stat { display: grid; grid-template-columns: 84px 1fr 30px; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
+.ar-stat b { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--text-2); text-align: right; }
+.ar-track { height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.ar-track i { display: block; height: 100%; background: var(--accent-2); transform-origin: left; }
+.ar-hero.equipped ~ .ar-body .ar-track i { background: var(--accent); }
+.ar-facts { margin-top: 8px; }
 
-@media (max-width: 1180px) { .ar-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 860px) { .ar-grid { grid-template-columns: 1fr; } }
+.ar-foot { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ar-foot .btn.primary { margin-left: auto; min-width: 150px; }
+.ar-xh { width: 42px; height: 42px; display: grid; place-items: center; border-radius: var(--r-md); background: #2b3442; }
+
+@media (max-width: 1000px) { .ar-body { grid-template-columns: 1fr; gap: 8px; } }
+@media (max-width: 760px) { .ar-layout { grid-template-columns: 1fr; } }
+@media (max-height: 520px) {
+  .ar-layout { grid-template-columns: 220px minmax(0, 1fr); gap: 16px; }
+  .ar-show { padding: 16px 18px; gap: 6px; }
+  .ar-name { font-size: 24px; }
+  .ar-hero { height: 64px; }
+  .ar-desc { font-size: 13px; }
+  .ar-body { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .ar-stats { gap: 6px; padding-top: 8px; }
+}
