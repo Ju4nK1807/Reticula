@@ -150,7 +150,7 @@ export class SequenceDrill extends CoordDrill {
   }
 
   hudStats() {
-    return { ...super.hudStats(), accLabel: 'Series', accText: String(this.sets) };
+    return { ...super.hudStats(), accLabel: 'Series', accText: String(this.sets ?? 0) };
   }
 
   metrics() {
@@ -301,7 +301,7 @@ export class ColorDrill extends CoordDrill {
   }
 
   hudStats() {
-    return { ...super.hudStats(), accLabel: 'Correctas', accText: String(this.correct) };
+    return { ...super.hudStats(), accLabel: 'Correctas', accText: String(this.correct ?? 0) };
   }
 
   metrics() {
