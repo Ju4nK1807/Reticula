@@ -95,6 +95,11 @@ export class Coordination extends Mode {
     this.beginStage(0);
   }
 
+  // Texto extra en el HUD del arma.
+  weaponHudSuffix() {
+    return ' · munición ilimitada';
+  }
+
   onPause() {
     this.phase?.onPause();
   }
@@ -115,11 +120,9 @@ export class Coordination extends Mode {
     this.briefT = BRIEF_TIME;
     this.lastBeep = null;
     g.player.reset(g.world.spawn);
-    g.weapon.setMode(false);
-    g.weapon.refill();
+    g.equipLoadout();
     g.effects.clear();
     g.hud.setHealth(null);
-    g.hud.setWeapon(`${g.weapon.stats.name} · SEMI · munición ilimitada`);
     const step = this.kind === 'circuit' ? ` · ${index + 1}/${this.queue.length}` : '';
     g.hud.setLabel(`Coordinación${step} · ${Drill.info.name}`);
     g.hud.setStats(this.phase.hudStats());

@@ -15,6 +15,7 @@ export class Engine {
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 400);
     this.camera.rotation.order = 'YXZ';
     this.horizontalFov = 103;
+    this.zoom = 1; // aumento de la mira telescópica (1 = sin zoom)
     this.overlay = null;
     this.showOverlay = true;
 
@@ -39,8 +40,15 @@ export class Engine {
     this.applyFov();
   }
 
+  // Zoom de mira telescópica: reduce el FOV efectivo (×2 = mitad de campo de visión en tangente).
+  setZoom(z) {
+    if (z === this.zoom) return;
+    this.zoom = z;
+    this.applyFov();
+  }
+
   applyFov() {
-    const h = THREE.MathUtils.degToRad(this.horizontalFov);
+    const h = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(this.horizontalFov) / 2) / this.zoom);
     const v = 2 * Math.atan(Math.tan(h / 2) / this.camera.aspect);
     this.camera.fov = THREE.MathUtils.radToDeg(v);
     this.camera.updateProjectionMatrix();

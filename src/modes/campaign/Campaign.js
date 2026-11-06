@@ -12,7 +12,6 @@ export const MODE_ID = 'campaign';
 const BRIEF_TIME = 5; // s de instrucciones y cuenta regresiva
 const DEATH_TIME = 1.4; // s de cámara lenta al caer
 const DEATH_SLOWMO = 0.3;
-const FIRE_MODE_KEY = 'KeyB';
 
 /*
   Campaña: un mapa por rango con 4 niveles cada uno. Estados:
@@ -29,8 +28,6 @@ export class Campaign extends Mode {
     this.level = null;
     this.phase = null;
     this.pending = null;
-    this.auto = false;
-    this.offKey = null;
   }
 
   get progress() {
@@ -46,7 +43,6 @@ export class Campaign extends Mode {
     g.weapon.onShot = (hit, spread, time) => {
       if (this.state === 'running') this.phase.handleShot(hit, time);
     };
-    this.offKey = g.input.on('key', (e) => this.onKey(e));
     this.hud = new CampaignHud(g.hud);
     this.showMaps();
   }
@@ -141,13 +137,11 @@ export class Campaign extends Mode {
     this.lastBeep = null;
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
-    g.weapon.setMode(this.auto);
-    g.weapon.refill();
+    g.equipLoadout(); // arma elegida en el arsenal (1-5 para cambiar, B para el modo de disparo)
     g.effects.clear();
     g.hud.setVisible(true);
     g.hud.setHealth(1);
     g.hud.setLabel(`${this.map.name} · ${level.number}/4 · ${level.name}`);
-    this.updateWeaponLabel();
     g.hud.setStats(this.phase.hudStats());
     this.hud.setLevel(level);
     this.hud.setVisible(false);
@@ -236,20 +230,6 @@ export class Campaign extends Mode {
     );
   }
 
-  // B: alterna disparo automático / semiautomático (se recuerda entre niveles).
-  onKey(e) {
-    if (e.code !== FIRE_MODE_KEY || e.repeat || !this.game.playing || !this.wantsLock()) return;
-    this.auto = !this.auto;
-    this.game.weapon.setMode(this.auto);
-    this.updateWeaponLabel();
-    this.game.hud.flash(this.auto ? 'Disparo automático' : 'Disparo semiautomático', 'info');
-  }
-
-  updateWeaponLabel() {
-    const w = this.game.weapon;
-    this.game.hud.setWeapon(`${w.stats.name} · ${this.auto ? 'AUTO' : 'SEMI'} · [B]`);
-  }
-
   onPause() {
     this.phase?.onPause();
   }
@@ -260,7 +240,6 @@ export class Campaign extends Mode {
     this.phase = null;
     this.hud?.dispose();
     this.hud = null;
-    this.offKey?.();
     this.root.removeFromParent();
     g.weapon.onShot = null;
     g.player.movementEnabled = true;

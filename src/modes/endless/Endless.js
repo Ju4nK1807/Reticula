@@ -13,7 +13,6 @@ const DEATH_TIME = 1.8; // s de cámara lenta antes del resumen
 const DEATH_SLOWMO = 0.25;
 const LOW_HEALTH = 30; // por debajo suena el latido
 const STREAK_ANNOUNCE = 3; // a partir de esta racha se anuncia en pantalla
-const FIRE_MODE_KEY = 'KeyB';
 const COMBAT_STATES = new Set(['countdown', 'wave', 'clear']);
 
 /*
@@ -33,9 +32,7 @@ export class Endless extends Mode {
     this.timer = 0;
     this.nextWave = 1;
     this.lastBeep = null;
-    this.auto = true;
     this.heartT = 0;
-    this.offKey = null;
   }
 
   get record() {
@@ -52,7 +49,6 @@ export class Endless extends Mode {
     g.weapon.onShot = (hit, spread, time) => {
       if (this.state === 'wave') this.run.handleShot(hit, time);
     };
-    this.offKey = g.input.on('key', (e) => this.onKey(e));
     this.hud = new EndlessHud(g.hud);
     this.hud.setVisible(false);
     this.showIntro();
@@ -110,13 +106,11 @@ export class Endless extends Mode {
     this.run.listener = (type, data) => this.onRunEvent(type, data);
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
-    g.weapon.setMode(this.auto);
-    g.weapon.refill();
+    g.equipLoadout(); // arma elegida en el arsenal (1-5 para cambiar, B para el modo de disparo)
     g.effects.clear();
     g.hud.setVisible(true);
     g.hud.setHealth(1);
     g.hud.setLabel('Modo infinito · Bastión');
-    this.updateWeaponLabel();
     this.hud.reset();
     this.hud.setVisible(true);
     this.state = 'countdown';
@@ -265,27 +259,12 @@ export class Endless extends Mode {
     }
   }
 
-  // B: alterna disparo automático / semiautomático.
-  onKey(e) {
-    if (e.code !== FIRE_MODE_KEY || e.repeat || !this.game.playing || !COMBAT_STATES.has(this.state)) return;
-    this.auto = !this.auto;
-    this.game.weapon.setMode(this.auto);
-    this.updateWeaponLabel();
-    this.game.hud.flash(this.auto ? 'Disparo automático' : 'Disparo semiautomático', 'info');
-  }
-
-  updateWeaponLabel() {
-    const w = this.game.weapon;
-    this.game.hud.setWeapon(`${w.stats.name} · ${this.auto ? 'AUTO' : 'SEMI'} · [B]`);
-  }
-
   dispose() {
     const g = this.game;
     this.run?.dispose();
     this.run = null;
     this.hud?.dispose();
     this.hud = null;
-    this.offKey?.();
     this.root.removeFromParent();
     g.weapon.onShot = null;
     g.player.movementEnabled = true;

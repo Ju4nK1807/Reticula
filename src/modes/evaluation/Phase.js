@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { Bot } from '../../bots/Bot.js';
 import { BOT_DIMENSIONS } from '../../bots/botModel.js';
-import { RIFLE } from '../../combat/Weapon.js';
 import { SphereTarget } from '../../targets/SphereTarget.js';
 import { angularDistance, pointFromAngles } from '../../targets/spawn.js';
 import { clock, pct } from '../../utils/format.js';
@@ -156,8 +155,9 @@ export class Phase {
     return fallback ?? { pos: pointFromAngles(0, 4, 12, eye), angles: { yaw: 0, pitch: 4 } };
   }
 
+  // Daño de una bala (o perdigón) del arma actual en esa zona.
   damageFor(part) {
-    return RIFLE.damage[part];
+    return this.game.weapon.stats.damage[part];
   }
 
   // Recibe cada disparo del jugador (hit = resultado de Ballistics.cast o null).
@@ -175,7 +175,8 @@ export class Phase {
     const { bot, part } = hit;
     s.hits++;
     s[part]++;
-    const dmg = this.damageFor(part, bot);
+    // Con perdigones (escopeta), el daño se multiplica por los que dieron en este objetivo.
+    const dmg = this.damageFor(part, bot) * (hit.pelletHits ?? 1);
     const { killed } = dmg > 0 ? bot.damage(dmg) : { killed: false };
     this.score += this.points[part];
     hud.hitmarker(killed ? 'kill' : part === 'head' ? 'head' : 'hit');

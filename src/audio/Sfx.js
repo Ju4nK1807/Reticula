@@ -80,9 +80,38 @@ export class Sfx {
     src.stop(t + decay + 0.1);
   }
 
-  shot() {
-    this.noiseBurst({ f0: 2400, f1: 500, peak: 0.42, decay: 0.09 });
-    this.tone('sine', 170, 50, 0.08, 0.32);
+  // Disparo del jugador según el arma (perfil de combat/weapons.js).
+  shot(profile = 'rifle') {
+    switch (profile) {
+      case 'pistol':
+        this.noiseBurst({ f0: 3200, f1: 800, peak: 0.36, decay: 0.07 });
+        this.tone('sine', 230, 70, 0.06, 0.28);
+        break;
+      case 'smg':
+        this.noiseBurst({ f0: 2800, f1: 700, peak: 0.3, decay: 0.055 });
+        this.tone('sine', 190, 60, 0.05, 0.22);
+        break;
+      case 'shotgun':
+        this.noiseBurst({ type: 'lowpass', f0: 2200, f1: 180, q: 0.5, peak: 0.6, decay: 0.26 });
+        this.tone('sine', 95, 38, 0.22, 0.5);
+        this.noiseBurst({ f0: 1400, f1: 900, q: 2, peak: 0.12, decay: 0.05, delay: 0.32 }); // corredera
+        break;
+      case 'sniper':
+        this.noiseBurst({ f0: 3600, f1: 300, peak: 0.55, decay: 0.3 });
+        this.tone('sine', 140, 32, 0.36, 0.5);
+        this.noiseBurst({ type: 'lowpass', f0: 900, f1: 150, q: 0.4, peak: 0.12, decay: 0.45, delay: 0.16 }); // eco
+        this.noiseBurst({ f0: 2600, f1: 1600, q: 3, peak: 0.1, decay: 0.04, delay: 0.62 }); // cerrojo
+        break;
+      default:
+        this.noiseBurst({ f0: 2400, f1: 500, peak: 0.42, decay: 0.09 });
+        this.tone('sine', 170, 50, 0.08, 0.32);
+    }
+  }
+
+  // Sacar el arma.
+  draw() {
+    this.noiseBurst({ f0: 2200, f1: 1200, q: 2.5, peak: 0.1, decay: 0.05 });
+    this.tone('square', 520, 380, 0.03, 0.04, 0.05);
   }
 
   botShot(pan = 0) {

@@ -16,12 +16,17 @@ import { menuScreen } from '../ui/menuScreen.js';
 import { settingsScreen } from '../ui/settingsScreen.js';
 import { pauseScreen } from '../ui/pauseScreen.js';
 import { progressScreen } from '../ui/progressScreen.js';
+import { arsenalScreen } from '../ui/arsenalScreen.js';
 import { getMode } from '../modes/index.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
 import { spreadToPixels } from '../ui/Crosshair.js';
+import { WEAPONS, WEAPON_ORDER, getWeapon } from '../combat/weapons.js';
 
 const _v = new THREE.Vector3();
 const NO_BODIES = [];
+const WEAPON_KEYS = Object.fromEntries(WEAPON_ORDER.map((id) => [`Digit${WEAPONS[id].key}`, id]));
+const SLOT_LIST = WEAPON_ORDER.map((id) => ({ id, key: WEAPONS[id].key, name: WEAPONS[id].name }));
+const ZOOM_SPEED = 14; // qué tan rápido entra y sale la mira telescópica
 
 // Orquestador: conecta motor, entrada, jugador, arma, audio, guardado, UI y el modo activo.
 // La interfaz de un modo está en modes/Mode.js; los modos se registran en modes/registry.js y los
@@ -40,6 +45,8 @@ export class Game {
     this.hud = new HUD(root.querySelector('#hud'));
     this.ui = new UI(root.querySelector('#ui'), root.querySelector('#toast'));
     this.engine.setOverlay(this.viewmodel);
+    this.weapon.onChange = () => this.onWeaponChange();
+    this.zoomLevel = 1;
 
     this.mode = null;
     this.paused = false;
@@ -96,7 +103,7 @@ export class Game {
     const s = this.settings;
     this.player.configure(s.sens);
     this.engine.setHorizontalFov(s.fov);
-    this.hud.setCrosshair(s.crosshair);
+    this.hud.setCrosshair(this.activeCrosshair());
     this.hud.showFps(s.video.showFps);
     this.engine.setQuality(s.video);
     this.sfx.setVolume(s.audio.volume);
@@ -111,11 +118,57 @@ export class Game {
     this.hud.flash(`Sensibilidad ${formatSens(sens.game, sens.value)}`, 'info');
   }
 
+  // --- Armas ----------------------------------------------------------------------------
+
+  // Mira del arma actual (o la global si "mira por arma" está desactivado).
+  activeCrosshair() {
+    const s = this.settings;
+    return s.crosshairPerWeapon ? s.weaponCrosshairs[this.weapon.id] ?? s.crosshair : s.crosshair;
+  }
+
+  // Motivo por el que el modo no deja cambiar de arma (o null). La evaluación usa siempre el rifle.
+  weaponLock() {
+    return this.mode?.weaponLocked?.() ?? null;
+  }
+
+  // Equipa el arma elegida en el arsenal con todo cargado (al empezar una partida o fase).
+  equipLoadout() {
+    this.weapon.setWeapon(getWeapon(this.settings.weapon).id, { force: true });
+    this.weapon.refill();
+    this.onWeaponChange();
+  }
+
+  // Cambio de arma en partida (teclas 1-5) o desde el arsenal. Se recuerda como arma elegida.
+  selectWeapon(id) {
+    if (!WEAPONS[id]) return;
+    const locked = this.mode ? this.weaponLock() : null;
+    if (locked) {
+      this.hud.flash(locked, 'info');
+      return;
+    }
+    this.settings.weapon = id;
+    this.store.persist();
+    if (this.weapon.setWeapon(id)) this.hud.flash(WEAPONS[id].name, 'info');
+  }
+
+  onWeaponChange() {
+    const w = this.weapon;
+    this.hud.setCrosshair(this.activeCrosshair());
+    const mode = w.stats.fireModes.length > 1 ? ` · ${w.auto ? 'AUTO' : 'SEMI'} [B]` : w.stats.zoom ? ' · clic der. = mira' : '';
+    this.hud.setWeapon(`${w.stats.name}${mode}${this.mode?.weaponHudSuffix?.() ?? ''}`);
+    this.hud.setWeaponSlots(SLOT_LIST, w.id, !!this.weaponLock());
+  }
+
   onKey(e) {
     if (!this.playing) return;
     if (e.code === 'BracketLeft') this.nudgeSensitivity(0.97);
     else if (e.code === 'BracketRight') this.nudgeSensitivity(1.03);
     else if (e.code === 'KeyR' && this.weapon.enabled) this.weapon.reload();
+    else if (WEAPON_KEYS[e.code] && !e.repeat) this.selectWeapon(WEAPON_KEYS[e.code]);
+    else if (e.code === 'KeyB' && !e.repeat && this.weapon.canToggleMode) {
+      if (this.mode?.fireModeLocked?.()) this.hud.flash('El modo de disparo lo fija esta fase', 'info');
+      else this.hud.flash(this.weapon.toggleMode() ? 'Disparo automático' : 'Disparo semiautomático', 'info');
+    }
     else if (e.code === 'Backspace' && !e.repeat) {
       e.preventDefault();
       this.mode.restartStage?.();
@@ -140,23 +193,37 @@ export class Game {
     this.engine.camera.updateMatrixWorld();
 
     this.weapon.enabled = playing && !!this.mode?.weaponEnabled();
+    this.updateScope(dt, playing);
     if (this.mode && !this.paused) {
       this.weapon.update(dt);
       this.mode.update(dt);
     }
     // Mira dinámica: se abre exactamente lo que se desvían las balas (movimiento, salto, ráfaga).
-    if (this.settings.crosshair.dynamic) {
+    if (this.activeCrosshair().dynamic) {
       const spread = this.weapon.enabled ? this.weapon.currentSpread() : 0;
       this.hud.setSpread(spreadToPixels(spread, this.engine.camera.fov, window.innerHeight));
     }
     this.effects.update(dt);
     this.viewmodel.update(dt, this.player);
     if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress);
-    this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked;
+    this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && this.zoomLevel < 1.15;
     this.world.update(dt);
 
     const perf = this.perf.tick();
     if (perf) this.hud.setFps(perf);
+  }
+
+  // Mira telescópica: clic derecho con un arma con zoom. Entra y sale suave; baja la sensibilidad en
+  // proporción al zoom (multiplicada por el ajuste "sensibilidad con zoom").
+  updateScope(dt, playing) {
+    const w = this.weapon;
+    w.scoped = playing && !!w.stats.zoom && this.input.aimDown && w.enabled && !w.reloading && !w.drawing;
+    const target = w.scoped ? w.stats.zoom : 1;
+    this.zoomLevel += (target - this.zoomLevel) * Math.min(1, dt * ZOOM_SPEED);
+    if (Math.abs(target - this.zoomLevel) < 0.01) this.zoomLevel = target;
+    this.engine.setZoom(this.zoomLevel);
+    this.player.sensScale = this.zoomLevel > 1 ? (1 / this.zoomLevel) * this.settings.gameplay.zoomSensitivity : 1;
+    this.hud.setScoped(this.zoomLevel > w.stats.zoom * 0.85 && w.scoped);
   }
 
   // Paneo estéreo (-1…1) de un punto del mundo respecto a la cámara.
@@ -219,14 +286,25 @@ export class Game {
     this.ui.show(
       menuScreen(this, {
         onMode: (id) => this.startModeById(id),
+        onArsenal: () => this.showArsenal(),
         onProgress: () => this.ui.show(progressScreen(this, { onBack: () => this.showMenu() })),
         onSettings: () => this.showSettings(() => this.showMenu()),
       }),
     );
   }
 
-  showSettings(onBack) {
-    this.ui.show(settingsScreen(this, onBack));
+  showSettings(onBack, opts) {
+    this.ui.show(settingsScreen(this, onBack, opts));
+    if (opts?.crosshairWeapon) this.ui.el.querySelector('.xh-preview')?.scrollIntoView({ block: 'center' });
+  }
+
+  showArsenal() {
+    this.ui.show(
+      arsenalScreen(this, {
+        onBack: () => this.showMenu(),
+        onCrosshair: (id) => this.showSettings(() => this.showArsenal(), { crosshairWeapon: id }),
+      }),
+    );
   }
 
   startMode(mode) {
