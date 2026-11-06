@@ -1,0 +1,28 @@
+{
+  "_info": "Disparos grabados. Fuente: \"The Free Firearm Sound Library\" (https://opengameart.org/content/the-free-firearm-sound-library), CC0. Se tomó el primer disparo de cada grabación, en mono, con fundido de salida y limitador, en MP3 96 kbps (ffmpeg).",
+  "pistol": {
+    "file": "pistol.mp3",
+    "source": "1911 · A_42P.wav (cerca)"
+  },
+  "smg": {
+    "file": "smg.mp3",
+    "source": "PPSh · P_30P.wav (cerca)"
+  },
+  "rifle": {
+    "file": "rifle.mp3",
+    "source": "AR-15 · D_32P.wav (cerca)"
+  },
+  "shotgun": {
+    "file": "shotgun.mp3",
+    "source": "Benelli Nova · O_21P.wav (cerca)"
+  },
+  "sniper": {
+    "file": "sniper.mp3",
+    "source": "Mosin Nagant · M_21P.wav (cerca)"
+  },
+  "enemy": {
+    "file": "enemy.mp3",
+    "source": "1911 · A_34P.wav (distancia media)"
+  },
+  "license": "CC0 1.0"
+}
