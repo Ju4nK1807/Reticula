@@ -1,0 +1,31 @@
+# Empaquetado de la app de escritorio (Windows): instalador NSIS y versión portable.
+appId: com.reticula.app
+productName: Reticula
+copyright: Retícula
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+  - "!node_modules/**/*"
+asar: true
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Retícula
+  uninstallDisplayName: Retícula
+  artifactName: Reticula-Setup-${version}.${ext}
+portable:
+  artifactName: Reticula-Portable-${version}.${ext}
