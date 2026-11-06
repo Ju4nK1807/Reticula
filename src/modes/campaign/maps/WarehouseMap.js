@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { glow, paint, surface } from '../../../gfx/surfaces.js';
 import { CampaignWorld } from './CampaignWorld.js';
 
 const HALF_W = 22; // el interior va de x = -22 a 22
@@ -40,25 +41,27 @@ export class WarehouseMap extends CampaignWorld {
 
     const L = this.lambert;
     const M = {
-      floor: L('#3a3a3a'),
-      wall: L('#4b5160'),
-      wallLow: L('#3e434f'),
-      rack: L('#28456e'),
-      beam: L('#e07b26'),
-      boxA: L('#9b7a4e'),
-      boxB: L('#7e623d'),
-      pallet: L('#8a6b43'),
-      forklift: L('#e3b21f'),
-      dark: L('#1d2027'),
-      steel: L('#59606e'),
+      floor: surface('concrete_floor', '#3a3a3a'),
+      wall: surface('metal_panel', '#4b5160'),
+      wallLow: surface('concrete_wall', '#3e434f'),
+      rack: surface('metal', '#28456e'),
+      beam: surface('metal', '#e07b26'),
+      boxA: surface('wood', '#9b7a4e'),
+      boxB: surface('wood', '#7e623d'),
+      pallet: surface('wood', '#8a6b43'),
+      forklift: paint('#e3b21f'),
+      dark: surface('metal', '#1d2027'),
+      steel: surface('metal', '#59606e'),
       stripe: new THREE.MeshBasicMaterial({ color: '#f2c14e' }),
-      lamp: new THREE.MeshBasicMaterial({ color: '#fff4d6' }),
-      accent: new THREE.MeshBasicMaterial({ color: '#00ffa3' }),
+      lamp: glow('#fff4d6'),
+      accent: glow('#00ffa3'),
     };
 
     // --- Piso, muros, techo ------------------------------------------------------------------
     this.ground(70, 80, -16, M.floor);
     const grid = new THREE.GridHelper(70, 35, '#4a4a4a', '#414141');
+    grid.material.transparent = true;
+    grid.material.opacity = 0.3; // guía tenue sobre el suelo con textura
     grid.position.set(0, 0.01, -16);
     scene.add(grid);
     this.wallZ(BACK_Z, FRONT_Z, -HALF_W - 0.5, WALL_H, M.wall, [{ at: -9, w: 3 }, { at: -24, w: 3 }]);

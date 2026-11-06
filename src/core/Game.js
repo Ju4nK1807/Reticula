@@ -12,6 +12,8 @@ import { Weapon } from '../combat/Weapon.js';
 import { Viewmodel } from '../combat/Viewmodel.js';
 import { Effects } from '../effects/Effects.js';
 import { Ambience } from '../effects/Ambience.js';
+import { applyShadowQuality, prepareWorld } from '../gfx/lighting.js';
+import { QUALITY_PRESETS } from '../config/quality.js';
 import { HUD } from '../ui/HUD.js';
 import { UI } from '../ui/UI.js';
 import { menuScreen } from '../ui/menuScreen.js';
@@ -70,6 +72,18 @@ export class Game {
     this.time = 0;
     this.perf = new PerfMeter();
 
+    // En teléfonos y tabletas la primera vez se usa calidad media (más FPS y menos batería).
+    const video = this.settings.video;
+    if (this.touchMode && !video.touchTuned) {
+      video.touchTuned = true;
+      if (video.quality === 'alta') {
+        video.quality = 'media';
+        video.renderScale = QUALITY_PRESETS.media.renderScale;
+      }
+      this.store.persist();
+    }
+    // La calidad se aplica antes de crear el primer mapa: sus texturas ya cargan en el tamaño justo.
+    this.engine.setQuality(video);
     this.worlds = {};
     this.useWorld('range');
     this.applySettings();
@@ -112,6 +126,8 @@ export class Game {
 
   setWorld(world) {
     this.world = world;
+    prepareWorld(world, this.engine.renderer);
+    applyShadowQuality(world, this.engine.detail);
     this.engine.scene = world.scene;
     this.effects.attach(world.scene);
     this.ambience.attach(world.scene, world.spawn);
@@ -127,6 +143,7 @@ export class Game {
     this.hud.setCrosshair(this.activeCrosshair());
     this.hud.showFps(s.video.showFps);
     this.engine.setQuality(s.video);
+    if (this.world) applyShadowQuality(this.world, this.engine.detail);
     this.sfx.setVolume(s.audio.volume);
   }
 

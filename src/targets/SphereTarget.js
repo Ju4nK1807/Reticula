@@ -28,6 +28,7 @@ export class SphereTarget {
       transparent: true,
     });
     this.mesh = new THREE.Mesh(GEOMETRY, this.material);
+    this.mesh.castShadow = true;
     this.mesh.position.copy(position);
     this.mesh.scale.setScalar(spawnTime > 0 ? 0.01 : radius);
     this.mesh.userData = { bot: this, part: 'body' };

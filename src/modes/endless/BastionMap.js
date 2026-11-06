@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { glow, planeWorldUV, surface, tileOf } from '../../gfx/surfaces.js';
 import { World } from '../../scenes/World.js';
 
 // Medidas del recinto (metros). El patio va de -HALF a HALF en X y en Z.
@@ -51,17 +52,17 @@ export class BastionMap extends World {
 
     const lambert = (color) => new THREE.MeshLambertMaterial({ color, flatShading: true });
     const M = {
-      ground: lambert('#353a44'),
-      yard: lambert('#3d434e'),
-      wall: lambert('#4d5568'),
-      wallTop: lambert('#5d667b'),
-      concrete: lambert('#6b7383'),
-      trim: lambert('#2a303b'),
-      crate: lambert('#8a6c45'),
-      crateDark: lambert('#6e5536'),
-      tower: lambert('#414959'),
-      hill: lambert('#262f3c'),
-      accent: new THREE.MeshBasicMaterial({ color: '#00ffa3' }),
+      ground: surface('gravel', '#353a44'),
+      yard: surface('concrete_floor', '#3d434e'),
+      wall: surface('concrete_wall', '#4d5568'),
+      wallTop: surface('concrete', '#5d667b'),
+      concrete: surface('concrete', '#6b7383'),
+      trim: surface('metal', '#2a303b'),
+      crate: surface('wood', '#8a6c45'),
+      crateDark: surface('wood', '#6e5536'),
+      tower: surface('concrete_wall', '#414959'),
+      hill: surface('rock', '#262f3c', { flat: true }),
+      accent: glow('#00ffa3'),
       accentDim: new THREE.MeshBasicMaterial({ color: '#0d5a45' }),
     };
     this.materials = M;
@@ -69,11 +70,14 @@ export class BastionMap extends World {
 
     // --- Suelo -------------------------------------------------------------------
     this.ground(170, 170, 0, M.ground);
-    const yard = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), M.yard);
+    const yard = new THREE.Mesh(planeWorldUV(new THREE.PlaneGeometry(HALF * 2, HALF * 2), HALF * 2, HALF * 2, tileOf(M.yard)), M.yard);
+    yard.userData.ground = true;
     yard.rotation.x = -Math.PI / 2;
     yard.position.y = 0.005;
     scene.add(yard);
     const grid = new THREE.GridHelper(HALF * 2, 24, '#4c5465', '#444b59');
+    grid.material.transparent = true;
+    grid.material.opacity = 0.3; // guía tenue sobre el suelo con textura
     grid.position.y = 0.012;
     scene.add(grid);
     // Círculo central: referencia visual de dónde está el centro del patio.

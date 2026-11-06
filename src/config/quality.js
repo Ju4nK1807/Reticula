@@ -1,23 +1,30 @@
 // Presets de calidad gráfica. `renderScale` reduce la resolución interna de render (la interfaz se
 // sigue viendo nítida); `maxPixelRatio` limita el trabajo en pantallas de alta densidad (4K, portátiles).
 // Es el ajuste que más FPS gana en equipos modestos.
+// `detail` fija texturas, sombras y efectos (ver gfx/surfaces.js y gfx/lighting.js):
+//   alta  = texturas 1K + sombras suaves 2048 + bloom y antialiasing MSAA
+//   media = texturas 512 + sombras 1024
+//   baja  = texturas 512 solo de color, sin sombras ni efectos
 
 export const QUALITY_PRESETS = {
-  alta: { label: 'Alta', renderScale: 1, maxPixelRatio: 2 },
-  media: { label: 'Media', renderScale: 0.85, maxPixelRatio: 1.5 },
-  baja: { label: 'Baja (más FPS)', renderScale: 0.7, maxPixelRatio: 1 },
+  alta: { label: 'Alta', renderScale: 1, maxPixelRatio: 2, detail: 'alta' },
+  media: { label: 'Media', renderScale: 0.85, maxPixelRatio: 1.5, detail: 'media' },
+  baja: { label: 'Baja (más FPS)', renderScale: 0.7, maxPixelRatio: 1, detail: 'baja' },
 };
+export const DETAIL_LEVELS = ['alta', 'media', 'baja'];
 
 export const QUALITY_OPTIONS = { ...Object.fromEntries(Object.entries(QUALITY_PRESETS).map(([k, v]) => [k, v.label])), custom: 'Personalizada' };
 
 export const RENDER_SCALE = { min: 0.5, max: 1, step: 0.05 };
 
-// Resolución efectiva a partir de la configuración de video: { quality, renderScale }.
+// Resolución y detalle efectivos a partir de la configuración de video: { quality, renderScale, detail }.
+// En "Personalizada" el detalle es el elegido (por defecto, medio).
 export function resolveQuality(video, devicePixelRatio = 1) {
   const preset = QUALITY_PRESETS[video?.quality] ?? null;
   const scale = preset ? preset.renderScale : clampScale(video?.renderScale ?? 1);
   const maxRatio = preset ? preset.maxPixelRatio : 2;
-  return { renderScale: scale, pixelRatio: Math.min(devicePixelRatio, maxRatio) * scale };
+  const detail = preset ? preset.detail : DETAIL_LEVELS.includes(video?.detail) ? video.detail : 'media';
+  return { renderScale: scale, pixelRatio: Math.min(devicePixelRatio, maxRatio) * scale, detail };
 }
 
 function clampScale(v) {

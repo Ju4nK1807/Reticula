@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { glow, surface } from '../../../gfx/surfaces.js';
 import { CampaignWorld } from './CampaignWorld.js';
 
 const HALF_W = 21;
@@ -41,17 +42,17 @@ export class ArenaMap extends CampaignWorld {
 
     const L = this.lambert;
     const M = {
-      floorA: L('#2a2f45'),
-      floorB: L('#323852'),
-      wall: L('#3b4262'),
-      block: L('#555e82'),
-      blockAlt: L('#4a527a'),
-      tower: L('#5f6890'),
-      cyan: new THREE.MeshBasicMaterial({ color: '#36d6ff' }),
-      magenta: new THREE.MeshBasicMaterial({ color: '#ff4fd8' }),
-      accent: new THREE.MeshBasicMaterial({ color: '#00ffa3' }),
+      floorA: surface('tiles', '#2a2f45'),
+      floorB: surface('tiles', '#323852'),
+      wall: surface('concrete_wall', '#3b4262'),
+      block: surface('metal', '#555e82'),
+      blockAlt: surface('metal', '#4a527a'),
+      tower: surface('metal_panel', '#5f6890'),
+      cyan: glow('#36d6ff'),
+      magenta: glow('#ff4fd8'),
+      accent: glow('#00ffa3'),
       accentDim: new THREE.MeshBasicMaterial({ color: '#0d5a45' }),
-      dark: L('#1a1d2c'),
+      dark: surface('metal', '#1a1d2c'),
     };
 
     // --- Suelo a cuadros, muros con neón, túneles ------------------------------------------------------
