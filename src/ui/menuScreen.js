@@ -88,7 +88,7 @@ function modeItems(game, rank, onMode) {
   return [...registered, ...planned].sort((a, b) => a.order - b.order).map((x) => x.item);
 }
 
-export function menuScreen(game, { onMode, onProgress, onSettings }) {
+export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings }) {
   const { profile, settings } = game.store.data;
   const rank = getRank(profile.rank);
   const last = profile.evaluations.at(-1);
@@ -127,6 +127,7 @@ export function menuScreen(game, { onMode, onProgress, onSettings }) {
         'nav',
         { class: 'menu-list' },
         modeItems(game, rank, onMode),
+        menuItem('Arsenal', 'Pistola, subfusil, rifle, escopeta y francotirador, cada una con su mira', { onClick: onArsenal }),
         menuItem('Progreso', 'Gráficas, historial de sesiones y copia de seguridad', { onClick: onProgress }),
         menuItem('Configuración', 'Sensibilidad de cualquier juego, FOV, mira, controles', { onClick: onSettings }),
       ),

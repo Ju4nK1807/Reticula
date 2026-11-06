@@ -18,6 +18,7 @@ export class Input extends Emitter {
     this.lockTarget = lockTarget;
     this.locked = false;
     this.mouseDown = false;
+    this.aimDown = false; // clic derecho mantenido (apuntar con mira telescópica)
     this.rawInputSupported = detectRawInput();
     this.rawInput = null; // tras la primera captura: true si se usa raw input (sin aceleración del SO)
     this.lastLockError = -Infinity;
@@ -41,6 +42,7 @@ export class Input extends Emitter {
       this.dy += e.movementY;
     });
     document.addEventListener('mousedown', (e) => {
+      if (this.locked && e.button === 2) this.aimDown = true;
       if (!this.locked || e.button !== 0) return;
       this.mouseDown = true;
       // timeStamp comparte origen con performance.now(): sirve para medir reacción sin
@@ -49,6 +51,7 @@ export class Input extends Emitter {
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouseDown = false;
+      if (e.button === 2) this.aimDown = false;
     });
     document.addEventListener('keydown', (e) => {
       if (this.locked) {
@@ -64,6 +67,7 @@ export class Input extends Emitter {
 
   releaseAll() {
     this.mouseDown = false;
+    this.aimDown = false;
     this.keys.clear();
   }
 

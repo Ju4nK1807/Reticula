@@ -4,6 +4,7 @@ import { CROSSHAIR_PRESETS, crosshairCode, crosshairSVG, normalizeCrosshair, par
 import { ENEMY_COLORS } from '../config/defaults.js';
 import { FOV_PRESETS, GAMES, cmPer360, convertSens, formatSens, roundTo, valueForCm } from '../config/sensitivity.js';
 import { QUALITY_OPTIONS, QUALITY_PRESETS, RENDER_SCALE } from '../config/quality.js';
+import { WEAPONS, WEAPON_ORDER } from '../combat/weapons.js';
 
 const SHAPES = {
   cross: 'Cruz',
@@ -15,11 +16,14 @@ const SHAPES = {
 
 export const CONTROLS = [
   ['Mouse', 'Apuntar · clic izquierdo dispara'],
+  ['Clic derecho', 'Mira telescópica (francotirador)'],
   ['W A S D', 'Moverse'],
   ['Shift', 'Caminar (más preciso)'],
   ['C', 'Agacharse'],
   ['Espacio', 'Saltar'],
-  ['R', 'Recargar (cargador de 25)'],
+  ['R', 'Recargar'],
+  ['1 – 5', 'Cambiar de arma (no en la evaluación)'],
+  ['B', 'Automático / semiautomático (si el arma lo permite)'],
   ['[  /  ]', 'Bajar / subir sensibilidad 3 %'],
   ['Retroceso', 'Reiniciar la fase actual'],
   ['Esc', 'Pausa'],
@@ -168,11 +172,15 @@ export function sensitivityPanel(game, { compact = false } = {}) {
   );
 }
 
-// Panel de la mira: presets, forma, colores, tamaños, punto, contorno, mira dinámica y código.
-// Al aplicar un preset o un código se reconstruye el panel (todos los controles cambian a la vez).
-function crosshairPanel(game, commit) {
-  const xh = game.settings.crosshair;
+// Panel de la mira: arma a editar, presets, forma, colores, tamaños, punto, contorno, mira dinámica
+// y código. Al aplicar un preset, un código o cambiar de arma se reconstruye el panel.
+function crosshairPanel(game, commit, editing = null) {
+  const s = game.settings;
+  const perWeapon = s.crosshairPerWeapon;
+  const weaponId = WEAPONS[editing] ? editing : s.weapon;
+  const xh = perWeapon ? s.weaponCrosshairs[weaponId] : s.crosshair;
   const section = h('section', { class: 'panel' });
+  const rebuild = (id = weaponId) => section.replaceWith(crosshairPanel(game, commit, id));
   const preview = h('div', { class: 'xh-preview' }, h('div', { class: 'xh-dark' }), h('div', { class: 'xh-light' }));
   const codeInput = h('input', { type: 'text', class: 'xh-code', spellcheck: false, 'aria-label': 'Código de la mira' });
 
@@ -189,8 +197,29 @@ function crosshairPanel(game, commit) {
   const apply = (config) => {
     Object.assign(xh, normalizeCrosshair(config));
     commit();
-    section.replaceWith(crosshairPanel(game, commit));
+    rebuild();
   };
+
+  const perWeaponToggle = h('input', {
+    type: 'checkbox',
+    checked: perWeapon,
+    onchange: (e) => {
+      s.crosshairPerWeapon = e.target.checked;
+      commit();
+      rebuild();
+    },
+  });
+  const weaponTabs =
+    perWeapon &&
+    h(
+      'div',
+      { class: 'chips xh-weapons' },
+      WEAPON_ORDER.map((id) =>
+        h('button', { class: `chip${id === weaponId ? ' active' : ''}`, type: 'button', onclick: () => rebuild(id) }, WEAPONS[id].name),
+      ),
+    );
+  const resetWeapon =
+    perWeapon && button(`Mira original de ${WEAPONS[weaponId].name}`, () => apply(WEAPONS[weaponId].crosshair), { variant: 'ghost' });
 
   const presets = h(
     'div',
@@ -219,6 +248,8 @@ function crosshairPanel(game, commit) {
 
   section.append(
     h('h3', {}, 'Mira'),
+    field('Mira distinta para cada arma', perWeaponToggle, 'Cada arma tiene la suya (la escopeta muestra su cono; el francotirador, un punto). Desactívalo para usar una sola mira.'),
+    weaponTabs && field('Editando', weaponTabs),
     preview,
     field('Presets', presets),
     field('Forma', select(SHAPES, xh.shape, (v) => {
@@ -237,12 +268,14 @@ function crosshairPanel(game, commit) {
     field('Color del contorno', h('input', { type: 'color', value: xh.outlineColor, oninput: (e) => { xh.outlineColor = e.target.value; change(); } })),
     field('Mira dinámica', checkbox(xh, 'dynamic', change), 'Se abre exactamente lo que se desvían tus balas al moverte, saltar o disparar en ráfaga.'),
     field('Código para compartir', h('div', { class: 'xh-code-row' }, codeInput, copyBtn, applyBtn), 'Copia tu mira o pega la de otra persona.'),
+    resetWeapon,
   );
   refresh();
   return section;
 }
 
-export function settingsScreen(game, onBack) {
+// opts.crosshairWeapon: abre la sección de la mira editando esa arma (desde el Arsenal).
+export function settingsScreen(game, onBack, opts = {}) {
   const s = game.settings;
   const commit = () => {
     game.store.persist();
@@ -325,7 +358,7 @@ export function settingsScreen(game, onBack) {
           game.sfx.hit();
         })),
       ),
-      crosshairPanel(game, commit),
+      crosshairPanel(game, commit, opts.crosshairWeapon ?? null),
       h(
         'section',
         { class: 'panel' },
@@ -338,6 +371,7 @@ export function settingsScreen(game, onBack) {
         field('Recarga automática', checkbox(s.gameplay, 'autoReload', commit), 'Recarga sola al disparar con el cargador vacío. Desactívala para recargar siempre con R.'),
         field('Balas visibles', checkbox(s.gameplay, 'tracers', commit)),
         field('Arma en pantalla', checkbox(s.gameplay, 'viewmodel', commit)),
+        field('Sensibilidad con zoom', slider(s.gameplay, 'zoomSensitivity', { min: 0.5, max: 1.5, step: 0.05, fmt: (v) => `×${v.toFixed(2)}` }, commit), 'Con la mira telescópica la sensibilidad baja en proporción al zoom; ×1 se siente igual que sin zoom.'),
         h('h3', {}, 'Controles'),
         h('dl', { class: 'controls' }, CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
         h('h3', {}, 'Datos'),

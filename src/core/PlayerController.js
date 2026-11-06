@@ -34,6 +34,7 @@ export class PlayerController {
     this.onGround = true;
     this.movementEnabled = true;
     this.radPerCount = degPerCount('reticula', 1.25) * DEG;
+    this.sensScale = 1; // con mira telescópica la sensibilidad baja en proporción al zoom
     this.invertY = false;
     this.world = null;
     // Cuerpos móviles que bloquean al jugador (bots vivos): [{ x, z, r, y0, h }]. Los aporta el modo.
@@ -87,8 +88,9 @@ export class PlayerController {
     this.mouseDelta = this.input.consumeMouse();
     if (active) {
       const { dx, dy } = this.mouseDelta;
-      this.yaw -= dx * this.radPerCount;
-      this.pitch -= dy * this.radPerCount * (this.invertY ? -1 : 1);
+      const k = this.radPerCount * this.sensScale;
+      this.yaw -= dx * k;
+      this.pitch -= dy * k * (this.invertY ? -1 : 1);
       this.pitch = clamp(this.pitch, -PITCH_LIMIT, PITCH_LIMIT);
     }
     if (this.world) this.move(dt, active && this.movementEnabled);

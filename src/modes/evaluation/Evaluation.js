@@ -10,6 +10,7 @@ import {
 import { scoreEvaluation } from './scoring.js';
 import { recordEvaluation } from '../../storage/profile.js';
 import { Mode } from '../Mode.js';
+import { EVALUATION_WEAPON, WEAPONS } from '../../combat/weapons.js';
 import { evalIntroScreen, evalResultsScreen } from '../../ui/evaluationScreens.js';
 
 // Dos evaluaciones independientes, cada una con su mapa y su rango.
@@ -77,6 +78,14 @@ export class Evaluation extends Mode {
     return this.state === 'brief' || this.state === 'running';
   }
 
+  weaponLocked() {
+    return `La evaluación usa siempre el ${WEAPONS[EVALUATION_WEAPON].name}: así los rangos son comparables`;
+  }
+
+  fireModeLocked() {
+    return true;
+  }
+
   // Durante las instrucciones se puede disparar para calentar (no cuenta).
   weaponEnabled() {
     return this.wantsLock();
@@ -107,11 +116,13 @@ export class Evaluation extends Mode {
     this.briefT = BRIEF_TIME;
     this.lastBeep = null;
     g.player.reset(g.world.spawn);
+    // Siempre el rifle y el modo de disparo de la fase: así los rangos son comparables.
+    g.weapon.setWeapon(EVALUATION_WEAPON, { force: true });
     g.weapon.setMode(Stage.info.auto);
     g.weapon.refill();
     g.effects.clear();
     g.hud.setHealth(Stage.info.health ? 1 : null);
-    g.hud.setWeapon(`${g.weapon.stats.name} · ${Stage.info.auto ? 'AUTO' : 'SEMI'}`);
+    g.onWeaponChange();
     g.hud.setLabel(`${this.variant.name} · ${index + 1}/${this.stages.length} · ${Stage.info.name}`);
     g.hud.setStats(this.phase.hudStats());
   }

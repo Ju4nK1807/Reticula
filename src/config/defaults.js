@@ -1,4 +1,5 @@
 // Valores por defecto de configuración y del guardado completo.
+import { DEFAULT_WEAPON, WEAPONS, WEAPON_ORDER } from '../combat/weapons.js';
 
 export const DEFAULT_SETTINGS = {
   // La sensibilidad se guarda en la escala del juego elegido (ver config/sensitivity.js).
@@ -19,12 +20,18 @@ export const DEFAULT_SETTINGS = {
     outlineColor: '#000000',
     dynamic: false, // se abre con la dispersión real del arma (moverse, saltar, ráfaga)
   },
+  // Arma elegida en el arsenal (la evaluación usa siempre el rifle).
+  weapon: DEFAULT_WEAPON,
+  // Mira propia de cada arma (true) o la misma para todas (false → `crosshair`).
+  crosshairPerWeapon: true,
+  weaponCrosshairs: Object.fromEntries(WEAPON_ORDER.map((id) => [id, { ...WEAPONS[id].crosshair }])),
   enemyColor: '#ff3b4f',
   gameplay: {
     moveInaccuracy: true, // disparar en movimiento o en el aire desvía las balas (estilo táctico)
     tracers: true,
     viewmodel: true,
     autoReload: true, // recargar solo al intentar disparar con el cargador vacío
+    zoomSensitivity: 1, // multiplicador de sensibilidad con mira telescópica (1 = misma sensación que sin zoom)
   },
   audio: { volume: 0.6 },
   video: { showFps: true, quality: 'alta', renderScale: 1 }, // quality: alta | media | baja | custom

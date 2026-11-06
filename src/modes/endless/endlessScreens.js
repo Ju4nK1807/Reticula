@@ -13,8 +13,6 @@ const RULES = [
   ['Puntos', 'Cada oleada multiplica los puntos. Las bajas a la cabeza, la racha (bajas sin recibir daño) y las oleadas perfectas dan bonificación.'],
 ];
 
-const EXTRA_CONTROLS = [['B', 'Cambiar disparo automático / semiautomático']];
-
 function recordLine(record) {
   if (!record?.totalRuns) return h('p', { class: 'muted' }, 'Aún no tienes récords en este modo.');
   return h(
@@ -46,7 +44,7 @@ export function endlessIntroScreen(game, { record, onStart, onSettings, onBack }
       h(
         'dl',
         { class: 'controls compact' },
-        [...CONTROLS, ...EXTRA_CONTROLS].map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)]),
+        CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)]),
       ),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h(

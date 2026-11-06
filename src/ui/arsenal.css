@@ -1,0 +1,29 @@
+/* Arsenal (se carga con la pantalla). */
+
+.ar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.ar-card { display: flex; flex-direction: column; gap: 8px; padding: 16px; transition: border-color 0.15s ease; }
+.ar-card.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(0, 255, 163, 0.25); }
+.ar-head { display: flex; align-items: center; gap: 8px; }
+.ar-cat { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.ar-head .tag { margin-left: auto; }
+.ar-icon { color: var(--text); opacity: 0.9; height: 46px; }
+.ar-icon svg { width: 100%; height: 100%; }
+.ar-card.active .ar-icon { color: var(--accent); }
+.ar-card h3 { font-size: 18px; }
+.ar-card p { margin: 0; min-height: 52px; }
+
+.ar-stats { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+.ar-stat { display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.ar-track { height: 6px; border-radius: 3px; background: #1f2836; overflow: hidden; }
+.ar-track i { display: block; height: 100%; border-radius: 3px; background: var(--accent-2); }
+.ar-card.active .ar-track i { background: var(--accent); }
+
+.ar-facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; margin: 4px 0 0; font-size: 12px; }
+.ar-facts dt { color: var(--muted); }
+.ar-facts dd { margin: 0; font-family: var(--mono); text-align: right; }
+
+.ar-foot { margin-top: auto; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ar-xh { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 8px; background: #2b3442; }
+
+@media (max-width: 1180px) { .ar-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 860px) { .ar-grid { grid-template-columns: 1fr; } }

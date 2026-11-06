@@ -6,6 +6,7 @@ export class HUD {
     this.el = el;
     el.innerHTML = `
       <div class="hud-play">
+        <div class="hud-scope" data-ref="scope" hidden><i></i><b></b></div>
         <div class="hud-vignette" data-ref="vignette"></div>
         <div class="hud-dmgdir" data-ref="dmgdir"><i></i></div>
         <div class="hud-crosshair" data-ref="crosshair"></div>
@@ -19,6 +20,7 @@ export class HUD {
         <div class="hud-health" data-ref="health" hidden>
           <span class="cross">+</span><div class="bar"><i data-ref="healthFill"></i></div><span data-ref="healthText"></span>
         </div>
+        <div class="hud-slots" data-ref="slots"></div>
         <div class="hud-ammo-box" data-ref="ammoBox">
           <div class="hud-weapon" data-ref="weapon"></div>
           <div class="hud-ammo"><span data-ref="ammo">25</span><small data-ref="mag">/ 25</small></div>
@@ -59,6 +61,35 @@ export class HUD {
     if (v === this.spread) return;
     this.spread = v;
     this.refs.crosshair.style.setProperty('--xh-spread', `${v}px`);
+  }
+
+  // Visor de la mira telescópica (oculta la mira normal mientras se apunta).
+  setScoped(on) {
+    if (this.scoped === on) return;
+    this.scoped = on;
+    this.refs.scope.hidden = !on;
+    this.refs.crosshair.style.visibility = on ? 'hidden' : '';
+  }
+
+  // Barra de armas (teclas 1-5). weapons: [{ id, key, name }]; locked: no se puede cambiar.
+  setWeaponSlots(weapons, activeId, locked = false) {
+    const key = `${activeId}|${locked}`;
+    if (this.slotsKey === key) return;
+    this.slotsKey = key;
+    const el = this.refs.slots;
+    el.classList.toggle('locked', locked);
+    el.replaceChildren(
+      ...weapons.map((w) => {
+        const slot = document.createElement('div');
+        slot.className = `hud-slot${w.id === activeId ? ' active' : ''}`;
+        const k = document.createElement('kbd');
+        k.textContent = w.key;
+        const n = document.createElement('span');
+        n.textContent = w.name;
+        slot.append(k, n);
+        return slot;
+      }),
+    );
   }
 
   setLabel(text) {
