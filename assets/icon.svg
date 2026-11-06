@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Ícono de Retícula: mira de neón sobre fondo oscuro. Fuente de los íconos de las apps. -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0" stop-color="#14202c"/>
+      <stop offset="1" stop-color="#07090d"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g fill="none" stroke="#00f5a0" stroke-width="26" stroke-linecap="round" filter="url(#glow)">
+    <circle cx="256" cy="256" r="134"/>
+    <path d="M256 70v86M256 356v86M70 256h86M356 256h86"/>
+  </g>
+  <circle cx="256" cy="256" r="24" fill="#00f5a0" filter="url(#glow)"/>
+</svg>

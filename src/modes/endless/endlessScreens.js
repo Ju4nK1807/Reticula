@@ -1,6 +1,6 @@
 import { h } from '../../ui/dom.js';
 import { button } from '../../ui/components.js';
-import { CONTROLS } from '../../ui/settingsScreen.js';
+import { controlList } from '../../ui/settingsScreen.js';
 import { sensSummary } from '../../config/sensitivity.js';
 import { clock, fixed, pct, shortDate } from '../../utils/format.js';
 import { MEDKIT_HEAL, WAVE_HEAL } from './waves.js';
@@ -44,7 +44,7 @@ export function endlessIntroScreen(game, { record, onStart, onSettings, onBack }
       h(
         'dl',
         { class: 'controls compact' },
-        CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)]),
+        controlList().map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)]),
       ),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h(

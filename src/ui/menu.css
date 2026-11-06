@@ -115,3 +115,13 @@
 
 .hub-nav-inner, .btn-inner { display: inline-flex; align-items: center; gap: 8px; }
 .btn-inner svg { width: 16px; height: 16px; }
+
+@media (max-height: 520px) {
+  .hub-brand h1 { font-size: 24px; }
+  .hub-brand .logo { width: 34px; height: 34px; }
+  .hub-hero { padding: 18px; }
+  .hh-body h2 { font-size: 22px; }
+  .hh-body p { font-size: 13px; }
+  .hh-art { display: none; }
+  .hub-mode { min-height: 64px; padding: 10px 12px; }
+}

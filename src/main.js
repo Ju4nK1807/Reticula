@@ -22,7 +22,8 @@ if (!support.webgl) {
     game.start();
     // Útil para depurar desde la consola del navegador.
     window.reticula = game;
-    const warnings = supportWarnings(support);
+    // En modo táctil no se necesita mouse ni Pointer Lock: no hay nada que advertir.
+    const warnings = game.touchMode ? [] : supportWarnings(support);
     if (warnings.length) root.append(supportNotice(warnings));
   } catch (err) {
     console.error(err);

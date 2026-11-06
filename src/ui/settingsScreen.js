@@ -29,6 +29,24 @@ export const CONTROLS = [
   ['Esc', 'Pausa'],
 ];
 
+/** Controles en pantalla del modo táctil (teléfonos y tabletas). */
+export const TOUCH_CONTROLS = [
+  ['Joystick', 'Moverse: apoya el dedo en la mitad izquierda'],
+  ['Arrastrar', 'Apuntar: desliza el dedo en la mitad derecha'],
+  ['Disparo', 'Botón grande de la derecha (mantenlo para ráfaga)'],
+  ['Mira', 'Mira telescópica (solo armas con zoom)'],
+  ['Recarga', 'Recargar el cargador'],
+  ['Salto · Agachar', 'Saltar y agacharse'],
+  ['Arma', 'Cambiar de arma (no en la evaluación)'],
+  ['Pausa', 'Botón de arriba a la izquierda o el botón Atrás del teléfono'],
+];
+
+/** True si el juego corre con controles táctiles. */
+export const isTouchUI = () => typeof document !== 'undefined' && !!document.querySelector('.touch-mode');
+
+/** Lista de controles que corresponde al dispositivo actual. */
+export const controlList = () => (isTouchUI() ? TOUCH_CONTROLS : CONTROLS);
+
 function field(label, control, hint) {
   return h('label', { class: 'field' }, h('span', { class: 'f-label' }, label), control, hint && h('span', { class: 'f-hint' }, hint));
 }
@@ -374,15 +392,22 @@ export function settingsScreen(game, onBack, opts = {}) {
           commit();
         }), 'Se aplica a los bots nuevos.'),
         field('Imprecisión al moverse', checkbox(s.gameplay, 'moveInaccuracy', commit), 'Como en CS2 o Valorant: dispara quieto o caminando.'),
-        field('Recarga automática', checkbox(s.gameplay, 'autoReload', commit), 'Recarga sola al disparar con el cargador vacío. Desactívala para recargar siempre con R.'),
+        field('Recarga automática', checkbox(s.gameplay, 'autoReload', commit), 'Recarga sola al disparar con el cargador vacío. Desactívala para recargar siempre a mano.'),
         field('Balas visibles', checkbox(s.gameplay, 'tracers', commit)),
         field('Arma en pantalla', checkbox(s.gameplay, 'viewmodel', commit)),
+        field('Controles táctiles', select({ auto: 'Automático (sin mouse)', on: 'Activados', off: 'Desactivados' }, s.touch.mode, (v) => {
+          s.touch.mode = v;
+          commit();
+          game.ui.toast('Se aplica al volver a abrir Retícula.');
+        }), 'Joystick, botones y apuntar arrastrando el dedo, para teléfonos y tabletas.'),
+        field('Sensibilidad táctil', slider(s.touch, 'sensitivity', { min: 0.3, max: 3, step: 0.05, fmt: (v) => `×${v.toFixed(2)}` }, commit), 'Cuánto gira la cámara al arrastrar el dedo (independiente de la del mouse).'),
+        field('Invertir eje Y táctil', checkbox(s.touch, 'invertY', commit)),
         field('Sensibilidad con zoom', slider(s.gameplay, 'zoomSensitivity', { min: 0.5, max: 1.5, step: 0.05, fmt: (v) => `×${v.toFixed(2)}` }, commit), 'Con la mira telescópica la sensibilidad baja en proporción al zoom; ×1 se siente igual que sin zoom.')),
     ]],
     datos: ['Controles y datos', () => [
       h('section', { class: 'panel' },
         h('h3', {}, 'Controles'),
-        h('dl', { class: 'controls' }, CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)]))),
+        h('dl', { class: 'controls' }, controlList().map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)]))),
       h('section', { class: 'panel' },
         h('h3', {}, 'Datos'),
         h('p', { class: 'muted small' }, 'Para guardar una copia de tu progreso usa Progreso → Datos → Exportar.'),

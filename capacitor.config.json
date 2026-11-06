@@ -1,0 +1,11 @@
+{
+  "appId": "com.reticula.app",
+  "appName": "Retícula",
+  "webDir": "dist",
+  "backgroundColor": "#07090d",
+  "android": {
+    "backgroundColor": "#07090d",
+    "allowMixedContent": false,
+    "captureInput": true
+  }
+}

@@ -106,10 +106,12 @@ export class PlayerController {
     if (active) {
       _fwd.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
       _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
-      const f = (keys.isDown('KeyW') ? 1 : 0) - (keys.isDown('KeyS') ? 1 : 0);
-      const r = (keys.isDown('KeyD') ? 1 : 0) - (keys.isDown('KeyA') ? 1 : 0);
+      // Teclado (digital) + joystick táctil (analógico: inclinarlo poco = caminar más lento).
+      const axis = keys.axis ?? { x: 0, y: 0 };
+      const f = (keys.isDown('KeyW') ? 1 : 0) - (keys.isDown('KeyS') ? 1 : 0) + axis.y;
+      const r = (keys.isDown('KeyD') ? 1 : 0) - (keys.isDown('KeyA') ? 1 : 0) + axis.x;
       _wish.addScaledVector(_fwd, f).addScaledVector(_right, r);
-      if (_wish.lengthSq() > 0) _wish.normalize();
+      if (_wish.lengthSq() > 1) _wish.normalize();
     }
 
     const max = crouching ? SPEED_CROUCH : active && keys.isDown('ShiftLeft') ? SPEED_WALK : SPEED_RUN;

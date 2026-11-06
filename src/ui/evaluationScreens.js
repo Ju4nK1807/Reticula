@@ -1,6 +1,6 @@
 import { h } from './dom.js';
 import { button, rankBadge, rankLadder } from './components.js';
-import { CONTROLS } from './settingsScreen.js';
+import { controlList, isTouchUI } from './settingsScreen.js';
 import { getRank } from '../config/ranks.js';
 import { sensSummary } from '../config/sensitivity.js';
 
@@ -16,7 +16,7 @@ export function evalIntroScreen(game, { variant, onStart, onSettings, onBack }) 
       { class: 'panel' },
       h('div', { class: 'eyebrow' }, done ? 'Reevaluación' : 'Primer nivel'),
       h('h2', {}, variant.title),
-      h('p', { class: 'muted' }, `${variant.desc} Cada disparo fallado resta puntos y el cargador es de 25 balas: recarga con R.`),
+      h('p', { class: 'muted' }, `${variant.desc} Cada disparo fallado resta puntos y el cargador es de 25 balas: recarga con ${isTouchUI() ? 'el botón de recarga' : 'R'}.`),
       h(
         'ol',
         { class: 'stage-list' },
@@ -36,7 +36,7 @@ export function evalIntroScreen(game, { variant, onStart, onSettings, onBack }) 
           ),
         ),
       ),
-      h('dl', { class: 'controls compact' }, CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
+      h('dl', { class: 'controls compact' }, controlList().map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(settings.sens)}`),
       h(
         'div',
