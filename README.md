@@ -18,6 +18,41 @@ rama de PR), para que lo fusionado llegue siempre a `main`.
 Requisitos: navegador con WebGL 2 y Pointer Lock (Chrome o Edge recomendados: son los únicos que dan
 raw input), mouse y teclado. Si falta algo, el juego lo avisa al abrir.
 
+## Apps: Windows y Android
+
+Además de en el navegador, Retícula se descarga como app. Las descargas están en la pestaña
+**Releases** del repositorio:
+
+| Plataforma | Archivo | Cómo se juega |
+|------------|---------|---------------|
+| Windows | `Reticula-Setup-x.y.z.exe` (instalador) o `Reticula-Portable-x.y.z.exe` (sin instalar) | Mouse y teclado, con raw input y Pointer Lock igual que en Chrome. `F11`: pantalla completa |
+| Android | `Reticula-x.y.z.apk` | **Controles táctiles**: joystick a la izquierda, arrastrar a la derecha para apuntar y botones de disparo, mira, recarga, salto, agacharse, arma y pausa. Siempre en horizontal y a pantalla completa |
+| Navegador | https://ju4nk1807.github.io/Reticula/ | En el teléfono, "Agregar a la pantalla de inicio" la instala con su ícono |
+
+Para instalar el APK en Android hay que permitir "Instalar apps de origen desconocido" al abrirlo.
+
+### Controles táctiles
+Se activan solos en dispositivos sin mouse, o a mano en *Configuración → Juego → Controles táctiles*.
+Ahí también están la sensibilidad táctil (independiente de la del mouse) y el eje Y invertido.
+
+### Compilar las apps
+```bash
+npm run desktop          # abre la app de escritorio con la versión compilada
+npm run desktop:build    # instalador y portable de Windows en release/
+npm run android:sync     # compila el juego y lo copia al proyecto Android (android/)
+npm run android:build    # APK de depuración (necesita JDK 21 y el SDK de Android)
+```
+
+### Publicar una versión
+Crear una etiqueta `v1.0.0` (o lanzar el flujo **Apps** a mano desde *Actions*) compila el APK y el
+instalador de Windows en GitHub Actions y los adjunta a un Release. Para que el APK salga **firmado**
+(necesario para Google Play), el dueño del repositorio debe añadir estos secretos en
+*Settings → Secrets and variables → Actions*: `ANDROID_KEYSTORE_BASE64` (el `.jks` en base64),
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD`. Sin ellos se publica el APK
+de depuración, que se instala igual.
+
+Los íconos y la pantalla de inicio se generan desde `assets/icon.svg` y `assets/icon-foreground.svg`.
+
 ## Estructura
 
 ```
