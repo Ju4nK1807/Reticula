@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { resolveQuality } from '../config/quality.js';
+import { setGlowBloom, setSurfaceDetail } from '../gfx/surfaces.js';
 
 // Renderer, cámara y loop. La escena activa la aporta el mapa cargado.
 // `overlay` ({ scene, camera, resize }) se dibuja encima sin depth del mundo: el arma en primera persona.
@@ -10,6 +11,14 @@ export class Engine {
     this.video = null; // configuración de calidad (setQuality)
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.autoClear = false;
+    // Tono neutro (Khronos PBR Neutral): comprime solo las luces altas y respeta los colores
+    // (las dianas y los enemigos se ven del color que deben).
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    this.renderer.toneMappingExposure = 1;
+    this.renderer.shadowMap.enabled = false;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.detail = null; // alta | media | baja (texturas, sombras y efectos)
+    this.composer = null; // postproceso (bloom), solo en calidad alta
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 400);
@@ -59,10 +68,46 @@ export class Engine {
     overlay?.resize(this.camera.aspect);
   }
 
-  // Calidad gráfica: ajusta la resolución interna de render (ver config/quality.js).
+  // Calidad gráfica: resolución interna, texturas, sombras y efectos (ver config/quality.js).
   setQuality(video) {
     this.video = video;
+    const { detail } = resolveQuality(video, window.devicePixelRatio);
+    if (detail !== this.detail) {
+      this.detail = detail;
+      setSurfaceDetail(detail, this.renderer.capabilities.getMaxAnisotropy());
+      this.renderer.shadowMap.enabled = detail !== 'baja';
+      const bloom = detail === 'alta';
+      if (bloom && !this.composer) this.createComposer();
+      else if (!bloom) {
+        setGlowBloom(false);
+        if (this.composer) this.disposeComposer();
+      }
+    }
     this.resize();
+  }
+
+  // El postproceso se descarga solo si hace falta (calidad alta). Mientras llega se dibuja sin él.
+  createComposer() {
+    if (this.composerLoading) return;
+    this.composerLoading = import('../gfx/postfx.js')
+      .then(({ createComposer }) => {
+        this.composerLoading = null;
+        if (this.detail !== 'alta' || this.composer) return;
+        const { composer, renderPass } = createComposer(this.renderer, this.scene, this.camera);
+        this.composer = composer;
+        this.renderPass = renderPass;
+        setGlowBloom(true);
+        this.resize();
+      })
+      .catch(() => {
+        this.composerLoading = null; // sin postproceso: el juego sigue igual, sin bloom
+      });
+  }
+
+  disposeComposer() {
+    for (const pass of this.composer.passes) pass.dispose?.();
+    this.composer.dispose();
+    this.composer = null;
   }
 
   resize() {
@@ -70,6 +115,10 @@ export class Engine {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.renderer.setSize(w, h, false);
+    if (this.composer) {
+      this.composer.setPixelRatio(this.renderer.getPixelRatio());
+      this.composer.setSize(w, h);
+    }
     this.camera.aspect = w / h;
     this.applyFov();
     this.overlay?.resize(this.camera.aspect);
@@ -81,9 +130,16 @@ export class Engine {
       const dt = Math.min(this.timer.getDelta(), 0.05);
       onFrame(dt);
       const r = this.renderer;
-      r.clear();
-      r.render(this.scene, this.camera);
+      if (this.composer) {
+        this.renderPass.scene = this.scene; // el mapa activo puede cambiar
+        this.renderPass.camera = this.camera;
+        this.composer.render(dt);
+      } else {
+        r.clear();
+        r.render(this.scene, this.camera);
+      }
       if (this.overlay && this.showOverlay) {
+        r.setRenderTarget(null);
         r.clearDepth();
         r.render(this.overlay.scene, this.overlay.camera);
       }

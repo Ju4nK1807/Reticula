@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { castsShadow } from '../gfx/lighting.js';
 
 // Proporciones de un personaje de shooter (~1.77 m). Cabeza ≈ 25 cm, como en la mayoría de juegos.
 export const BOT_DIMENSIONS = {
@@ -21,11 +22,13 @@ const GEO = {
 // Construye el modelo low-poly. Cada malla con userData.part ('head' | 'body' | 'legs') es una hitbox.
 export function buildBotModel(color) {
   const base = new THREE.Color(color);
+  // PBR (como los mapas): semimate con un toque de brillo; emissive se usa para el destello al recibir daño.
+  const pbr = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.12, flatShading: true, ...extra });
   const mats = {
-    body: new THREE.MeshLambertMaterial({ color: base, flatShading: true, emissive: '#ffffff', emissiveIntensity: 0 }),
-    legs: new THREE.MeshLambertMaterial({ color: base.clone().multiplyScalar(0.55), flatShading: true, emissive: '#ffffff', emissiveIntensity: 0 }),
-    head: new THREE.MeshLambertMaterial({ color: base.clone().lerp(new THREE.Color('#ffffff'), 0.15), flatShading: true, emissive: '#ffffff', emissiveIntensity: 0 }),
-    gear: new THREE.MeshLambertMaterial({ color: '#1b1f26', flatShading: true }),
+    body: pbr(base, { emissive: '#ffffff', emissiveIntensity: 0 }),
+    legs: pbr(base.clone().multiplyScalar(0.55), { emissive: '#ffffff', emissiveIntensity: 0 }),
+    head: pbr(base.clone().lerp(new THREE.Color('#ffffff'), 0.15), { emissive: '#ffffff', emissiveIntensity: 0 }),
+    gear: pbr('#1b1f26', { roughness: 0.45, metalness: 0.5 }),
     visor: new THREE.MeshBasicMaterial({ color: '#e8faff' }),
   };
 
@@ -60,5 +63,6 @@ export function buildBotModel(color) {
   gunTip.position.set(0.12, 0.3, 0.7);
   upper.add(gunTip);
 
+  castsShadow(group);
   return { group, upper, legs, hitMeshes, mats, gunTip };
 }

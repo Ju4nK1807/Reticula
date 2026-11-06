@@ -3,7 +3,7 @@ import { button } from './components.js';
 import { CROSSHAIR_PRESETS, crosshairCode, crosshairSVG, normalizeCrosshair, parseCrosshairCode } from './Crosshair.js';
 import { ENEMY_COLORS } from '../config/defaults.js';
 import { FOV_PRESETS, GAMES, cmPer360, convertSens, formatSens, roundTo, valueForCm } from '../config/sensitivity.js';
-import { QUALITY_OPTIONS, QUALITY_PRESETS, RENDER_SCALE } from '../config/quality.js';
+import { QUALITY_OPTIONS, QUALITY_PRESETS, RENDER_SCALE, resolveQuality } from '../config/quality.js';
 import { WEAPONS, WEAPON_ORDER } from '../combat/weapons.js';
 
 const SHAPES = {
@@ -301,6 +301,8 @@ let lastTab = 'sens';
 
 // opts.crosshairWeapon: abre la pestaña de la mira editando esa arma (desde el Arsenal).
 // opts.tab: abre directamente esa pestaña (p. ej. 'datos' desde el botón de ayuda del menú).
+const DETAIL_OPTIONS = { alta: 'Alta', media: 'Media', baja: 'Baja' };
+
 export function settingsScreen(game, onBack, opts = {}) {
   const s = game.settings;
   const commit = () => {
@@ -325,10 +327,22 @@ export function settingsScreen(game, onBack, opts = {}) {
     ),
   );
 
-  // Calidad: elegir un preset ajusta la resolución; mover la resolución a mano pasa a "Personalizada".
-  const scaleSlider = slider(s.video, 'renderScale', { ...RENDER_SCALE, fmt: (v) => `${Math.round(v * 100)}%` }, () => {
+  // Calidad: elegir un preset ajusta resolución y detalle; mover cualquiera de los dos a mano pasa a
+  // "Personalizada" (conservando el otro valor).
+  const toCustom = () => {
+    if (s.video.quality !== 'custom') s.video.detail = resolveQuality(s.video).detail;
     s.video.quality = 'custom';
     qualitySelect.value = 'custom';
+  };
+  const scaleSlider = slider(s.video, 'renderScale', { ...RENDER_SCALE, fmt: (v) => `${Math.round(v * 100)}%` }, () => {
+    const detail = resolveQuality(s.video).detail;
+    toCustom();
+    s.video.detail = detail;
+    commit();
+  });
+  const detailSelect = select(DETAIL_OPTIONS, resolveQuality(s.video).detail, (v) => {
+    toCustom();
+    s.video.detail = v;
     commit();
   });
   const qualitySelect = select(QUALITY_OPTIONS, s.video.quality, (v) => {
@@ -336,6 +350,7 @@ export function settingsScreen(game, onBack, opts = {}) {
     if (QUALITY_PRESETS[v]) {
       s.video.renderScale = QUALITY_PRESETS[v].renderScale;
       scaleSlider.sync();
+      detailSelect.value = QUALITY_PRESETS[v].detail;
     }
     commit();
   });
@@ -377,6 +392,7 @@ export function settingsScreen(game, onBack, opts = {}) {
         fovPresets,
         field('Calidad', qualitySelect, 'Baja la resolución de render para ganar FPS en equipos modestos.'),
         field('Resolución de render', scaleSlider, 'Porcentaje de la resolución de la pantalla (la interfaz no cambia).'),
+        field('Detalle gráfico', detailSelect, 'Alta: texturas 1K, sombras suaves y brillo en luces. Media: texturas 512 y sombras. Baja: sin sombras ni relieve, máximo rendimiento.'),
         field('Mostrar FPS', checkbox(s.video, 'showFps', commit), 'FPS promedio, ms por cuadro y 1 % low (tirones).')),
       h('section', { class: 'panel' },
         h('h3', {}, 'Audio'),

@@ -53,6 +53,29 @@ de depuración, que se instala igual.
 
 Los íconos y la pantalla de inicio se generan desde `assets/icon.svg` y `assets/icon-foreground.svg`.
 
+## Gráficos
+
+Estilo semi-realista con optimización fuerte: materiales PBR con texturas reales, iluminación física
+con tono neutro (los colores de dianas y enemigos se respetan), sombras del sol y brillo (bloom) en luces
+y neón. Todo depende de **Configuración → Video → Calidad**:
+
+| Calidad | Texturas | Sombras | Efectos |
+|---------|----------|---------|---------|
+| Alta | 1K: color, relieve y ARM (oclusión, rugosidad, metal) | suaves, 2048 | bloom y antialiasing MSAA |
+| Media | 512 (4 veces menos memoria) | 1024 | — |
+| Baja | 512 solo de color | no | — |
+
+En teléfonos y tabletas el juego arranca en calidad media. En *Personalizada* se elige por separado la
+resolución de render y el detalle gráfico.
+
+Cada mapa conserva su paleta: el color medio de cada textura se calibra al color de la paleta, así la
+textura solo añade detalle. Las superficies están en `src/gfx/surfaces.json`. Para cambiar o añadir
+una, se edita ese archivo y se ejecuta `python tools/textures.py` (necesita Pillow): descarga las
+texturas, las convierte a WebP en 1K y 512 y calcula su color medio.
+
+### Créditos
+Texturas: [Poly Haven](https://polyhaven.com) (CC0, dominio público).
+
 ## Estructura
 
 ```

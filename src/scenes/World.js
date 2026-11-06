@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { boxWorldUV, planeWorldUV, tileOf } from '../gfx/surfaces.js';
 
 const _box = new THREE.Box3();
 const _pad = new THREE.Vector3();
@@ -28,8 +29,12 @@ export class World {
   }
 
   // Caja con base en y0. `solid` = bloquea balas y movimiento.
+  // Con un material de superficie (texturas), las UVs van en metros: la textura no se estira.
   block(w, h, d, mat, x, z, y0 = 0, solid = true) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const tile = tileOf(mat);
+    if (tile) boxWorldUV(geo, w, h, d, tile);
+    const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, y0 + h / 2, z);
     this.scene.add(mesh);
     if (solid) {
@@ -44,7 +49,11 @@ export class World {
   }
 
   ground(width, depth, centerZ, mat) {
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), mat);
+    const geo = new THREE.PlaneGeometry(width, depth);
+    const tile = tileOf(mat);
+    if (tile) planeWorldUV(geo, width, depth, tile);
+    const ground = new THREE.Mesh(geo, mat);
+    ground.userData.ground = true; // recibe sombras pero no las proyecta
     ground.rotation.x = -Math.PI / 2;
     ground.position.z = centerZ;
     this.scene.add(ground);

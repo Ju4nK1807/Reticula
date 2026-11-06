@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { glow, paint, surface } from '../../../gfx/surfaces.js';
 import { CampaignWorld } from './CampaignWorld.js';
 
 const FACADE_X = 10; // cara interior de los edificios de la calle
@@ -38,24 +39,24 @@ export class CityMap extends CampaignWorld {
 
     const L = this.lambert;
     const M = {
-      asphalt: L('#2c2f36'),
-      sidewalk: L('#5a5d66'),
-      bldgA: L('#6b5a52'),
-      bldgB: L('#4f5b6e'),
-      bldgC: L('#76705f'),
-      trim: L('#2e323b'),
-      concrete: L('#7b7f88'),
-      planter: L('#5b4a3c'),
+      asphalt: surface('asphalt', '#2c2f36'),
+      sidewalk: surface('tiles', '#5a5d66'),
+      bldgA: surface('brick', '#6b5a52'),
+      bldgB: surface('plaster', '#4f5b6e'),
+      bldgC: surface('plaster', '#76705f'),
+      trim: surface('metal', '#2e323b'),
+      concrete: surface('concrete', '#7b7f88'),
+      planter: surface('concrete', '#5b4a3c'),
       leaves: L('#3f6b45'),
-      kiosk: L('#2f6f8f'),
-      carA: L('#a33a3a'),
-      carB: L('#3a6aa3'),
-      carC: L('#c9c2b0'),
+      kiosk: surface('metal_panel', '#2f6f8f'),
+      carA: paint('#a33a3a'),
+      carB: paint('#3a6aa3'),
+      carC: paint('#c9c2b0'),
       tire: L('#15171b'),
       glass: new THREE.MeshBasicMaterial({ color: '#141a24' }),
-      lit: new THREE.MeshBasicMaterial({ color: '#ffd58a' }),
+      lit: glow('#ffd58a'),
       line: new THREE.MeshBasicMaterial({ color: '#d8d8d0' }),
-      lamp: new THREE.MeshBasicMaterial({ color: '#fff1c9' }),
+      lamp: glow('#fff1c9'),
       water: new THREE.MeshBasicMaterial({ color: '#2b6c8f' }),
     };
 

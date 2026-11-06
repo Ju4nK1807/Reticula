@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { World } from './World.js';
+import { glow, surface } from '../gfx/surfaces.js';
 
 // Mapa de la evaluación con dianas: campo de tiro cubierto, sin coberturas que tapen los objetivos.
 // El jugador se mueve detrás del mostrador (z de -0.6 a 5.6); las dianas aparecen entre 10 y 16 m.
@@ -20,25 +21,27 @@ export class ShootingRange extends World {
     sun.position.set(6, 14, 8);
     scene.add(sun);
 
-    const lambert = (color) => new THREE.MeshLambertMaterial({ color, flatShading: true });
+    // Superficies PBR con el color medio de la paleta original (ver gfx/surfaces.js).
     const M = {
-      floor: lambert('#232932'),
-      wall: lambert('#333c4a'),
-      wallDark: lambert('#28303c'),
-      trim: lambert('#435064'),
-      concrete: lambert('#4a5260'),
-      crate: lambert('#6b5a43'),
-      crateDark: lambert('#4f4232'),
-      rock: lambert('#3b4350'),
-      accent: new THREE.MeshBasicMaterial({ color: '#00ffa3' }),
+      floor: surface('concrete_floor', '#232932'),
+      wall: surface('concrete_wall', '#333c4a'),
+      wallDark: surface('concrete_wall', '#28303c'),
+      trim: surface('metal', '#435064'),
+      concrete: surface('concrete', '#4a5260'),
+      crate: surface('wood', '#6b5a43'),
+      crateDark: surface('wood', '#4f4232'),
+      rock: surface('rock', '#3b4350', { flat: true }),
+      accent: glow('#00ffa3'),
       accentDim: new THREE.MeshBasicMaterial({ color: '#0d5a45' }),
-      lamp: new THREE.MeshBasicMaterial({ color: '#e9f2ff' }),
+      lamp: glow('#e9f2ff'),
     };
     const block = this.block.bind(this);
 
     // Piso y cuadrícula
     this.ground(80, 90, -20, M.floor);
     const grid = new THREE.GridHelper(80, 40, '#3a4555', '#2b333f');
+    grid.material.transparent = true;
+    grid.material.opacity = 0.3; // sobre el concreto texturizado basta una guía tenue
     grid.position.set(0, 0.01, -20);
     scene.add(grid);
 

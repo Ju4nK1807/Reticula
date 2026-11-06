@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { glow, surface } from '../gfx/surfaces.js';
 import { World } from './World.js';
 
 // Mapa de la evaluación con enemigos: patio exterior con coberturas, puertas laterales/traseras
@@ -24,18 +25,18 @@ export class TrainingYard extends World {
 
     const lambert = (color) => new THREE.MeshLambertMaterial({ color, flatShading: true });
     const M = {
-      ground: lambert('#3a3f47'),
-      wall: lambert('#4a5466'),
-      wallDark: lambert('#394252'),
-      concrete: lambert('#6b7383'),
-      trim: lambert('#2c333f'),
-      crate: lambert('#8a6c45'),
-      crateDark: lambert('#6e5536'),
-      container: lambert('#2f6f8f'),
-      hill: lambert('#28323f'),
+      ground: surface('gravel', '#3a3f47'),
+      wall: surface('concrete_wall', '#4a5466'),
+      wallDark: surface('concrete_wall', '#394252'),
+      concrete: surface('concrete', '#6b7383'),
+      trim: surface('metal', '#2c333f'),
+      crate: surface('wood', '#8a6c45'),
+      crateDark: surface('wood', '#6e5536'),
+      container: surface('metal_panel', '#2f6f8f'),
+      hill: surface('rock', '#28323f', { flat: true }),
       glass: new THREE.MeshBasicMaterial({ color: '#0d141d' }),
-      accent: new THREE.MeshBasicMaterial({ color: '#00ffa3' }),
-      lamp: new THREE.MeshBasicMaterial({ color: '#ffe9b0' }),
+      accent: glow('#00ffa3'),
+      lamp: glow('#ffe9b0'),
     };
     this.materials = M;
 
@@ -45,6 +46,8 @@ export class TrainingYard extends World {
     // --- Suelo -------------------------------------------------------------
     this.ground(160, 160, -18, M.ground);
     const grid = new THREE.GridHelper(160, 80, '#4a5260', '#424955');
+    grid.material.transparent = true;
+    grid.material.opacity = 0.3; // guía tenue sobre el suelo con textura
     grid.position.set(0, 0.01, -18);
     scene.add(grid);
 
