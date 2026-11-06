@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432">
+  <!-- Primer plano del ícono adaptativo de Android (108 dp; la zona segura es el círculo central de 66 dp). -->
+  <defs>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g fill="none" stroke="#00f5a0" stroke-width="16" stroke-linecap="round" filter="url(#glow)">
+    <circle cx="216" cy="216" r="84"/>
+    <path d="M216 100v54M216 278v54M100 216h54M278 216h54"/>
+  </g>
+  <circle cx="216" cy="216" r="15" fill="#00f5a0" filter="url(#glow)"/>
+</svg>

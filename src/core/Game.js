@@ -80,6 +80,8 @@ export class Game {
     this.input.on('lockerror', () =>
       this.ui.toast('No se pudo capturar el mouse. Espera un segundo y vuelve a hacer clic.'),
     );
+    // Botón Atrás de Android (lo envía MainActivity): pausa en partida, vuelve al menú fuera de ella.
+    window.addEventListener('reticula-back', () => this.handleBack());
     // El audio solo puede iniciar tras un gesto del usuario.
     window.addEventListener('pointerdown', () => this.sfx.unlock());
     // Pérdida del contexto WebGL: soltar el mouse (pausa si hay partida) y avisar.
@@ -168,7 +170,9 @@ export class Game {
   onWeaponChange() {
     const w = this.weapon;
     this.hud.setCrosshair(this.activeCrosshair());
-    const mode = w.stats.fireModes.length > 1 ? ` · ${w.auto ? 'AUTO' : 'SEMI'} [B]` : w.stats.zoom ? ' · clic der. = mira' : '';
+    // En táctil no hay teclas: se omiten los atajos (la mira tiene su propio botón).
+    const keys = !this.touchMode;
+    const mode = w.stats.fireModes.length > 1 ? ` · ${w.auto ? 'AUTO' : 'SEMI'}${keys ? ' [B]' : ''}` : w.stats.zoom && keys ? ' · clic der. = mira' : '';
     this.hud.setWeapon(`${w.stats.name}${mode}${this.mode?.weaponHudSuffix?.() ?? ''}`);
     this.hud.setWeaponSlots(SLOT_LIST, w.id, !!this.weaponLock());
   }
@@ -302,6 +306,13 @@ export class Game {
   }
 
   // --- Navegación ----------------------------------------------------------------
+
+  handleBack() {
+    if (this.mode && this.input.locked) this.input.unlock(); // en partida → pausa
+    else if (this.mode && this.paused) this.quitToMenu();
+    else if (this.mode || !this.ui.el.querySelector('.hub')) this.quitToMenu();
+    else this.ui.toast('Para salir, usa el botón de inicio del teléfono.');
+  }
 
   showMenu() {
     this.hud.setVisible(false);
