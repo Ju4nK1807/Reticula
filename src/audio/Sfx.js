@@ -1,5 +1,11 @@
-// Efectos de sonido procedurales con Web Audio API (sin archivos externos).
+// Efectos de sonido con Web Audio API. Los disparos son grabaciones reales (CC0, "The Free Firearm
+// Sound Library", ver public/sounds/credits.json) que se cargan al iniciar el audio; mientras llegan,
+// o si fallan, suenan los disparos procedurales de siempre. El resto de sonidos son procedurales.
 // `pan` (-1 izquierda … 1 derecha) ubica los sonidos de los enemigos en estéreo.
+
+const SAMPLE_BASE = `${import.meta.env?.BASE_URL ?? './'}sounds/`;
+// Volumen de cada grabación (igualan la sensación de potencia entre armas).
+const SAMPLES = { pistol: 0.55, smg: 0.5, rifle: 0.72, shotgun: 0.62, sniper: 0.8, enemy: 0.32 };
 export class Sfx {
   constructor() {
     this.ctx = null;
@@ -18,8 +24,38 @@ export class Sfx {
       this.master.gain.value = this.volume;
       this.master.connect(this.ctx.destination);
       this.noise = this.createNoiseBuffer(0.5);
+      this.loadSamples();
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
+  }
+
+  // Descarga y decodifica las grabaciones (son pequeñas: ~90 kB en total).
+  loadSamples() {
+    this.samples = {};
+    for (const name of Object.keys(SAMPLES)) {
+      fetch(`${SAMPLE_BASE}${name}.mp3`)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+        .then((data) => this.ctx.decodeAudioData(data))
+        .then((buffer) => {
+          this.samples[name] = buffer;
+        })
+        .catch(() => {}); // sin la grabación se usa el sonido procedural
+    }
+  }
+
+  // Reproduce una grabación con una pequeña variación de tono (dos disparos nunca suenan idénticos).
+  playSample(name, { gain = SAMPLES[name] ?? 0.5, pan = 0, rate = 1 } = {}) {
+    const buffer = this.samples?.[name];
+    if (!this.ctx || !buffer) return false;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = rate * (0.96 + Math.random() * 0.08);
+    const g = this.ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g);
+    g.connect(this.output(pan));
+    src.start();
+    return true;
   }
 
   setVolume(v) {
@@ -82,6 +118,13 @@ export class Sfx {
 
   // Disparo del jugador según el arma (perfil de combat/weapons.js).
   shot(profile = 'rifle') {
+    if (this.playSample(profile)) {
+      // Detalle mecánico sobre la grabación: corredera de la escopeta y cerrojo del francotirador.
+      if (profile === 'shotgun') this.noiseBurst({ f0: 1400, f1: 900, q: 2, peak: 0.12, decay: 0.05, delay: 0.32 });
+      if (profile === 'sniper') this.noiseBurst({ f0: 2600, f1: 1600, q: 3, peak: 0.1, decay: 0.04, delay: 0.62 });
+      return;
+    }
+    if (!this.ctx) return;
     switch (profile) {
       case 'pistol':
         this.noiseBurst({ f0: 3200, f1: 800, peak: 0.36, decay: 0.07 });
@@ -115,6 +158,7 @@ export class Sfx {
   }
 
   botShot(pan = 0) {
+    if (this.playSample('enemy', { pan })) return;
     this.noiseBurst({ type: 'lowpass', f0: 1800, f1: 300, q: 0.5, peak: 0.22, decay: 0.12, pan });
   }
 

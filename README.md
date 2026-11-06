@@ -74,7 +74,10 @@ una, se edita ese archivo y se ejecuta `python tools/textures.py` (necesita Pill
 texturas, las convierte a WebP en 1K y 512 y calcula su color medio.
 
 ### Créditos
-Texturas: [Poly Haven](https://polyhaven.com) (CC0, dominio público).
+- Texturas: [Poly Haven](https://polyhaven.com) (CC0, dominio público).
+- Disparos: grabaciones reales de [The Free Firearm Sound Library](https://opengameart.org/content/the-free-firearm-sound-library)
+  (CC0): 1911, PPSh, AR-15, Benelli Nova y Mosin-Nagant, más un disparo a media distancia para los
+  enemigos (`public/sounds/credits.json`). Si no cargan, suenan los disparos procedurales.
 
 ## Estructura
 
