@@ -12,6 +12,7 @@ import { Weapon } from '../combat/Weapon.js';
 import { Viewmodel } from '../combat/Viewmodel.js';
 import { Effects } from '../effects/Effects.js';
 import { Ambience } from '../effects/Ambience.js';
+import { MenuShowcase } from '../effects/MenuShowcase.js';
 import { applyShadowQuality, environment, prepareWorld } from '../gfx/lighting.js';
 import { QUALITY_PRESETS } from '../config/quality.js';
 import { HUD } from '../ui/HUD.js';
@@ -46,6 +47,7 @@ export class Game {
     this.viewmodel = new Viewmodel();
     this.effects = new Effects();
     this.ambience = new Ambience(); // polvo y chispas de la pantalla de título
+    this.showcase = new MenuShowcase('range'); // soldado de la pantalla de título
     this.sfx = new Sfx();
     this.hud = new HUD(root.querySelector('#hud'));
     this.ui = new UI(root.querySelector('#ui'), root.querySelector('#toast'));
@@ -125,16 +127,17 @@ export class Game {
   // Activa un mapa registrado (scenes/registry.js); se construye la primera vez y se reutiliza.
   useWorld(key) {
     this.worlds[key] ??= createWorld(key);
-    if (this.world !== this.worlds[key]) this.setWorld(this.worlds[key]);
+    if (this.world !== this.worlds[key]) this.setWorld(this.worlds[key], key);
   }
 
-  setWorld(world) {
+  setWorld(world, key = null) {
     this.world = world;
     prepareWorld(world, this.engine.renderer);
     applyShadowQuality(world, this.engine.detail);
     this.engine.scene = world.scene;
     this.effects.attach(world.scene);
     this.ambience.attach(world.scene, world.spawn);
+    this.showcase.attach(world.scene, world.spawn, key);
     this.player.setWorld(world);
     this.ballistics.setWorld(world);
     this.player.reset(world.spawn);
@@ -253,6 +256,7 @@ export class Game {
     }
     this.effects.update(dt);
     this.ambience.update(dt, !this.mode);
+    this.showcase.update(dt, !this.mode);
     this.viewmodel.update(dt, this.player);
     if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress);
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && this.zoomLevel < 1.15;
