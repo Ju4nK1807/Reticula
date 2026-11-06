@@ -17,6 +17,7 @@ import { applyShadowQuality, environment, prepareWorld } from '../gfx/lighting.j
 import { AutoQuality, guessDetail } from '../gfx/AutoQuality.js';
 import { whenSurfacesReady } from '../gfx/surfaces.js';
 import { Melee } from '../combat/Melee.js';
+import { Grenades } from '../combat/Grenades.js';
 import { BotSkin, acquireSkin, loadSoldier, pooledSkins, releaseSkin } from '../bots/botSkin.js';
 import { HUD } from '../ui/HUD.js';
 import { UI } from '../ui/UI.js';
@@ -51,6 +52,7 @@ export class Game {
     this.ballistics = new Ballistics();
     this.weapon = new Weapon(this);
     this.melee = new Melee(this); // golpe cuerpo a cuerpo (V)
+    this.grenades = new Grenades(this); // granadas (G), en los modos que las dan
     this.viewmodel = new Viewmodel();
     this.effects = new Effects();
     this.ambience = new Ambience(); // polvo y chispas de la pantalla de título
@@ -144,6 +146,7 @@ export class Game {
     applyShadowQuality(world, this.engine.detail);
     this.engine.scene = world.scene;
     this.effects.attach(world.scene);
+    this.grenades.attach(world.scene);
     this.ambience.attach(world.scene, world.spawn);
     this.showcase.attach(world.scene, world.spawn, key);
     this.player.setWorld(world);
@@ -251,8 +254,17 @@ export class Game {
       this.hud.flash(locked, 'info');
       return;
     }
-    this.settings.weapon = id;
-    this.store.persist();
+    // Modos con armas propias (zombi: se compran): solo se puede sacar lo que se tiene, y la elección
+    // no cambia el arma guardada del arsenal.
+    const owned = this.mode?.ownsWeapon?.(id);
+    if (owned === false) {
+      this.hud.flash(`${WEAPONS[id].name}: cómprala en la armería`, 'bad');
+      return;
+    }
+    if (owned === undefined) {
+      this.settings.weapon = id;
+      this.store.persist();
+    }
     if (this.weapon.setWeapon(id)) this.hud.flash(WEAPONS[id].name, 'info');
   }
 
@@ -263,7 +275,7 @@ export class Game {
     const keys = !this.touchMode;
     const mode = w.stats.fireModes.length > 1 ? ` · ${w.auto ? 'AUTO' : 'SEMI'}${keys ? ' [B]' : ''}` : w.stats.zoom && keys ? ' · clic der. = mira' : '';
     this.hud.setWeapon(`${w.stats.name}${mode}${this.mode?.weaponHudSuffix?.() ?? ''}`);
-    this.hud.setWeaponSlots(SLOT_LIST, w.id, !!this.weaponLock());
+    this.hud.setWeaponSlots(SLOT_LIST, w.id, !!this.weaponLock(), (id) => this.mode?.ownsWeapon?.(id) !== false);
   }
 
   onKey(e) {
@@ -277,10 +289,12 @@ export class Game {
       else this.hud.flash(this.weapon.toggleMode() ? 'Disparo automático' : 'Disparo semiautomático', 'info');
     }
     else if (e.code === 'KeyV' && !e.repeat) this.melee.trigger();
+    else if (e.code === 'KeyG' && !e.repeat) this.grenades.throw();
     else if (e.code === 'Backspace' && !e.repeat) {
       e.preventDefault();
       this.mode.restartStage?.();
     }
+    else this.mode?.onKey?.(e); // teclas propias del modo (zombi: E = armería)
   }
 
   start() {
@@ -299,6 +313,12 @@ export class Game {
       // Paneo lento de fondo en el menú.
       this.player.look(Math.sin(this.time * 0.12) * 0.35, 0.04 + Math.sin(this.time * 0.2) * 0.03);
     }
+    // Sacudida de cámara de las explosiones cercanas (no se acumula: el jugador fija la mirada cada cuadro).
+    const shake = this.grenades.shakeOffset(this.time);
+    if (shake) {
+      this.engine.camera.rotation.x += shake;
+      this.engine.camera.rotation.z += shake * 0.6;
+    }
     this.engine.camera.updateMatrixWorld();
 
     this.weapon.enabled = playing && !!this.mode?.weaponEnabled();
@@ -310,6 +330,7 @@ export class Game {
     if (this.mode && !this.paused) {
       this.weapon.update(dt);
       this.melee.update(dt);
+      this.grenades.update(dt);
       this.mode.update(dt);
     }
     // Mira dinámica: se abre exactamente lo que se desvían las balas (movimiento, salto, ráfaga).
@@ -321,7 +342,7 @@ export class Game {
     this.ambience.update(dt, !this.mode);
     this.showcase.update(dt, !this.mode);
     this.viewmodel.update(dt, this.player);
-    if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress);
+    if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress, this.weapon.reserve);
     // El arma se oculta solo dentro de la mira telescópica (con las miras de hierro se sigue viendo).
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && !(this.weapon.scoped && this.zoomLevel > 1.15);
     this.world.update(dt);
@@ -439,6 +460,7 @@ export class Game {
 
   handleBack() {
     if (this.mode && this.input.locked) return this.input.unlock(); // en partida → pausa
+    if (this.mode?.onBack?.()) return; // el modo lo resolvió (p. ej. cerrar la armería)
     if (this.mode && this.paused) return this.quitToMenu();
     // Igual que Esc: lo atienden el submenú abierto o el botón Volver de la pantalla (UI.js).
     const esc = new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true, cancelable: true });
@@ -477,6 +499,7 @@ export class Game {
 
   startMode(mode) {
     this.melee.reset();
+    this.grenades.clear();
     this.mode?.dispose();
     this.paused = false;
     this.mode = mode;
@@ -502,6 +525,7 @@ export class Game {
 
   quitToMenu() {
     this.melee.reset();
+    this.grenades.clear();
     this.mode?.dispose();
     this.mode = null;
     this.paused = false;

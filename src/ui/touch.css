@@ -57,3 +57,16 @@
 .touch-mode .hud-health { top: 128px; right: 22px; }
 .touch-mode .hud-health .bar { width: 120px; }
 .touch-mode .hud-weapon { font-size: 10px; }
+
+/* Botones según el modo: golpe y granada (en el grupo, sin tapar la vida de la derecha) y armería
+   (abajo en el centro, que en modo táctil está libre; solo entre oleadas). */
+.tc-btn.melee { right: 214px; bottom: 76px; display: none; }
+.tc-btn.grenade { right: 228px; bottom: 222px; display: none; }
+.touch-controls.can-melee .tc-btn.melee, .touch-controls.can-grenade .tc-btn.grenade { display: grid; }
+.tc-btn.shop {
+  display: none; left: 50%; bottom: 22px; width: auto; height: 44px; padding: 0 16px; border-radius: 22px; transform: translateX(-50%);
+  grid-auto-flow: column; gap: 8px; color: #ffd166; border-color: rgba(255, 209, 102, 0.6);
+}
+.tc-btn.shop:active { transform: translateX(-50%) scale(0.95); }
+.touch-controls.can-shop .tc-btn.shop { display: grid; }
+.tc-label { font: 700 12px var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; }

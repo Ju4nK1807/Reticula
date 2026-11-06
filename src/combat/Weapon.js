@@ -46,6 +46,10 @@ export class Weapon {
     this.reloadLeft = 0;
     this.drawLeft = 0;
     this.aiming = false; // apuntando con las miras (lo decide Game.updateScope)
+    // Munición de reserva por arma (balas fuera del cargador). null = infinita (todos los modos salvo
+    // los que la administran, como el modo zombi). Un arma sin entrada también es infinita.
+    this.reserveBy = null;
+    this.reloadMul = 1; // multiplicador del tiempo de recarga (mejora "Recarga rápida" del modo zombi)
     this.ammoBy = Object.fromEntries(WEAPON_ORDER.map((id) => [id, WEAPONS[id].magazine]));
     this.onShot = null;
     this.onChange = null;
@@ -73,7 +77,7 @@ export class Weapon {
 
   // Progreso de la recarga 0-1, o null si no está recargando.
   get reloadProgress() {
-    return this.reloading ? 1 - this.reloadLeft / this.stats.reloadTime : null;
+    return this.reloading ? 1 - this.reloadLeft / (this.stats.reloadTime * this.reloadMul) : null;
   }
 
   get canToggleMode() {
@@ -127,12 +131,26 @@ export class Weapon {
     this.game.viewmodel.cancelReload();
   }
 
+  // Balas de reserva del arma actual (Infinity si no hay límite).
+  get reserve() {
+    const r = this.reserveBy?.[this.stats.id];
+    return r === undefined || r === null ? Infinity : r;
+  }
+
+  set reserve(v) {
+    if (this.reserveBy) this.reserveBy[this.stats.id] = v;
+  }
+
   reload() {
     if (this.reloading || this.drawing || this.ammo >= this.stats.magazine) return;
-    this.reloadLeft = this.stats.reloadTime;
+    if (this.reserve <= 0) {
+      this.game.hud.flash('Sin munición de reserva', 'bad');
+      return;
+    }
+    this.reloadLeft = this.stats.reloadTime * this.reloadMul;
     this.scoped = false;
     this.game.sfx.reloadStart();
-    this.game.viewmodel.startReload(this.stats.reloadTime);
+    this.game.viewmodel.startReload(this.stats.reloadTime * this.reloadMul);
   }
 
   // Disparo semiautomático; `time` = timeStamp del clic.
@@ -148,7 +166,10 @@ export class Weapon {
       this.reloadLeft -= dt;
       if (this.reloadLeft <= 0) {
         this.reloadLeft = 0;
-        this.ammo = this.stats.magazine;
+        // Se llena con lo que haya en la reserva (si es limitada).
+        const take = Math.min(this.stats.magazine - this.ammo, this.reserve);
+        this.ammo += take;
+        if (Number.isFinite(this.reserve)) this.reserve -= take;
         this.game.sfx.reloadEnd();
       }
     }
@@ -161,7 +182,8 @@ export class Weapon {
       // Cargador vacío: "clic" en seco y, si está activada, recarga automática.
       this.cooldown = DRY_FIRE_COOLDOWN;
       this.game.sfx.dryFire();
-      if (this.game.settings.gameplay.autoReload) this.reload();
+      if (this.reserve <= 0) this.game.hud.flash('Sin munición: cambia de arma o busca munición', 'bad');
+      else if (this.game.settings.gameplay.autoReload) this.reload();
       else this.game.hud.flash('Sin balas · R para recargar', 'bad');
       return;
     }

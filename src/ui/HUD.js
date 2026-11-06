@@ -12,7 +12,7 @@ export class HUD {
         <div class="hud-crosshair" data-ref="crosshair"></div>
         <div class="hud-hitmarker" data-ref="hitmarker"></div>
         <div class="hud-top">
-          <div class="hud-stat"><span class="k">Puntos</span><span class="v" data-ref="score">0</span></div>
+          <div class="hud-stat"><span class="k" data-ref="scoreLabel">Puntos</span><span class="v" data-ref="score">0</span></div>
           <div class="hud-timer" data-ref="time">0:30</div>
           <div class="hud-stat right"><span class="k" data-ref="accLabel">Precisión</span><span class="v" data-ref="acc">—</span></div>
         </div>
@@ -72,8 +72,9 @@ export class HUD {
   }
 
   // Barra de armas (teclas 1-5). weapons: [{ id, key, name }]; locked: no se puede cambiar.
-  setWeaponSlots(weapons, activeId, locked = false) {
-    const key = `${activeId}|${locked}`;
+  // owned(id): false = no se tiene (modo zombi: se compra); se dibuja atenuada.
+  setWeaponSlots(weapons, activeId, locked = false, owned = () => true) {
+    const key = `${activeId}|${locked}|${weapons.map((w) => (owned(w.id) ? 1 : 0)).join('')}`;
     if (this.slotsKey === key) return;
     this.slotsKey = key;
     const el = this.refs.slots;
@@ -81,7 +82,7 @@ export class HUD {
     el.replaceChildren(
       ...weapons.map((w) => {
         const slot = document.createElement('div');
-        slot.className = `hud-slot${w.id === activeId ? ' active' : ''}`;
+        slot.className = `hud-slot${w.id === activeId ? ' active' : ''}${owned(w.id) ? '' : ' missing'}`;
         const k = document.createElement('kbd');
         k.textContent = w.key;
         const n = document.createElement('span');
@@ -100,10 +101,11 @@ export class HUD {
     this.text('weapon', text);
   }
 
-  // reloadProgress: 0-1 mientras recarga, null si no.
-  setAmmo(ammo, magazine, reloadProgress) {
+  // reloadProgress: 0-1 mientras recarga, null si no. reserve: balas de reserva (Infinity = sin
+  // límite: se muestra el tamaño del cargador, como siempre).
+  setAmmo(ammo, magazine, reloadProgress, reserve = Infinity) {
     this.text('ammo', ammo);
-    this.text('mag', `/ ${magazine}`);
+    this.text('mag', Number.isFinite(reserve) ? `/ ${reserve}` : `/ ${magazine}`);
     this.refs.ammoBox.classList.toggle('low', ammo <= Math.ceil(magazine * 0.2));
     this.refs.ammoBox.classList.toggle('empty', ammo === 0);
     const reloading = reloadProgress !== null;
@@ -111,7 +113,8 @@ export class HUD {
     if (reloading) this.refs.reloadFill.style.width = `${Math.round(reloadProgress * 100)}%`;
   }
 
-  setStats({ score, accLabel, accText, time }) {
+  setStats({ score, scoreLabel = 'Puntos', accLabel, accText, time }) {
+    this.text('scoreLabel', scoreLabel);
     this.text('score', score);
     this.text('accLabel', accLabel);
     this.text('acc', accText);
