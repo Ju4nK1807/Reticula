@@ -61,12 +61,14 @@ export class Effects {
   }
 
   tracer(from, to, kind = 'player') {
-    const t = this.tracers.find((x) => !x.active) ?? this.tracers[0];
+    const dist = from.distanceTo(to);
+    if (dist < 0.5) return; // demasiado corta para verse: no se ocupa ninguna trazadora
+    // Libre, o si todas están en vuelo, la que más ha recorrido (la más próxima a terminar).
+    let t = this.tracers.find((x) => !x.active);
+    if (!t) t = this.tracers.reduce((a, b) => (b.t > a.t ? b : a));
     t.from.copy(from);
-    t.dir.subVectors(to, from);
-    t.dist = t.dir.length();
-    if (t.dist < 0.5) return;
-    t.dir.divideScalar(t.dist);
+    t.dir.subVectors(to, from).divideScalar(dist);
+    t.dist = dist;
     t.t = 0;
     t.active = true;
     t.width = kind === 'enemy' ? 0.02 : 0.012;
@@ -109,8 +111,12 @@ export class Effects {
     for (const t of this.tracers) {
       if (!t.active) continue;
       t.t += dt;
-      const head = Math.min(t.t * TRACER_SPEED, t.dist);
-      const tail = Math.max(0, head - TRACER_LENGTH);
+      // La cola se calcula con lo recorrido SIN limitar: antes salía de la punta ya limitada al
+      // impacto, así que se quedaba fija 2.4 m antes del final y la bala no terminaba nunca
+      // (quedaba flotando en el aire hasta que se reciclaba la trazadora).
+      const travel = t.t * TRACER_SPEED;
+      const head = Math.min(travel, t.dist);
+      const tail = Math.min(Math.max(0, travel - TRACER_LENGTH), t.dist);
       if (tail >= t.dist - 0.01) {
         t.active = false;
         t.mesh.visible = false;
