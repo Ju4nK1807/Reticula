@@ -74,7 +74,10 @@ una, se edita ese archivo y se ejecuta `python tools/textures.py` (necesita Pill
 texturas, las convierte a WebP en 1K y 512 y calcula su color medio.
 
 ### Créditos
-Texturas: [Poly Haven](https://polyhaven.com) (CC0, dominio público).
+- Texturas: [Poly Haven](https://polyhaven.com) (CC0, dominio público).
+- Armas en primera persona: modelos de **Pichuliru** en [Poly Pizza](https://poly.pizza) (CC0). Fuentes y
+  comando de optimización en `public/models/weapons/credits.json`. Se cargan bajo demanda; mientras
+  llegan (o si fallan) se ve la versión de cajas.
 
 ## Estructura
 
