@@ -1,3 +1,8 @@
+// Fuentes empaquetadas con la app (sin depender de internet: funcionan en .exe y APK sin conexión).
+import '@fontsource/chakra-petch/latin-600.css';
+import '@fontsource/chakra-petch/latin-700.css';
+import '@fontsource-variable/inter/wght.css';
+import '@fontsource-variable/jetbrains-mono/wght.css';
 import './style.css';
 import { Game } from './core/Game.js';
 import { checkSupport, fatalScreen, supportNotice, supportWarnings } from './ui/supportScreen.js';
