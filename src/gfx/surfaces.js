@@ -27,6 +27,18 @@ const GLOW_HDR = 1.8; // intensidad del neón cuando hay bloom
 let detail = 'alta';
 let anisotropy = 1;
 const loader = new THREE.TextureLoader();
+// Las imágenes se decodifican fuera del hilo principal (createImageBitmap): cargar un mapa ya no
+// congela el juego mientras el navegador descomprime 15-30 WebP. Ya vienen volteadas en vertical.
+const bitmapLoader =
+  typeof document !== 'undefined' && typeof createImageBitmap === 'function'
+    ? new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY', premultiplyAlpha: 'none' })
+    : null;
+const pending = new Set(); // cargas en curso
+
+/** Se resuelve cuando terminaron de cargar todas las texturas pedidas hasta ahora. */
+export function whenSurfacesReady() {
+  return Promise.all([...pending]);
+}
 const textures = new Map(); // `${key}/${size}/${map}` → Texture
 const materials = new Set(); // superficies creadas (para cambiar el detalle en caliente)
 const glows = new Set();
@@ -43,8 +55,25 @@ function texture(key, size, map) {
   const id = `${key}/${size}/${map}`;
   let tex = textures.get(id);
   if (!tex) {
-    // Sin navegador (pruebas en Node) no hay imágenes: textura vacía, el mapa se construye igual.
-    tex = typeof document === 'undefined' ? new THREE.Texture() : loader.load(`${BASE}${id}.webp`);
+    const url = `${BASE}${id}.webp`;
+    if (typeof document === 'undefined') {
+      tex = new THREE.Texture(); // sin navegador (pruebas en Node): textura vacía, el mapa se construye igual
+    } else if (bitmapLoader) {
+      tex = new THREE.Texture();
+      tex.flipY = false; // el bitmap ya viene volteado
+      const t = tex;
+      const job = bitmapLoader
+        .loadAsync(url)
+        .then((bitmap) => {
+          t.image = bitmap;
+          t.needsUpdate = true;
+        })
+        .catch(() => {})
+        .finally(() => pending.delete(job));
+      pending.add(job);
+    } else {
+      tex = loader.load(url);
+    }
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.colorSpace = map === 'albedo' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     tex.anisotropy = anisotropy;

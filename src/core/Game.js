@@ -14,7 +14,9 @@ import { Effects } from '../effects/Effects.js';
 import { Ambience } from '../effects/Ambience.js';
 import { MenuShowcase } from '../effects/MenuShowcase.js';
 import { applyShadowQuality, environment, prepareWorld } from '../gfx/lighting.js';
-import { QUALITY_PRESETS } from '../config/quality.js';
+import { AutoQuality, guessDetail } from '../gfx/AutoQuality.js';
+import { whenSurfacesReady } from '../gfx/surfaces.js';
+import { BotSkin, acquireSkin, loadSoldier, pooledSkins, releaseSkin } from '../bots/botSkin.js';
 import { HUD } from '../ui/HUD.js';
 import { UI } from '../ui/UI.js';
 import { menuScreen } from '../ui/menuScreen.js';
@@ -36,6 +38,9 @@ const ZOOM_SPEED = 14; // qué tan rápido entra y sale la mira telescópica
 // Orquestador: conecta motor, entrada, jugador, arma, audio, guardado, UI y el modo activo.
 // La interfaz de un modo está en modes/Mode.js; los modos se registran en modes/registry.js y los
 // mapas en scenes/registry.js, así que un modo nuevo no necesita editar este archivo.
+// Soldados que se dejan creados en el menú (los primeros enemigos aparecen sin coste).
+const SKIN_PREFILL = 6;
+
 export class Game {
   constructor(root) {
     this.store = new SaveStore();
@@ -56,7 +61,7 @@ export class Game {
     // Armas 3D: reflejos del mismo entorno que los mapas y descarga anticipada de los modelos.
     this.viewmodel.scene.environment = environment(this.engine.renderer);
     this.viewmodel.scene.environmentIntensity = 0.6;
-    this.viewmodel.preload();
+    this.viewmodel.preload().then(() => this.warmWeapons());
     this.weapon.onChange = () => this.onWeaponChange();
 
     // Modo táctil (teléfonos y tabletas): sin Pointer Lock, con joystick y botones en pantalla.
@@ -78,14 +83,15 @@ export class Game {
     this.time = 0;
     this.perf = new PerfMeter();
 
-    // En teléfonos y tabletas la primera vez se usa calidad media (más FPS y menos batería).
+    // Calidad automática: la primera vez (o con otra GPU) parte de un nivel según la GPU y el tipo
+    // de dispositivo; después retoma lo que aprendió en este equipo.
     const video = this.settings.video;
-    if (this.touchMode && !video.touchTuned) {
-      video.touchTuned = true;
-      if (video.quality === 'alta') {
-        video.quality = 'media';
-        video.renderScale = QUALITY_PRESETS.media.renderScale;
-      }
+    this.autoQuality = null;
+    this.autoSaveT = 0;
+    if (video.autoGpu !== this.engine.gpuName || !video.autoDetail) {
+      video.autoGpu = this.engine.gpuName;
+      video.autoDetail = guessDetail(this.engine.gpuName, { touch: this.touchMode });
+      video.autoScale = 1;
       this.store.persist();
     }
     // La calidad se aplica antes de crear el primer mapa: sus texturas ya cargan en el tamaño justo.
@@ -141,6 +147,54 @@ export class Game {
     this.player.setWorld(world);
     this.ballistics.setWorld(world);
     this.player.reset(world.spawn);
+    // Sombreadores y texturas del mapa listos antes de jugar (sin tirones al girar la cámara). Las
+    // texturas llegan un momento después: al terminar de cargar se suben a la GPU de una vez.
+    this.engine.warmup(world.scene, this.engine.camera);
+    whenSurfacesReady().then(() => {
+      if (this.world === world) this.engine.warmup(world.scene, this.engine.camera);
+    });
+  }
+
+  // Compila los sombreadores de las 5 armas en primera persona (copias diminutas, el arma actual se
+  // oculta ese instante): sacar un arma por primera vez ya no da un tirón.
+  warmWeapons() {
+    const vm = this.viewmodel;
+    const extras = [...vm.loaded.values()].map(({ object }) => {
+      const c = object.clone();
+      c.scale.setScalar(0.002);
+      c.position.set(0, 0, -0.5);
+      return c;
+    });
+    if (!extras.length) return;
+    const visible = vm.gun.visible;
+    vm.gun.visible = false;
+    this.engine.warmup(vm.scene, vm.camera, extras, { direct: true, clear: false });
+    vm.gun.visible = visible;
+  }
+
+  // Precarga el soldado (modelo, animaciones y arma) y compila sus sombreadores mientras el jugador
+  // está en el menú: el primer enemigo ya no congela la partida. La muestra se conserva fuera de la
+  // escena porque sus materiales mantienen vivos los sombreadores compilados.
+  async warmSoldier() {
+    const color = this.settings.enemyColor;
+    const template = await loadSoldier(color);
+    if (!template || this.warmedColor === color) return;
+    this.warmedColor = color;
+    const skin = acquireSkin(template, color);
+    const cam = this.engine.camera;
+    // Delante de la cámara pero diminuto (una fracción de píxel): se dibuja, no se ve.
+    skin.root.position.set(0, 0, -3).applyQuaternion(cam.quaternion).add(cam.position);
+    skin.root.scale.setScalar(0.002);
+    skin.update(1 / 60, { lateral: 0, forward: 0, speed: 0, crouch: 0, shotT: 9, dying: false, flash: 0 });
+    this.engine.warmup(this.world.scene, cam, [skin.root]);
+    releaseSkin(skin);
+    // Reserva inicial: unos cuantos soldados más, de a uno por vez para no trabar el menú.
+    const fill = () => {
+      if (pooledSkins(color) >= SKIN_PREFILL || this.settings.enemyColor !== color) return;
+      releaseSkin(new BotSkin(template, color));
+      setTimeout(fill, 120);
+    };
+    setTimeout(fill, 120);
   }
 
   applySettings() {
@@ -151,6 +205,10 @@ export class Game {
     this.hud.showFps(s.video.showFps);
     this.engine.setQuality(s.video);
     if (this.world) applyShadowQuality(this.world, this.engine.detail);
+    // La calidad automática solo existe en el modo "auto"; elegir otro modo la descarta.
+    if (s.video.quality === 'auto') {
+      this.autoQuality ??= new AutoQuality({ detail: s.video.autoDetail, scale: s.video.autoScale });
+    } else this.autoQuality = null;
     this.sfx.setVolume(s.audio.volume);
   }
 
@@ -225,6 +283,7 @@ export class Game {
   start() {
     this.showMenu();
     this.engine.start((dt) => this.frame(dt));
+    setTimeout(() => this.warmSoldier(), 1500);
   }
 
   frame(dt) {
@@ -262,8 +321,32 @@ export class Game {
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && this.zoomLevel < 1.15;
     this.world.update(dt);
 
-    const perf = this.perf.tick();
+    const now = performance.now();
+    const perf = this.perf.tick(now);
     if (perf) this.hud.setFps(perf);
+    this.updateAutoQuality(now);
+    // Con un menú opaco encima (pausa, configuración, progreso…) la escena no se ve: no se dibuja.
+    // Además el desenfoque del menú no tiene que recalcularse cada cuadro (mucho trabajo en GPUs
+    // integradas). La pantalla de título sí muestra la escena en vivo.
+    this.engine.frozen = this.ui.el.classList.contains('active') && !this.ui.el.querySelector('.title-screen');
+  }
+
+  // Resolución dinámica: solo se adapta jugando (los menús no son representativos).
+  updateAutoQuality(now) {
+    const last = this.lastFrameAt ?? now;
+    this.lastFrameAt = now;
+    const aq = this.autoQuality;
+    if (!aq || !this.playing) return;
+    const change = aq.sample(now - last);
+    const video = this.settings.video;
+    if (change) {
+      video.autoDetail = change.detail;
+      video.autoScale = change.scale;
+      this.engine.setQuality(video);
+      applyShadowQuality(this.world, this.engine.detail);
+      this.autoSaveT = 3; // se guarda unos segundos después (sin escribir en cada ajuste)
+    }
+    if (this.autoSaveT > 0 && (this.autoSaveT -= (now - last) / 1000) <= 0) this.store.persist();
   }
 
   // Mira telescópica: clic derecho con un arma con zoom. Entra y sale suave; baja la sensibilidad en

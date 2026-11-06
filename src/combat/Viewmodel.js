@@ -181,9 +181,9 @@ export class Viewmodel {
 
   // Descarga en segundo plano todos los modelos (son pequeños): cambiar de arma no espera.
   preload() {
-    for (const id of Object.keys(WEAPON_MODELS)) {
-      loadWeaponModel(id).then((m) => m && this.loaded.set(id, m));
-    }
+    return Promise.all(
+      Object.keys(WEAPON_MODELS).map((id) => loadWeaponModel(id).then((m) => m && this.loaded.set(id, m))),
+    );
   }
 
   resize(aspect) {
