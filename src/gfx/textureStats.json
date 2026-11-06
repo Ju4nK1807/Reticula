@@ -1,0 +1,98 @@
+{
+  "concrete_floor": {
+    "asset": "concrete_floor_worn_001",
+    "mean": [
+      0.09343,
+      0.09343,
+      0.09343
+    ]
+  },
+  "concrete_wall": {
+    "asset": "concrete_wall_004",
+    "mean": [
+      0.16765,
+      0.16765,
+      0.16765
+    ]
+  },
+  "concrete": {
+    "asset": "brushed_concrete",
+    "mean": [
+      0.12744,
+      0.12744,
+      0.12744
+    ]
+  },
+  "metal": {
+    "asset": "blue_metal_plate",
+    "mean": [
+      0.04231,
+      0.04231,
+      0.04231
+    ]
+  },
+  "metal_panel": {
+    "asset": "corrugated_iron_02",
+    "mean": [
+      0.09614,
+      0.09614,
+      0.09614
+    ]
+  },
+  "tiles": {
+    "asset": "concrete_tiles",
+    "mean": [
+      0.10764,
+      0.10764,
+      0.10764
+    ]
+  },
+  "asphalt": {
+    "asset": "asphalt_02",
+    "mean": [
+      0.10145,
+      0.10145,
+      0.10145
+    ]
+  },
+  "plaster": {
+    "asset": "grey_plaster_02",
+    "mean": [
+      0.22643,
+      0.22643,
+      0.22643
+    ]
+  },
+  "gravel": {
+    "asset": "gravel_concrete",
+    "mean": [
+      0.24206,
+      0.24206,
+      0.24206
+    ]
+  },
+  "rock": {
+    "asset": "dark_rock",
+    "mean": [
+      0.01238,
+      0.01238,
+      0.01238
+    ]
+  },
+  "wood": {
+    "asset": "brown_planks_04",
+    "mean": [
+      0.21696,
+      0.16575,
+      0.13657
+    ]
+  },
+  "brick": {
+    "asset": "red_brick_03",
+    "mean": [
+      0.14764,
+      0.09104,
+      0.07432
+    ]
+  }
+}
