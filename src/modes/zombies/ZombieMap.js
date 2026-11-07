@@ -6,7 +6,9 @@ import { World } from '../../scenes/World.js';
 import { Props } from '../../physics/Props.js';
 import { placeWeapons } from '../../scenes/props.js';
 import { WEAPONS } from '../../combat/weapons.js';
-import { DOORS, PERKS } from './zombieData.js';
+import { BARRICADE, DOORS, PERKS } from './zombieData.js';
+
+const plankGeo = new THREE.BoxGeometry(1, 1, 1);
 
 /*
   "Barrio en ruinas": una plaza nocturna rodeada de edificios y, detrás de puertas tapiadas que se
@@ -49,9 +51,17 @@ const SECTIONS = {
   iglesia: { rect: { minX: -14, maxX: 18, minZ: 34, maxZ: 56 }, opening: { side: 'n', at: 2 }, entries: [['s', -6], ['s', 10], ['o', 46]], floor: ['gravel', '#34363a'] },
 };
 
+// Vestíbulo: cuarto de inicio cerrado (al estilo de los mapas clásicos), en el sur de la plaza. Ventanas
+// tapiadas por donde entra la horda y dos puertas: a la plaza (norte) y a la iglesia (el callejón sur).
+const LOBBY = { minX: -10, maxX: 10, minZ: 10, maxZ: 22, wallH: 5 };
+const WINDOW_W = 2.4;
+// Ventanas: [lado del cuarto, posición]. n = pared norte (z = minZ), o = oeste, e = este.
+const LOBBY_WINDOWS = [['n', -6], ['n', 6], ['o', 16], ['e', 16]];
+const LOBBY_DOOR = { at: 0, width: 3.2 }; // puerta a la plaza, en la pared norte
+
 // Máquinas de bebidas: [bebida, x, z, ry] (ry: hacia dónde mira el frente).
 const PERK_SPOTS = [
-  ['aire', -21.5, 10, Math.PI / 2],
+  ['aire', 9.5, 20, -Math.PI / 2],
   ['pies', 21.5, -4, -Math.PI / 2],
   ['coraza', 25.5, -48, -Math.PI / 2],
   ['plomo', 40, -3.5, 0],
@@ -66,8 +76,9 @@ const WALL_SPOTS = [
   ['dmr', 46, 22, 's'],
   ['sniper', 58, 9, 'e'],
   ['burst', 2, 56, 's'],
-  ['magnum', -14, 40, 'o'],
+  ['magnum', -6, PLAZA, 's'], // en el vestíbulo
 ];
+const BOX_SPOT = { x: -8, z: -3, ry: Math.PI / 2 }; // caja misteriosa (plaza)
 const NORMALS = { n: new THREE.Vector3(0, 0, 1), s: new THREE.Vector3(0, 0, -1), o: new THREE.Vector3(1, 0, 0), e: new THREE.Vector3(-1, 0, 0) };
 
 export class ZombieMap extends World {
@@ -77,7 +88,7 @@ export class ZombieMap extends World {
       background: '#0a0f15',
       fogNear: 9,
       fogFar: 58,
-      spawn: new THREE.Vector3(0, 0, 6),
+      spawn: new THREE.Vector3(0, 0, 16), // en el vestíbulo
       // El jugador puede ir a todo el mapa: lo limitan los muros y las puertas cerradas.
       playerZone: { minX: -60, maxX: 60, minZ: -60, maxZ: 60 },
     });
@@ -127,6 +138,7 @@ export class ZombieMap extends World {
     this.entries = [];
     this.doors = {};
     this.interactables = [];
+    this.barricades = [];
 
     // --- Suelo ---------------------------------------------------------------------------------
     this.ground(130, 130, 0, M.gravel);
@@ -173,9 +185,9 @@ export class ZombieMap extends World {
     // Autos abandonados.
     this.car(-11, 4, 0.35, M.carA, M);
     this.car(12, -7, -0.6, M.carB, M);
-    this.car(8, 13, 1.35, M.carC, M);
+    this.car(15.5, 8, 1.35, M.carC, M);
     // Barreras de concreto y sacos terreros.
-    for (const [x, z, ry] of [[-6, 12, 0], [-14, -12, 0.5], [15, 3, 1.57], [5, -15, 0.2]]) {
+    for (const [x, z, ry] of [[-4, -10, 0], [-14, -12, 0.5], [15, 3, 1.57], [5, -15, 0.2]]) {
       const b = block(3.2, 0.95, 0.6, M.concrete, x, z);
       b.rotation.y = ry;
       this.fixCollider(b);
@@ -198,7 +210,8 @@ export class ZombieMap extends World {
     for (const [x, z] of [[-7, -12], [9, 6], [-15, 1], [4, 17]]) this.fireBarrel(x, z, M);
     this.fireT = 0;
 
-    // --- Secciones que se abren con puertas -------------------------------------------------------------
+    // --- Vestíbulo (inicio) y secciones que se abren con puertas -----------------------------------------
+    this.lobby(M);
     for (const [id, def] of Object.entries(SECTIONS)) this.section(id, def, M);
     this.mercado(M);
     this.estacion(M);
@@ -209,6 +222,7 @@ export class ZombieMap extends World {
     const placements = [];
     for (const [weapon, x, z, side] of WALL_SPOTS) placements.push(this.wallBuy(weapon, x, z, side));
     this.wallWeapons = placeWeapons(this.scene, placements).catch(() => null); // modelos 3D (llegan después)
+    this.mysteryBox(BOX_SPOT, M);
 
     // Navegación: todo el mapa (plaza, callejones, secciones y sus entradas).
     this.nav = { minX: -62, maxX: 62, minZ: -62, maxZ: 62 };
@@ -218,7 +232,7 @@ export class ZombieMap extends World {
     // basura en las veredas, cajas y barriles. Los zombis los empujan al pasar.
     const along = (x, z, ry, d) => [x + Math.cos(ry) * d, z - Math.sin(ry) * d];
     const cans = [];
-    for (const [x, z, ry, ds] of [[-6, 12, 0, [-0.9, 0, 0.9]], [-14, -12, 0.5, [-0.8, 0, 0.8]], [15, 3, 1.57, [-0.6, 0.6]], [5, -15, 0.2, [-0.7, 0.7]]]) {
+    for (const [x, z, ry, ds] of [[-4, -10, 0, [-0.9, 0, 0.9]], [-14, -12, 0.5, [-0.8, 0, 0.8]], [15, 3, 1.57, [-0.6, 0.6]], [5, -15, 0.2, [-0.7, 0.7]]]) {
       ds.forEach((d, i) => {
         const [cx, cz] = along(x, z, ry, d);
         cans.push({ type: i % 2 ? 'canGreen' : 'can', x: cx, z: cz, y: 0.95, ry: d });
@@ -239,7 +253,7 @@ export class ZombieMap extends World {
       { type: 'crate', x: -3.2, z: -19.6, ry: -0.2 },
       { type: 'crate', x: -19.4, z: -3.6, ry: 0.6 },
       { type: 'crateSmall', x: -18.3, z: -2.4, ry: 0.2 },
-      { type: 'crateSmall', x: 2.5, z: 19.6, ry: -0.5 },
+      { type: 'crateSmall', x: 6, z: 19.6, ry: -0.5 },
       { type: 'barrel', x: -9.6, z: -14.4 },
       { type: 'barrelRed', x: 11.2, z: 9.6 },
       { type: 'barrel', x: -16.4, z: 12.6 },
@@ -290,26 +304,91 @@ export class ZombieMap extends World {
       else this.block(depth, WALL_H - 2, 0.6, M.brickDark, p.x, p.z);
     }
     if (door) {
-      this.door(door, base.clone().addScaledVector(dir, -2.4), side, M);
+      this.door(door, base.clone().addScaledVector(dir, -2.4), { across: side.axis, inward: side.inward, width: ALLEY_W }, M);
       return;
     }
     const end = base.clone().addScaledVector(dir, depth - 3 + 0.3);
     if (side.axis === 'x') this.block(w + 1.2, WALL_H - 2, 0.6, M.brickDark, end.x, end.z);
     else this.block(0.6, WALL_H - 2, w + 1.2, M.brickDark, end.x, end.z);
-    this.entries.push({
+    const entry = {
       id: this.entries.length,
       section: 'plaza',
       side: id,
       spawn: base.clone().addScaledVector(dir, 4.5), // dentro del callejón, fuera de la vista de la plaza
       entry: base.clone().addScaledVector(side.inward, 2.5),
       center: base.clone(),
-    });
+    };
+    this.entries.push(entry);
+    // Barricada en la boca del callejón (borde de la plaza).
+    this.barricade(entry, base.clone().addScaledVector(side.inward, 3), side.axis, w, side.inward, M);
+  }
+
+  // Tablones en una entrada de zombis: los arrancan para entrar y el jugador los repara desde dentro.
+  // mouth: centro del hueco · along: eje a lo largo del hueco · inward: hacia dentro.
+  barricade(entry, mouth, along, width, inward, M) {
+    const group = new THREE.Group();
+    group.userData.dynamic = true;
+    const planks = [];
+    for (let i = 0; i < BARRICADE.boards; i++) {
+      const m = new THREE.Mesh(plankGeo, M.wood);
+      const len = width + 0.35;
+      if (along === 'x') m.scale.set(len, 0.2, 0.06);
+      else m.scale.set(0.06, 0.2, len);
+      const home = new THREE.Vector3(mouth.x, 0.45 + i * 0.3, mouth.z).addScaledVector(inward, 0.1 + (i % 2) * 0.05);
+      // Se cruzan en diagonal, cada uno con su inclinación.
+      const tilt = ((i % 3) - 1) * 0.16 + (i % 2 ? 0.05 : -0.05);
+      const rot = along === 'x' ? new THREE.Euler(0, 0, tilt) : new THREE.Euler(tilt, 0, 0);
+      m.position.copy(home);
+      m.rotation.copy(rot);
+      m.castShadow = true;
+      group.add(m);
+      planks.push({ mesh: m, home, rot, t: -1, dir: 0 });
+    }
+    this.scene.add(group);
+    entry.barricade = { boards: BARRICADE.boards, max: BARRICADE.boards, planks, group, mouth: mouth.clone(), inward: inward.clone(), along, width, entry };
+    this.barricades.push(entry.barricade);
+  }
+
+  /** Un zombi arranca un tablón. Devuelve false si ya no quedaban. */
+  removeBoard(b) {
+    if (b.boards <= 0) return false;
+    b.boards--;
+    const p = b.planks[b.boards];
+    p.t = 0;
+    p.dir = -1;
+    return true;
+  }
+
+  /** El jugador vuelve a clavar un tablón. Devuelve false si ya estaba completa. */
+  addBoard(b) {
+    if (b.boards >= b.max) return false;
+    const p = b.planks[b.boards];
+    b.boards++;
+    p.t = 0;
+    p.dir = 1;
+    p.mesh.visible = true;
+    return true;
+  }
+
+  /** Todas las barricadas completas otra vez (al empezar una partida). */
+  resetBarricades() {
+    for (const b of this.barricades) {
+      b.boards = b.max;
+      for (const p of b.planks) {
+        p.t = -1;
+        p.dir = 0;
+        p.mesh.visible = true;
+        p.mesh.position.copy(p.home);
+        p.mesh.rotation.copy(p.rot);
+      }
+    }
   }
 
   // Puerta tapiada (tablones y escombros) que se compra para abrir una sección. No entra en la
   // geometría unida (userData.dynamic): al abrirla se cae y deja de bloquear.
-  door(id, center, side, M) {
-    const across = side.axis === 'x' ? 'x' : 'z';
+  // opts.across: eje a lo largo del hueco · opts.inward: lado desde el que se compra · opts.width.
+  door(id, center, { across, inward, width }, M) {
+    const side = { inward };
     const group = new THREE.Group();
     group.userData.dynamic = true;
     const plank = new THREE.BoxGeometry(1, 1, 1);
@@ -322,7 +401,7 @@ export class ZombieMap extends World {
       group.add(m);
       return m;
     };
-    const W = ALLEY_W;
+    const W = width;
     // Postes a los lados y tablones cruzados a distintas alturas.
     for (const s of [-0.5, 0.5]) {
       if (across === 'x') add(M.wood, 0.16, DOOR_H, 0.16, s * (W - 0.3), DOOR_H / 2, 0);
@@ -472,21 +551,94 @@ export class ZombieMap extends World {
       if (alongX) this.block(0.6, 4.5, depth + 1, M.brickDark, mid.x + s * (NICHE_W / 2 + 0.3), mid.z);
       else this.block(depth + 1, 4.5, 0.6, M.brickDark, mid.x, mid.z + s * (NICHE_W / 2 + 0.3));
     }
-    // Tablones arrancados en la boca (decoración: no bloquean).
-    for (const [y, tilt] of [[0.7, 0.5], [1.6, -0.35], [2.4, 0.2]]) {
-      const p = edge.clone().addScaledVector(out, 0.5);
-      const m = this.block(alongX ? NICHE_W * 0.6 : 0.08, 0.2, alongX ? 0.08 : NICHE_W * 0.6, M.wood, p.x + (alongX ? -0.5 : 0), p.z + (alongX ? 0 : -0.5), y, false);
-      if (alongX) m.rotation.z = tilt;
-      else m.rotation.x = tilt;
-    }
-    this.entries.push({
+    const entry = {
       id: this.entries.length,
       section,
       side,
       spawn: edge.clone().addScaledVector(out, 1 + depth * 0.55),
       entry: edge.clone().addScaledVector(n, 2),
       center: edge.clone(),
-    });
+    };
+    this.entries.push(entry);
+    this.barricade(entry, edge.clone(), alongX ? 'x' : 'z', NICHE_W, n, M);
+  }
+
+  // Vestíbulo: cuarto de inicio con cuatro ventanas tapiadas (la horda sale de la tierra al otro lado)
+  // y la puerta a la plaza. El callejón sur, con la puerta de la Iglesia, da a este cuarto.
+  lobby(M) {
+    const r = LOBBY;
+    const T = 0.8; // grosor de los muros
+    const mat = M.plasterWarm;
+    const gapsBy = { n: [[LOBBY_DOOR.at, LOBBY_DOOR.width]], o: [], e: [] };
+    for (const [side, at] of LOBBY_WINDOWS) gapsBy[side].push([at, WINDOW_W]);
+    const lines = { n: { alongX: true, fixed: r.minZ, from: r.minX - T / 2, to: r.maxX + T / 2 }, o: { alongX: false, fixed: r.minX, from: r.minZ, to: r.maxZ }, e: { alongX: false, fixed: r.maxX, from: r.minZ, to: r.maxZ } };
+    for (const [side, L] of Object.entries(lines)) {
+      const gaps = gapsBy[side].sort((a, b) => a[0] - b[0]);
+      let a = L.from;
+      for (const [at, w] of [...gaps, [L.to + 10, 0]]) {
+        const b = Math.min(at - w / 2, L.to);
+        if (b - a > 0.05) {
+          if (L.alongX) this.block(b - a, r.wallH, T, mat, (a + b) / 2, L.fixed);
+          else this.block(T, r.wallH, b - a, mat, L.fixed, (a + b) / 2);
+        }
+        if (at < L.to) {
+          // Dintel sobre el hueco (ventana o puerta).
+          const y0 = w === WINDOW_W ? 2.6 : DOOR_H;
+          if (L.alongX) this.block(w, r.wallH - y0, T, mat, at, L.fixed, y0);
+          else this.block(T, r.wallH - y0, w, mat, L.fixed, at, y0);
+        }
+        a = at + w / 2;
+      }
+    }
+    // Ventanas: el jugador no puede salir por ellas; la horda entra arrancando los tablones.
+    for (const [side, at] of LOBBY_WINDOWS) {
+      const inward = side === 'n' ? new THREE.Vector3(0, 0, 1) : side === 'o' ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(-1, 0, 0);
+      const mouth = side === 'n' ? new THREE.Vector3(at, 0, r.minZ) : side === 'o' ? new THREE.Vector3(r.minX, 0, at) : new THREE.Vector3(r.maxX, 0, at);
+      const alongX = side === 'n';
+      if (alongX) this.playerBlocker(at - WINDOW_W / 2, at + WINDOW_W / 2, mouth.z - 0.5, mouth.z + 0.5);
+      else this.playerBlocker(mouth.x - 0.5, mouth.x + 0.5, at - WINDOW_W / 2, at + WINDOW_W / 2);
+      const entry = {
+        id: this.entries.length,
+        section: 'lobby',
+        side,
+        rise: true, // salen de la tierra al otro lado de la ventana
+        spawn: mouth.clone().addScaledVector(inward, -5),
+        entry: mouth.clone().addScaledVector(inward, 2),
+        center: mouth.clone(),
+      };
+      this.entries.push(entry);
+      this.barricade(entry, mouth, alongX ? 'x' : 'z', WINDOW_W, inward, M);
+    }
+    this.door('plaza', new THREE.Vector3(LOBBY_DOOR.at, 0, r.minZ), { across: 'x', inward: new THREE.Vector3(0, 0, 1), width: LOBBY_DOOR.width }, M);
+    // Luz del cuarto (cálida, colgada del muro).
+    this.block(1.4, 0.08, 0.2, M.lamp, 0, r.maxZ - 0.15, 3.6, false);
+  }
+
+  // Caja misteriosa: un arma al azar por puntos, con su haz de luz que se ve desde lejos.
+  mysteryBox({ x, z, ry }, M) {
+    const g = new THREE.Group();
+    g.userData.dynamic = true;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.85, 0.85), M.wood);
+    box.position.y = 0.425;
+    g.add(box);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.07, 0.89), glow('#7fd4ff'));
+    band.position.y = 0.78;
+    g.add(band);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.2), new THREE.MeshBasicMaterial({ map: signTexture('?', '#7fd4ff'), transparent: true, toneMapped: false }));
+    sign.position.set(0, 0.45, 0.43);
+    g.add(sign);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 40, 12, 1, true), new THREE.MeshBasicMaterial({ color: '#7fd4ff', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    beam.position.y = 20;
+    beam.userData.noShadow = true;
+    g.add(beam);
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    this.scene.add(g);
+    g.updateMatrixWorld(true);
+    this.solids.push(box);
+    this.colliders.push(new THREE.Box3().setFromObject(box));
+    const front = new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry));
+    this.interactables.push({ kind: 'box', id: 'box', pos: new THREE.Vector3(x, 0, z).addScaledVector(front, 1.1), radius: 1.7 });
   }
 
   mercado(M) {
@@ -589,7 +741,7 @@ export class ZombieMap extends World {
   // --- Puertas -------------------------------------------------------------------------------------
 
   isOpen(section) {
-    return section === 'plaza' || !!this.doors[section]?.open;
+    return section === 'lobby' || !!this.doors[section]?.open;
   }
 
   /** Abre una puerta: deja de bloquear (balas, vista y paso) y se cae. Devuelve false si ya estaba. */
@@ -630,6 +782,28 @@ export class ZombieMap extends World {
       f.position.y = 0.9 + (f.userData.base * s) / 2;
       f.rotation.y += 0.03;
     });
+    // Tablones de las barricadas: los arrancados salen volando hacia fuera; los reparados entran.
+    for (const b of this.barricades) {
+      for (const p of b.planks) {
+        if (p.t < 0) continue;
+        p.t += dt;
+        if (p.dir < 0) {
+          const k = p.t;
+          p.mesh.position.copy(p.home).addScaledVector(b.inward, -k * 3.2);
+          p.mesh.position.y = p.home.y + k * 2 - k * k * 9;
+          p.mesh.rotation.set(p.rot.x + k * 6, p.rot.y + k * 3, p.rot.z + k * 5);
+          if (k > 0.55) {
+            p.mesh.visible = false;
+            p.t = -1;
+          }
+        } else {
+          const k = Math.min(1, p.t / 0.2);
+          p.mesh.position.copy(p.home).addScaledVector(b.inward, (1 - k) * 0.7);
+          p.mesh.rotation.copy(p.rot);
+          if (k >= 1) p.t = -1;
+        }
+      }
+    }
     // Puertas recién abiertas: los tablones se hunden y desaparecen.
     for (const d of Object.values(this.doors)) {
       if (!d.open || !d.group.visible) continue;
