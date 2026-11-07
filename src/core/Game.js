@@ -470,6 +470,8 @@ export class Game {
     this.player.speedScale = w.aiming ? w.stats.ads.speed : w.scoped ? 0.7 : 1;
     this.viewmodel.aimTarget = w.aiming ? 1 : 0;
     this.hud.setScoped(!!w.stats.zoom && this.zoomLevel > w.stats.zoom * 0.85 && w.scoped);
+    // Con el arma ya casi en la cara, la retícula sobra (y se ve la mira del arma).
+    this.hud.setAds(this.viewmodel.aim > 0.55);
   }
 
   adsAllowed() {

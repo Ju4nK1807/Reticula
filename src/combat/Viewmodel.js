@@ -19,6 +19,7 @@ const THROW_KEYS = [
   [1, -0.12, -0.62, -0.5, -1, 0, 0],
 ];
 const smooth = (t) => t * t * (3 - 2 * t);
+const _muzzle = new THREE.Vector3();
 // Interpola los cuadros clave en `k` (0-1) sobre un objeto.
 function pose(obj, keys, k) {
   let i = 0;
@@ -235,6 +236,14 @@ export class Viewmodel {
     // Pose de apuntar: modelo centrado y con su lomo (miras) 7 mm bajo el centro de la pantalla.
     const cfg = WEAPON_MODELS[this.weaponId];
     if (cfg) this.adsPose.set(-(cfg.x ?? 0), -cfg.top - 0.007, -0.3);
+  }
+
+  // Dónde se ve la boca del cañón en pantalla (coordenadas normalizadas -1…1). El arma se dibuja con
+  // su propia cámara: así la bala sale de donde se ve el cañón, también apuntando con las miras.
+  muzzleNdc(out) {
+    this.gun.updateMatrixWorld(true);
+    this.flash.getWorldPosition(_muzzle).project(this.camera);
+    return out.set(_muzzle.x, _muzzle.y);
   }
 
   // Copias de lo que solo aparece a veces (cuchillo, brazo con cada granada): Game las dibuja una vez

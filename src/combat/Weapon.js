@@ -16,6 +16,9 @@ const _right = new THREE.Vector3();
 const _up = new THREE.Vector3();
 const _end = new THREE.Vector3();
 const _muzzle = new THREE.Vector3();
+const _ray = new THREE.Vector3();
+const _ndc = new THREE.Vector2();
+const MUZZLE_DEPTH = 0.7; // m delante de la cámara donde nace la trazadora
 
 // Desvía `out` (unitario) un ángulo aleatorio dentro de un cono de `deg` grados (distribución uniforme).
 function jitter(out, deg, right, up) {
@@ -263,6 +266,18 @@ export class Weapon {
     return this.aiming && this.stats.ads ? this.stats.ads.spread : 1;
   }
 
+  // Punto del mundo desde el que sale la trazadora: sobre el rayo de la cámara que pasa por donde se ve
+  // la boca del cañón en pantalla (a MUZZLE_DEPTH m). Así la bala sale del arma tanto desde la cadera
+  // como apuntando con las miras (antes salía siempre de abajo a la derecha).
+  muzzlePoint(out) {
+    const g = this.game;
+    const cam = g.engine.camera;
+    if (!g.viewmodel.muzzleNdc || !g.engine.showOverlay) return out.set(0.16, -0.14, -0.6).applyMatrix4(cam.matrixWorld);
+    g.viewmodel.muzzleNdc(_ndc);
+    _ray.set(_ndc.x, _ndc.y, 0.5).unproject(cam).sub(cam.position).normalize();
+    return out.copy(cam.position).addScaledVector(_ray, MUZZLE_DEPTH);
+  }
+
   fire(time = performance.now()) {
     const g = this.game;
     const s = this.stats;
@@ -278,7 +293,7 @@ export class Weapon {
     // Cada perdigón: dispersión propia dentro del cono del arma, alrededor de la dirección del disparo.
     const byBot = new Map();
     let firstHit = null;
-    _muzzle.set(0.16, -0.14, -0.6).applyMatrix4(cam.matrixWorld);
+    this.muzzlePoint(_muzzle);
     for (let i = 0; i < s.pellets; i++) {
       _shot.copy(_dir);
       jitter(_shot, s.pelletSpread * this.aimFactor, _right, _up);
