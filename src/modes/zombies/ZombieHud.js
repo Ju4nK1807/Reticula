@@ -53,7 +53,11 @@ export class ZombieHud {
       this.arrowLayer.append(el);
       this.arrows.push(el);
     }
-    this.root = h('div', { class: 'zh-root' }, this.arrowLayer, this.panel, this.cashBox, this.side, this.banner, this.prompt);
+    // Defensa: botellas que quedan en la barra (con su barra de vida).
+    this.barCount = h('strong', {}, '');
+    this.barFill = h('i');
+    this.barBox = h('div', { class: 'zh-barbox', hidden: true }, h('small', {}, 'Barra'), this.barCount, h('div', { class: 'zh-barmeter' }, this.barFill));
+    this.root = h('div', { class: 'zh-root' }, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.banner, this.prompt);
     layer.append(this.root);
     this.cache = new Map();
   }
@@ -102,6 +106,16 @@ export class ZombieHud {
     this.set('left', this.left, run.state === 'wave' ? `${left} ${left === 1 ? 'zombi' : 'zombis'}` : idle);
     this.set('tag', this.tag, !(run.state === 'wave' && run.cfg?.runnerNight), 'hidden');
     this.set('cash', this.cash, fmt(run.cash));
+    if (run.bar) {
+      const left = run.bar.left;
+      const total = run.bar.total;
+      this.set('barShow', this.barBox, false, 'hidden');
+      this.set('barCount', this.barCount, `${left} / ${total} botellas`);
+      const k = left / total;
+      this.set('barFill', this.barFill, `${Math.round(k * 100)}%`, '__w');
+      if (this.barFill.style.width !== `${Math.round(k * 100)}%`) this.barFill.style.width = `${Math.round(k * 100)}%`;
+      this.set('barLow', this.barBox, k < 0.35 ? 'zh-barbox low' : 'zh-barbox', 'className');
+    }
     // Granada elegida y cuántas quedan de ese tipo (y del resto).
     const type = game.grenades.type;
     const bag = mode.grenadeBag;

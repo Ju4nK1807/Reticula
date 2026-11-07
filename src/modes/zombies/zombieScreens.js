@@ -1,9 +1,11 @@
 import { h } from '../../ui/dom.js';
 import { button } from '../../ui/components.js';
 import { sensSummary } from '../../config/sensitivity.js';
-import { clock } from '../../utils/format.js';
+import { clock, pct } from '../../utils/format.js';
 import { keyLabel } from '../../config/keybinds.js';
-import { BARRICADE, BOX_PRICE, DOORS, GRENADE_MAX, PERKS, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
+import { BARRICADE, BOX_PRICE, DEFENSE, DIFFICULTIES, DIFFICULTY_ORDER, DOORS, GRENADE_MAX, PERKS, PLAYER, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
+
+const DIFF_COLORS = { facil: '#00f5a0', normal: '#36d6ff', dificil: '#ffb020', locura: '#ff4d5e' };
 
 const fmt = (n) => Math.round(n).toLocaleString('es');
 
@@ -52,18 +54,57 @@ function records(record) {
   );
 }
 
-export function zombieIntroScreen(game, { record, onStart, onSettings, onBack }) {
+// Reglas propias de la defensa de la barra.
+function defenseRules(touch) {
+  const key = (k) => (touch ? '' : ` (${k})`);
+  return [
+    ['Defiende la barra', 'La fuente de la plaza es una barra llena de botellas de licor. Los zombis van primero por ella: cada golpe rompe botellas. Si se rompe la última, se acaba la partida.'],
+    ['Atráelos', `Un zombi deja la barra y te persigue si te acercas a menos de ${DEFENSE.aggroRange} m o si le disparas (por unos segundos). Úsalo para sacarlos de la barra.`],
+    ['Cuidado con la puntería', 'Las botellas también se rompen con tus balas: dispara con cuidado cerca de la barra.'],
+    ['Armería', `Entre oleadas${key('E')} puedes comprar armas, granadas y «Reponer licor» (${DEFENSE.restock} botellas).`],
+  ];
+}
+
+// Tarjetas de dificultad (con la mejor oleada en cada una).
+function difficultyPicker(record, current, onPick) {
+  return h(
+    'div',
+    { class: 'zh-diffs', role: 'radiogroup', 'aria-label': 'Dificultad' },
+    DIFFICULTY_ORDER.map((id) => {
+      const d = DIFFICULTIES[id];
+      const best = record?.byDifficulty?.[id];
+      return h(
+        'button',
+        { class: `zh-diff${id === current ? ' active' : ''}`, type: 'button', role: 'radio', 'aria-checked': id === current ? 'true' : 'false', style: { '--c': DIFF_COLORS[id] }, onclick: () => onPick(id) },
+        h('strong', {}, d.name),
+        h('small', {}, d.desc),
+        h('span', { class: 'zh-best' }, best?.totalRuns ? `Récord: oleada ${best.bestWave}` : 'Sin jugar'),
+      );
+    }),
+  );
+}
+
+export function zombieIntroScreen(game, { record, variant = 'survival', difficulty = 'normal', onDifficulty, onStart, onSettings, onBack }) {
+  const defense = variant === 'defense';
   return h(
     'div',
     { class: 'screen narrow' },
     h(
       'div',
       { class: 'panel zh-intro' },
-      h('div', { class: 'eyebrow' }, 'Modo zombi · Barrio en ruinas'),
-      h('h2', {}, 'Sobrevive a la horda'),
-      h('p', { class: 'muted' }, 'De noche, encerrado en el Vestíbulo de un barrio en ruinas. La horda arranca los tablones de las ventanas; detrás de las puertas tapiadas esperan la Plaza, el Mercado, la Estación y la Iglesia. Gasta bien tus puntos.'),
+      h('div', { class: 'eyebrow' }, defense ? 'Defensa de la barra · Barrio en ruinas' : 'Modo zombi · Barrio en ruinas'),
+      h('h2', {}, defense ? 'Que no rompan ni una botella' : 'Sobrevive a la horda'),
+      h(
+        'p',
+        { class: 'muted' },
+        defense
+          ? 'La fuente de la plaza es ahora una barra con 46 botellas de licor y la horda tiene sed: entra por los callejones directo a la barra. Atájalos antes de que lleguen.'
+          : 'De noche, encerrado en el Vestíbulo de un barrio en ruinas. La horda arranca los tablones de las ventanas; detrás de las puertas tapiadas esperan la Plaza, el Mercado, la Estación y la Iglesia. Gasta bien tus puntos.',
+      ),
       records(record),
-      h('ol', { class: 'stage-list' }, rules(game).map(([t, x], i) => h('li', {}, h('span', { class: 'num' }, i + 1), h('div', {}, h('strong', {}, t), h('p', {}, x))))),
+      h('h3', {}, 'Dificultad'),
+      onDifficulty && difficultyPicker(record, difficulty, onDifficulty),
+      h('ol', { class: 'stage-list' }, (defense ? defenseRules(game.touchMode) : rules(game)).map(([t, x], i) => h('li', {}, h('span', { class: 'num' }, i + 1), h('div', {}, h('strong', {}, t), h('p', {}, x))))),
       !game.touchMode && h('dl', { class: 'controls compact' }, controls(game.settings.keys).map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h('div', { class: 'row' }, button('Comenzar', onStart, { variant: 'primary' }), button('Configuración', onSettings), button('Volver', onBack, { variant: 'ghost' })),
@@ -80,7 +121,7 @@ export function zombieIntroScreen(game, { record, onStart, onSettings, onBack })
  */
 export function zombieShopScreen({ state, onBuy, onClose }) {
   const kinds = [
-    ['Suministros', SHOP.filter((i) => ['ammo', 'heal'].includes(i.kind))],
+    ['Suministros', SHOP.filter((i) => ['ammo', 'heal'].includes(i.kind) || (i.kind === 'restock' && state.defense))],
     ['Granadas', SHOP.filter((i) => i.kind === 'grenade')],
   ];
   const bag = state.bag ?? {};
@@ -137,16 +178,19 @@ function tile(label, value, sub = null) {
   return h('div', { class: 'metric' }, h('span', { class: 'm-value' }, value), h('span', { class: 'm-label' }, label), sub && h('span', { class: 'm-sub' }, sub));
 }
 
-export function zombieResultsScreen({ result, record, isBest, onRetry, onMenu }) {
+export function zombieResultsScreen({ result, record, isBest, variant = 'survival', onRetry, onMenu }) {
+  const defense = variant === 'defense';
+  const diff = DIFFICULTIES[result.difficulty]?.name ?? 'Normal';
+  const lost = defense && result.lostBy === 'bar' ? 'Rompieron la última botella' : 'La horda te alcanzó';
   return h(
     'div',
     { class: 'screen wide' },
     h(
       'section',
       { class: 'panel zh-result-hero' },
-      h('div', { class: 'eyebrow' }, isBest ? 'Nuevo récord' : 'La horda te alcanzó'),
+      h('div', { class: 'eyebrow' }, `${isBest ? 'Nuevo récord' : lost} · ${diff}`),
       h('h2', {}, `Oleada ${result.wave}`),
-      h('p', { class: 'muted' }, isBest ? '¡Tu mejor resistencia hasta ahora!' : `Tu récord: oleada ${record.bestWave} · ${fmt(record.bestScore)} pts`),
+      h('p', { class: 'muted' }, isBest ? `¡Tu mejor resistencia en ${diff}!` : `Tu récord en ${diff}: oleada ${record.byDifficulty?.[result.difficulty]?.bestWave ?? record.bestWave} · ${fmt(record.byDifficulty?.[result.difficulty]?.bestScore ?? record.bestScore)} pts`),
     ),
     h(
       'div',
@@ -156,6 +200,7 @@ export function zombieResultsScreen({ result, record, isBest, onRetry, onMenu })
       tile('Cuchillo', result.meleeKills, 'bajas cuerpo a cuerpo'),
       tile('Granadas', result.grenadeKills, 'bajas con granadas'),
       tile('Tiempo', clock(result.time), `${Math.round(result.damageTaken)} de daño recibido`),
+      defense && tile('Botellas', `${result.bottles} / ${result.bottlesTotal}`, 'quedaron en la barra'),
     ),
     h('div', { class: 'row center' }, button('Jugar otra vez', onRetry, { variant: 'primary' }), button('Menú', onMenu, { variant: 'ghost' })),
   );

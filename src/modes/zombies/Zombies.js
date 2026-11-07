@@ -5,18 +5,27 @@ import { Ambience } from '../../effects/Ambience.js';
 import { ZombieRun } from './ZombieRun.js';
 import { ZombieHud } from './ZombieHud.js';
 import { zombieIntroScreen, zombieResultsScreen, zombieShopScreen } from './zombieScreens.js';
-import { BARRICADE, DOORS, FIRST_COUNTDOWN, GRENADE_MAX, INTERMISSION, PERKS, PLAYER, POWERUPS, RESERVE, ZOMBIE_TYPES, cannotBuy, emptyRecord, updateRecord } from './zombieData.js';
+import { BARRICADE, DEFENSE, DIFFICULTIES, DOORS, FIRST_COUNTDOWN, GRENADE_MAX, INTERMISSION, PERKS, PLAYER, POWERUPS, RESERVE, ZOMBIE_TYPES, cannotBuy, emptyRecord, updateRecord } from './zombieData.js';
+import { Bar } from './Bar.js';
 import { WEAPONS } from '../../combat/weapons.js';
 import { keyLabel } from '../../config/keybinds.js';
-import { acquireZombieSkin, loadZombieModel, releaseZombieSkin } from './zombieSkin.js';
+import { acquireZombieSkin, loadZombieModel, pooledZombieSkins, prefillZombieSkin, releaseZombieSkin } from './zombieSkin.js';
 
 export const MODE_ID = 'zombies';
+export const DEFENSE_ID = 'zombie-defense';
 export const WORLD_ID = 'ruins';
 
 const DEATH_TIME = 2.2; // s de cámara lenta antes del resumen
 const DEATH_SLOWMO = 0.3;
 const WAVE_BANNER = 2.2;
 const COMBAT = new Set(['countdown', 'wave', 'intermission']);
+// Zombis que se dejan creados en la reserva entre oleadas (uno por cuadro, sin que se note): crear uno
+// en plena oleada (clonar el esqueleto y armar sus animaciones) era lo que producía tirones.
+const PREFILL = [
+  ['walker', null, 22],
+  ['runner', null, 12],
+  ['walker', ZOMBIE_TYPES.brute.tint, 3],
+];
 
 /*
   Modo zombi. Estados:
@@ -26,8 +35,12 @@ const COMBAT = new Set(['countdown', 'wave', 'intermission']);
   La lógica de juego vive en ZombieRun; aquí están el flujo, las compras, la presentación y el sonido.
 */
 export class Zombies extends Mode {
-  constructor(game) {
+  /** @param {{ variant?: 'survival' | 'defense' }} [opts] */
+  constructor(game, { variant = 'survival' } = {}) {
     super(game);
+    this.variant = variant;
+    this.recordId = variant === 'defense' ? DEFENSE_ID : MODE_ID;
+    this.bar = null;
     this.root = new THREE.Group();
     this.state = 'intro';
     this.run = null;
@@ -49,7 +62,19 @@ export class Zombies extends Mode {
   }
 
   get record() {
-    return { ...emptyRecord(), ...this.game.store.modeRecord(MODE_ID) };
+    return { ...emptyRecord(), ...this.game.store.modeRecord(this.recordId) };
+  }
+
+  // Dificultad elegida (se recuerda por modo).
+  get difficulty() {
+    const d = this.game.store.modeRecord(this.recordId).difficulty;
+    return DIFFICULTIES[d] ? d : 'normal';
+  }
+
+  set difficulty(id) {
+    if (!DIFFICULTIES[id]) return;
+    this.game.store.modeRecord(this.recordId).difficulty = id;
+    this.game.store.persist();
   }
 
   start() {
@@ -64,6 +89,8 @@ export class Zombies extends Mode {
     // Ceniza y brasas flotando en la plaza.
     this.ash = new Ambience({ spark: '#ff8a3d', dust: '#8a8f96', count: 200 });
     this.ash.attach(g.world.scene, g.world.spawn);
+    // Defensa: la fuente se vuelve una barra llena de botellas.
+    if (this.variant === 'defense') this.bar = new Bar(g, this.root);
     this.showIntro();
     this.warmZombies();
   }
@@ -104,6 +131,22 @@ export class Zombies extends Mode {
     }
   }
 
+  // Llena la reserva de zombis de a uno por cuadro (entre oleadas, cuando no hay nadie en pantalla).
+  prefillSkins() {
+    if (this.prefilling) return;
+    for (const [model, tint, target] of PREFILL) {
+      if (pooledZombieSkins(model, tint) >= target) continue;
+      this.prefilling = true;
+      loadZombieModel(model).then((template) => {
+        this.prefilling = false;
+        if (!template || this.game.mode !== this) return;
+        const type = tint ? ZOMBIE_TYPES.brute : model === 'runner' ? ZOMBIE_TYPES.runner : ZOMBIE_TYPES.walker;
+        prefillZombieSkin(template, { height: type.height, tint });
+      });
+      return;
+    }
+  }
+
   showIntro() {
     const g = this.game;
     this.state = 'intro';
@@ -111,6 +154,12 @@ export class Zombies extends Mode {
     g.ui.show(
       zombieIntroScreen(g, {
         record: this.record,
+        variant: this.variant,
+        difficulty: this.difficulty,
+        onDifficulty: (id) => {
+          this.difficulty = id;
+          this.showIntro();
+        },
         onStart: () => g.input.lock(),
         onSettings: () => g.showSettings(() => this.showIntro()),
         onBack: () => g.quitToMenu(),
@@ -275,6 +324,12 @@ export class Zombies extends Mode {
     this.run?.dispose();
     g.world.resetDoors?.(); // todas las secciones cerradas otra vez (antes de crear la navegación)
     g.world.resetBarricades?.();
+    if (this.bar) {
+      // Defensa: la barra está en la plaza, así que su puerta empieza abierta.
+      g.world.openDoor?.('plaza');
+      this.bar.restock(this.bar.total); // barra llena en cada partida
+      this.bar.acc = 0;
+    }
     this.run = new ZombieRun(this);
     this.run.listener = (type, data) => this.onRunEvent(type, data);
     g.world.props?.reset(); // la utilería vuelve a su lugar
@@ -293,7 +348,7 @@ export class Zombies extends Mode {
     this.near = null;
     g.hud.setVisible(true);
     g.hud.setHealth(1);
-    g.hud.setLabel('Modo zombi · Barrio en ruinas');
+    g.hud.setLabel(`${this.variant === 'defense' ? 'Defensa de la barra' : 'Modo zombi'} · ${DIFFICULTIES[this.difficulty].name}`);
     this.hud.setVisible(true);
     this.state = 'countdown';
     this.timer = FIRST_COUNTDOWN;
@@ -313,6 +368,7 @@ export class Zombies extends Mode {
     const run = this.run;
     this.ash?.update(dt, true);
     if (!run) return;
+    if (this.state === 'countdown' || this.state === 'intermission') this.prefillSkins();
     switch (this.state) {
       case 'countdown':
         run.update(dt);
@@ -333,6 +389,10 @@ export class Zombies extends Mode {
         break;
       case 'intermission':
         run.update(dt);
+        if (run.died) {
+          this.die(); // la barra se quedó sin botellas (a balazos)
+          break;
+        }
         if (!this.shopOpen) {
           this.timer -= dt;
           this.beeps();
@@ -392,9 +452,10 @@ export class Zombies extends Mode {
     const g = this.game;
     this.state = 'over';
     const result = this.run.results();
-    const record = g.store.modeRecord(MODE_ID);
+    const record = g.store.modeRecord(this.recordId);
     const isBest = updateRecord(record, {
       date: new Date().toISOString(),
+      difficulty: result.difficulty,
       wave: result.wave,
       score: result.score,
       kills: result.kills,
@@ -405,13 +466,13 @@ export class Zombies extends Mode {
     g.player.movementEnabled = true;
     g.input.unlock();
     g.hud.setVisible(false);
-    g.ui.show(zombieResultsScreen({ result, record: this.record, isBest, onRetry: () => g.input.lock(), onMenu: () => g.quitToMenu() }));
+    g.ui.show(zombieResultsScreen({ result, record: this.record, isBest, variant: this.variant, onRetry: () => g.input.lock(), onMenu: () => g.quitToMenu() }));
   }
 
   // --- Armería ------------------------------------------------------------------------------------
   shopState() {
     const r = this.run;
-    return { cash: r.cash, owned: r.owned, perks: r.perks, bag: this.grenadeBag, health: r.health, maxHealth: r.maxHealth, reserveFull: r.reserveFull() };
+    return { cash: r.cash, owned: r.owned, perks: r.perks, bag: this.grenadeBag, health: r.health, maxHealth: r.maxHealth, reserveFull: r.reserveFull(), defense: !!this.bar, bottlesMissing: this.bar?.missing ?? 0 };
   }
 
   openShop() {
@@ -443,6 +504,9 @@ export class Zombies extends Mode {
         break;
       case 'heal':
         r.health = r.maxHealth;
+        break;
+      case 'restock':
+        this.bar?.restock(DEFENSE.restock);
         break;
     }
     g.hud.setHealth(r.health / r.maxHealth);
@@ -500,6 +564,15 @@ export class Zombies extends Mode {
       case 'ammo':
         hud.flash(`Munición de ${WEAPONS[data.id].name}`, 'good');
         break;
+      case 'barAttacked':
+        hud.flash('¡Están atacando la barra!', 'bad');
+        break;
+      case 'bottleShot':
+        hud.flash(`¡Cuidado con las botellas! Quedan ${data.left}`, 'bad');
+        break;
+      case 'barDestroyed':
+        hud.flash('Se rompió la última botella', 'bad');
+        break;
     }
   }
 
@@ -511,6 +584,8 @@ export class Zombies extends Mode {
     this.hud = null;
     this.ash?.dispose();
     this.ash = null;
+    this.bar?.dispose();
+    this.bar = null;
     this.root.removeFromParent();
     g.weapon.onShot = null;
     g.weapon.reserveBy = null;

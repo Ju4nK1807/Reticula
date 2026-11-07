@@ -39,6 +39,8 @@ export class Ballistics {
       bot: hit.object.userData.bot ?? null,
       part: hit.object.userData.part ?? null,
       prop: hit.object.userData.prop ?? null, // utilería con física (physics/Props.js)
+      object: hit.object, // la malla tocada (p. ej. una botella de la barra)
+      instanceId: hit.instanceId ?? null, // en mallas instanciadas, cuál de las instancias
     };
   }
 

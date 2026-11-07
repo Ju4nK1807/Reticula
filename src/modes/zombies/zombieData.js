@@ -102,27 +102,46 @@ export const DOORS = {
   iglesia: { name: 'Iglesia', price: 1250 },
 };
 
+// --- Dificultad ---------------------------------------------------------------------------------
+// Multiplicadores sobre la oleada: vida, velocidad y daño de los zombis, cuántos son, cuántos a la vez,
+// cada cuánto aparecen (spawn > 1 = más espaciados), puntos que dan y regeneración del jugador.
+// runners: corredores extra · brutesFrom: oleada desde la que llegan los brutos.
+export const DIFFICULTIES = {
+  facil: { name: 'Fácil', desc: 'Zombis lentos y frágiles que pegan la mitad. Para aprender el modo.', hp: 0.7, speed: 0.85, damage: 0.5, count: 0.75, alive: 0.8, spawn: 1.3, points: 0.8, regen: 1.5, runners: 0, brutesFrom: 7 },
+  normal: { name: 'Normal', desc: 'La horda tal como fue pensada.', hp: 1, speed: 1, damage: 1, count: 1, alive: 1, spawn: 1, points: 1, regen: 1, runners: 0, brutesFrom: 5 },
+  dificil: { name: 'Difícil', desc: 'Más zombis, más rápidos y resistentes. Cada golpe duele.', hp: 1.3, speed: 1.12, damage: 1.4, count: 1.25, alive: 1.08, spawn: 0.8, points: 1.25, regen: 0.8, runners: 0.08, brutesFrom: 4 },
+  locura: { name: 'Locura', desc: 'Una marea: corredores desde el principio, brutos desde la oleada 3 y casi sin respiro.', hp: 1.7, speed: 1.25, damage: 2, count: 1.5, alive: 1.15, spawn: 0.6, points: 1.6, regen: 0.5, runners: 0.18, brutesFrom: 3 },
+};
+export const DIFFICULTY_ORDER = ['facil', 'normal', 'dificil', 'locura'];
+export const difficultyOf = (id) => DIFFICULTIES[id] ?? DIFFICULTIES.normal;
+
 // --- Oleadas ------------------------------------------------------------------------------------
 export const FIRST_COUNTDOWN = 6; // s antes de la primera oleada
 export const INTERMISSION = 14; // s de descanso (armería abierta)
 
-/** Configuración de la oleada n (1, 2, …). */
-export function waveConfig(n) {
+/** Configuración de la oleada n (1, 2, …) en una dificultad ('facil' | 'normal' | 'dificil' | 'locura'). */
+export function waveConfig(n, difficulty = 'normal') {
+  const d = difficultyOf(difficulty);
   const w = Math.max(1, Math.floor(n));
   const runnerNight = w % 6 === 0; // cada 6 oleadas: noche de corredores
   return {
     wave: w,
+    difficulty: DIFFICULTIES[difficulty] ? difficulty : 'normal',
     runnerNight,
-    count: Math.round(6 + 2.6 * w + 0.08 * w * w),
-    maxAlive: Math.min(24, 8 + 2 * w),
-    spawnGap: [Math.max(0.35, 1.8 - 0.12 * w), Math.max(0.6, 2.6 - 0.15 * w)],
-    hp: roundHp(w), // vida de un caminante en esta ronda
-    hpMul: roundHp(w) / roundHp(1),
-    speedMul: Math.min(1.5, 1 + 0.04 * (w - 1)),
-    runnerShare: runnerNight ? 0.7 : w >= 3 ? Math.min(0.4, 0.06 * (w - 2)) : 0,
+    count: Math.max(3, Math.round((6 + 2.6 * w + 0.08 * w * w) * d.count)),
+    maxAlive: Math.round(Math.min(24, 8 + 2 * w) * d.alive),
+    spawnGap: [Math.max(0.25, (1.8 - 0.12 * w) * d.spawn), Math.max(0.45, (2.6 - 0.15 * w) * d.spawn)],
+    hp: Math.round(roundHp(w) * d.hp), // vida de un caminante en esta ronda (y dificultad)
+    hpMul: (roundHp(w) / roundHp(1)) * d.hp,
+    speedMul: Math.min(1.5, 1 + 0.04 * (w - 1)) * d.speed,
+    damageMul: d.damage,
+    diffSpeed: d.speed, // el bruto no acelera con las oleadas, solo con la dificultad
+    runnerShare: runnerNight ? 0.7 : Math.min(0.5, (w >= 3 ? Math.min(0.4, 0.06 * (w - 2)) : 0) + d.runners),
     crawlerShare: w >= 4 ? Math.min(0.2, 0.04 * (w - 3)) : 0,
-    brutes: w >= 5 ? 1 + Math.floor((w - 5) / 3) : 0,
-    clearBonus: 100 * w,
+    brutes: w >= d.brutesFrom ? 1 + Math.floor((w - d.brutesFrom) / 3) : 0,
+    clearBonus: Math.round(100 * w * d.points),
+    pointsMul: d.points,
+    regenMul: d.regen,
   };
 }
 
@@ -152,22 +171,23 @@ export function zombieStats(type, cfg) {
     ...t,
     type,
     hp: Math.round((cfg.hp ?? roundHp(cfg.wave ?? 1)) * t.hpScale),
-    speed: t.speed * (type === 'brute' ? 1 : cfg.speedMul),
+    speed: t.speed * (type === 'brute' ? cfg.diffSpeed ?? 1 : cfg.speedMul),
+    damage: Math.round(t.damage * (cfg.damageMul ?? 1)),
   };
 }
 
 // --- Puntos -------------------------------------------------------------------------------------
 export const POINTS = { hit: 10, headHit: 20, headKill: 40, meleeKill: 50 };
 
-/** Puntos por un impacto o una baja (con doble puntos activo, el doble). */
-export function pointsFor({ part, killed, type, melee = false }, double = false) {
+/** Puntos por un impacto o una baja (con doble puntos activo, el doble; `mul` = dificultad). */
+export function pointsFor({ part, killed, type, melee = false }, double = false, mul = 1) {
   let p = part === 'head' ? POINTS.headHit : POINTS.hit;
   if (killed) {
     p += ZOMBIE_TYPES[type]?.points ?? 60;
     if (part === 'head') p += POINTS.headKill;
     if (melee) p += POINTS.meleeKill;
   }
-  return double ? p * 2 : p;
+  return Math.round((double ? p * 2 : p) * mul);
 }
 
 // --- Armería (entre oleadas): suministros y granadas ----------------------------------------------------
@@ -183,7 +203,18 @@ export const SHOP = [
   { id: 'fire', kind: 'grenade', amount: 2, name: '+2 incendiarias', desc: 'Se rompen al caer y dejan fuego unos segundos: cierra un pasillo.', price: 500 },
   { id: 'stun', kind: 'grenade', amount: 2, name: '+2 aturdidoras', desc: 'Frenan a la horda unos segundos para que escapes o recargues.', price: 400 },
   { id: 'decoy', kind: 'grenade', amount: 1, name: '+1 señuelo', desc: 'Pita y atrae a los zombis; al final explota en medio de ellos.', price: 700 },
+  { id: 'restock', kind: 'restock', name: 'Reponer licor', desc: 'Vuelven a la barra 8 botellas rotas.', price: 700, defenseOnly: true },
 ];
+
+// --- Defensa de la barra -------------------------------------------------------------------------
+// La fuente de la plaza es una barra llena de botellas: los zombis van primero por ella.
+export const DEFENSE = {
+  hpPerBottle: 30, // daño de zombi que rompe una botella (un caminante rompe una cada dos golpes)
+  aggroRange: 3.2, // m: más cerca que esto, el zombi deja la barra y va por el jugador
+  aggroTime: 4, // s que persigue al jugador después de recibir un disparo
+  aggroLeash: 12, // m: si el jugador se aleja más que esto, vuelve a la barra
+  restock: 8, // botellas que repone la armería
+};
 
 /**
  * ¿Se puede comprar? Devuelve null si sí o el motivo si no.
@@ -195,6 +226,7 @@ export function cannotBuy(item, state) {
   if (item.kind === 'grenade' && (state.bag?.[item.id] ?? 0) >= GRENADE_MAX[item.id]) return 'Al máximo';
   if (item.kind === 'heal' && state.health >= state.maxHealth) return 'Vida completa';
   if (item.kind === 'ammo' && state.reserveFull) return 'Reserva llena';
+  if (item.kind === 'restock' && !(state.bottlesMissing > 0)) return 'Barra llena';
   if (state.points < item.price) return 'Faltan puntos';
   return null;
 }
@@ -221,13 +253,25 @@ export function rollDrop(sinceLast, rng = Math.random) {
 
 // --- Récords ------------------------------------------------------------------------------------
 export function emptyRecord() {
-  return { bestWave: 0, bestScore: 0, bestKills: 0, totalRuns: 0, totalKills: 0, history: [] };
+  return { bestWave: 0, bestScore: 0, bestKills: 0, totalRuns: 0, totalKills: 0, history: [], byDifficulty: {}, difficulty: 'normal' };
 }
 
-/** Actualiza el récord con una partida terminada. Devuelve true si es la mejor oleada. */
+/**
+ * Actualiza el récord con una partida terminada (y el de su dificultad, si la trae). Devuelve true si
+ * es la mejor oleada (de esa dificultad, cuando la hay).
+ */
 export function updateRecord(record, run) {
   const r = Object.assign(record, { ...emptyRecord(), ...record });
-  const best = run.wave > r.bestWave || (run.wave === r.bestWave && run.score > r.bestScore);
+  let best = run.wave > r.bestWave || (run.wave === r.bestWave && run.score > r.bestScore);
+  if (run.difficulty) {
+    r.byDifficulty = { ...r.byDifficulty };
+    const sub = (r.byDifficulty[run.difficulty] ??= { bestWave: 0, bestScore: 0, bestKills: 0, totalRuns: 0 });
+    best = run.wave > sub.bestWave || (run.wave === sub.bestWave && run.score > sub.bestScore);
+    sub.bestWave = Math.max(sub.bestWave, run.wave);
+    sub.bestScore = Math.max(sub.bestScore, run.score);
+    sub.bestKills = Math.max(sub.bestKills, run.kills);
+    sub.totalRuns++;
+  }
   r.bestWave = Math.max(r.bestWave, run.wave);
   r.bestScore = Math.max(r.bestScore, run.score);
   r.bestKills = Math.max(r.bestKills, run.kills);

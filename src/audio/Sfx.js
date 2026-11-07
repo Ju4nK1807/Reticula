@@ -292,6 +292,16 @@ export class Sfx {
     }
   }
 
+  // Botella que se rompe: estallido de vidrio y tintineo de los pedazos.
+  glass(pan = 0) {
+    if (!this.ctx) return;
+    this.noiseBurst({ type: 'highpass', f0: 2500, f1: 6000, q: 0.7, peak: 0.32, decay: 0.12, pan });
+    for (let i = 0; i < 4; i++) {
+      const f = 2600 + Math.random() * 3200;
+      this.tone('triangle', f, f * 0.96, 0.08, 0.05, 0.04 + i * 0.05 + Math.random() * 0.03, pan);
+    }
+  }
+
   // Lanzar la granada (quitar la anilla + lanzamiento).
   throwGrenade() {
     this.tone('square', 2400, 2100, 0.03, 0.04);

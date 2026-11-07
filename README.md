@@ -211,6 +211,32 @@ mapa se abre a medida que se gana. No requiere evaluación.
   zombis cerca y fuera de la vista.
 - Igual que con los soldados, los modelos son solo la apariencia: los impactos los deciden hitboxes
   invisibles alineadas al cuerpo (el reptante, a ras del suelo).
+- **Dificultad** (se elige en la pantalla del modo y se recuerda; récords por dificultad):
+
+  | Dificultad | Zombis |
+  |---|---|
+  | Fácil | más lentos y frágiles, pegan la mitad, menos y más espaciados; más regeneración |
+  | Normal | la horda tal como fue pensada |
+  | Difícil | más vida, velocidad y daño (×1.4), más zombis y menos respiro |
+  | Locura | vida ×1.7, daño ×2, corredores desde la primera oleada, brutos desde la 3 y casi sin pausa |
+
+  Más puntos cuanto más difícil.
+- **Colisiones**: barreras y autos girados chocan con su forma real (antes, con la caja que los
+  envolvía: había paredes invisibles), y después de moverse la horda se separa con una corrección
+  firme: ningún zombi queda dentro de otro ni del jugador.
+
+## Defensa de la barra
+
+La misma plaza, otro objetivo: la fuente del centro es una **barra con 46 botellas de licor** (vino,
+whisky, vodka, ron, ginebra y tequila) bajo una guirnalda de bombillas y un letrero «BAR».
+
+- Los zombis van **primero por la barra** (con su propio campo de flujo hacia el contorno de la fuente):
+  cada golpe rompe la botella más cercana. Si se rompe la última, se pierde la partida.
+- Un zombi deja la barra y persigue al jugador si se acerca a menos de 3.2 m o si le dispara (unos
+  segundos): sirve para sacarlos de la barra.
+- Las botellas también se rompen con tus balas: hay que tener cuidado al disparar cerca de la barra.
+- Armería, potenciadores, granadas y dificultades como en el modo zombi, más **«Reponer licor»** (8
+  botellas). Récords propios.
 
 ## Mecánicas
 
@@ -244,8 +270,13 @@ mapa se abre a medida que se gana. No requiere evaluación.
 
 ## Rendimiento
 
-- **Calidad automática** (por defecto): ajusta la resolución mientras se juega para mantener 60 FPS y,
-  si no alcanza, baja el detalle. Parte de un nivel según la GPU.
+- **Calidad automática** (por defecto): ajusta la resolución (hasta el 50 %) para mantener 60 FPS, también
+  en la pantalla de título. Solo baja el detalle si sigue lento varias ventanas seguidas en la resolución
+  mínima (bajarlo recompila los sombreadores: no se hace por un momento de carga). Parte de un nivel
+  según la GPU.
+- Modo zombi: los zombis lejanos se animan a 20 Hz y solo los cercanos proyectan sombra; la reserva de
+  zombis se llena entre oleadas (crear uno en plena oleada daba tirones); la barra de la defensa es una
+  malla instanciada por tipo de botella.
 - Geometría estática unida por material y zona (pocas llamadas de dibujo), sombreadores precompilados
   y texturas subidas al cargar cada mapa, soldados y zombis reutilizados de una reserva: sin tirones al
   aparecer enemigos.

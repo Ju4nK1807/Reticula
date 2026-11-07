@@ -15,6 +15,10 @@ import { castsShadow } from '../../gfx/lighting.js';
 const BASE = `${import.meta.env?.BASE_URL ?? './'}models/characters/`;
 const FADE = 0.22;
 
+const ANIM_FAR = 22; // m: más lejos, animación a 20 Hz
+const ANIM_FAR_STEP = 1 / 20;
+const SHADOW_NEAR = 16; // m: solo los zombis cercanos proyectan sombra
+
 export const ZOMBIE_MODELS = {
   walker: {
     file: 'zombie-walker.glb',
@@ -72,6 +76,17 @@ export function acquireZombieSkin(template, { height, tint = null }) {
     return skin;
   }
   return new ZombieSkin(template, { height, tint, key });
+}
+
+/** Crea un zombi nuevo directamente en la reserva (para llenarla antes de que haga falta). */
+export function prefillZombieSkin(template, { height, tint = null }) {
+  const key = `${template.model}|${tint ?? ''}`;
+  releaseZombieSkin(new ZombieSkin(template, { height, tint, key }));
+}
+
+/** Zombis de ese modelo y tinte ya creados y esperando en la reserva. */
+export function pooledZombieSkins(model, tint = null) {
+  return pool.get(`${model}|${tint ?? ''}`)?.length ?? 0;
 }
 
 export function releaseZombieSkin(skin) {
@@ -182,6 +197,18 @@ export class ZombieSkin {
    *   cycle: s que debe durar un ciclo (ataques) · falling: muerte sin animación propia
    */
   update(dt, s) {
+    // Nivel de detalle: de lejos la animación se actualiza a 20 Hz y el zombi no proyecta sombra (cada
+    // sombra de un cuerpo animado lo vuelve a dibujar entero). Con muchos zombis es lo que más se nota.
+    const far = (s.distance ?? 0) > ANIM_FAR;
+    const shadow = (s.distance ?? 0) < SHADOW_NEAR;
+    if (shadow !== this.shadow) {
+      this.shadow = shadow;
+      this.body.traverse((o) => o.isMesh && (o.castShadow = shadow));
+    }
+    this.animAcc = (this.animAcc ?? 0) + dt;
+    if (far && this.animAcc < ANIM_FAR_STEP && !s.falling) return;
+    dt = this.animAcc;
+    this.animAcc = 0;
     // Si el modelo no tiene la animación pedida, la más parecida que sí tenga.
     let key = s.anim;
     if (!this.has(key)) key = key === 'run' && this.has('fast') ? 'fast' : key === 'die2' && this.has('die') ? 'die' : this.has('walk') ? 'walk' : 'idle';

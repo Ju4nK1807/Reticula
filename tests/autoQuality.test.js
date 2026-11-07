@@ -22,11 +22,19 @@ describe('calidad automática (resolución dinámica)', () => {
     expect(big.scale).toBeCloseTo(0.9);
   });
 
-  it('en la escala mínima baja el detalle y recupera algo de escala', () => {
+  it('en la escala mínima, si sigue lento varias ventanas, baja el detalle y recupera algo de escala', () => {
     const aq = new AutoQuality({ detail: 'alta', scale: AUTO_SCALE.min });
-    const [c] = feed(aq, 25, 0.8);
+    const [c] = feed(aq, 25, 2.4); // 3 ventanas lentas seguidas
     expect(c.detail).toBe('media');
     expect(c.scale).toBeCloseTo(AUTO_SCALE.min + 0.15);
+  });
+
+  it('un momento lento (una tanda de enemigos) no baja el detalle: recompilar sería peor', () => {
+    const aq = new AutoQuality({ detail: 'alta', scale: AUTO_SCALE.min });
+    expect(feed(aq, 25, 0.8)).toEqual([]);
+    feed(aq, 16, 0.8); // se recupera
+    expect(feed(aq, 25, 0.8)).toEqual([]);
+    expect(aq.detail).toBe('alta');
   });
 
   it('con todo al mínimo no pide más cambios', () => {

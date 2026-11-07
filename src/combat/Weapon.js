@@ -311,6 +311,8 @@ export class Weapon {
         // Utilería con física: recibe el balazo en el punto exacto (sin marca: se mueve).
         g.world?.props?.hit(hit.prop, hit.point, _shot, PROP_IMPULSE * s.damage.body);
         if (i < MAX_TRACERS_PER_SHOT) g.effects.burst(hit.point, hit.normal, '#d8c9a8', s.pellets > 1 ? 3 : 6, 2.5);
+      } else if (hit?.object?.userData.bottle) {
+        // Botella de la barra (defensa): el modo la rompe; sin marca de impacto en el aire.
       } else if (hit) {
         g.effects.decal(hit.point, hit.normal);
         if (i < MAX_TRACERS_PER_SHOT) g.effects.burst(hit.point, hit.normal, '#c9c2b4', s.pellets > 1 ? 3 : 6, 2.5);

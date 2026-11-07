@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { acquireZombieSkin, loadZombieModel, releaseZombieSkin } from './zombieSkin.js';
+import { pushCircleOut } from '../../physics/obb.js';
+import { DEFENSE } from './zombieData.js';
 
 /*
   Un zombi. Misma interfaz que los bots para que Phase, Ballistics y el jugador lo traten igual:
@@ -37,6 +39,7 @@ const STAGGER_TIME = 0.32;
 const hitboxGeo = new THREE.BoxGeometry(1, 1, 1);
 const hitboxMat = new THREE.MeshBasicMaterial({ visible: false });
 const _dir = { x: 0, z: 0 };
+const _near = { x: 0, z: 0 };
 const _v = new THREE.Vector3();
 
 // Hitboxes [parte, ancho, alto, fondo, y, z] en metros para una altura de 1.78 (se escalan).
@@ -81,6 +84,8 @@ export class Zombie {
     this.pace = 0.92 + Math.random() * 0.16; // cada zombi camina un poco distinto
     this.stunT = 0; // aturdido (granada aturdidora): se mueve a media velocidad
     this.headless = false; // le volaron la cabeza (sigue caminando si le queda vida)
+    this.aggroT = 0; // s que sigue enojado con el jugador (defensa: deja la barra y lo persigue)
+    this.attackOn = 'player';
     this.entry = null; // entrada por la que llegó (su barricada hay que arrancarla para pasar)
     this.passed = false; // ya cruzó la barricada
     this.tearT = 0;
@@ -153,6 +158,7 @@ export class Zombie {
   damage(amount, part = 'body') {
     if (!this.alive) return { killed: false };
     this.hp -= amount;
+    this.aggroT = DEFENSE.aggroTime; // quien lo lastima pasa a ser su objetivo un rato (defensa)
     this.flashT = 0.07;
     if (this.hp <= 0) {
       this.state = 'dying';
@@ -173,6 +179,7 @@ export class Zombie {
   update(dt, ctx) {
     this.t += dt;
     this.flashT -= dt;
+    this.aggroT -= dt;
     if (this.state === 'dying') return this.updateDeath(dt);
     if (this.state === 'gone') return;
 
@@ -184,10 +191,27 @@ export class Zombie {
 
     const p = this.group.position;
     const player = ctx.playerPos;
-    const dx = player.x - p.x;
-    const dz = player.z - p.z;
-    const dist = Math.hypot(dx, dz);
+    const pdx = player.x - p.x;
+    const pdz = player.z - p.z;
+    const dist = Math.hypot(pdx, pdz);
+    this.distToPlayer = dist;
     const reach = this.stats.attackRange * Math.max(1, this.scale * 0.9);
+
+    // Objetivo: el jugador o, en la Defensa de la barra, la barra (salvo que el jugador esté encima o
+    // le haya disparado hace poco y no se haya alejado demasiado).
+    const obj = ctx.objective;
+    const chasePlayer = !obj || dist < DEFENSE.aggroRange || (this.aggroT > 0 && dist < DEFENSE.aggroLeash);
+    let dx = pdx;
+    let dz = pdz;
+    let tdist = dist;
+    let nav = this.run.nav;
+    if (!chasePlayer) {
+      obj.bar.nearest(p.x, p.z, _near);
+      dx = _near.x - p.x;
+      dz = _near.z - p.z;
+      tdist = obj.bar.distance(p.x, p.z);
+      nav = obj.nav;
+    }
 
     // Gruñidos de vez en cuando (más seguido cuanto más cerca).
     this.groanT -= dt;
@@ -220,6 +244,7 @@ export class Zombie {
       this.turnTowards(Math.atan2(b.inward.x, b.inward.z), dt);
       if (dist <= reach) {
         this.state = 'attack';
+        this.attackOn = 'player';
         this.attackT = 0;
         this.hitDone = false;
       } else if (b.boards <= 0) this.state = 'chase';
@@ -230,21 +255,32 @@ export class Zombie {
     } else if (this.state === 'attack') {
       this.speedNow = 0;
       this.attackT += dt;
-      this.turnTowards(Math.atan2(dx, dz), dt);
+      const onBar = this.attackOn === 'bar' && !!obj;
+      // Mientras ataca la barra, mira a la barra; si no, al jugador.
+      if (onBar) {
+        obj.bar.nearest(p.x, p.z, _near);
+        this.turnTowards(Math.atan2(_near.x - p.x, _near.z - p.z), dt);
+      } else this.turnTowards(Math.atan2(pdx, pdz), dt);
+      const targetDist = onBar ? obj.bar.distance(p.x, p.z) : dist;
       if (!this.hitDone && this.attackT >= this.stats.attackEvery * ATTACK_HIT_AT) {
         this.hitDone = true;
-        if (dist <= reach + 0.35) this.run.onZombieAttack?.(this);
+        if (targetDist <= reach + 0.35) {
+          if (onBar) this.run.onZombieAttackBar?.(this);
+          else this.run.onZombieAttack?.(this);
+        }
       }
       if (this.attackT >= this.stats.attackEvery) {
         this.attackT = 0;
         this.hitDone = false;
-        // Si atacaba por una ventana aún tapiada, vuelve a los tablones.
-        if (dist > reach * 1.15) this.state = this.blockedByBarricade() ? 'tear' : 'chase';
+        // Termina el gesto: sigue si su objetivo sigue a mano; si cambió de objetivo, a perseguir. Si
+        // atacaba por una ventana aún tapiada, vuelve a los tablones.
+        if (targetDist > reach * 1.15 || chasePlayer === onBar) this.state = this.blockedByBarricade() ? 'tear' : 'chase';
       }
     } else {
-      this.chase(dt, ctx, dx, dz, dist);
-      if (dist <= reach) {
+      this.chase(dt, ctx, dx, dz, tdist, nav);
+      if (tdist <= reach && this.state === 'chase') {
         this.state = 'attack';
+        this.attackOn = chasePlayer ? 'player' : 'bar';
         this.attackT = 0;
         this.hitDone = false;
       }
@@ -258,9 +294,8 @@ export class Zombie {
 
   // Hacia dónde quiere ir: directo si está cerca o la recta está despejada; si no, el campo de flujo
   // (que siempre lleva al jugador). Con señuelo va directo a él.
-  desiredDirection(dt, ctx, dx, dz, dist) {
+  desiredDirection(dt, ctx, dx, dz, dist, nav = this.run.nav) {
     const p = this.group.position;
-    const nav = this.run.nav;
     _dir.x = dx / (dist || 1);
     _dir.z = dz / (dist || 1);
     if (dist <= DIRECT_RANGE || !nav || ctx.decoy) return _dir;
@@ -273,7 +308,8 @@ export class Zombie {
     return _dir;
   }
 
-  chase(dt, ctx, dx, dz, dist) {
+  // dx, dz, dist: hacia su objetivo (jugador o barra); nav: el campo de flujo de ese objetivo.
+  chase(dt, ctx, dx, dz, dist, nav = this.run.nav) {
     const p = this.group.position;
     // Señuelo: mientras dura, la horda va hacia él en vez de al jugador.
     if (ctx.decoy) {
@@ -288,7 +324,7 @@ export class Zombie {
       this.speedNow = 0;
       return;
     }
-    const want = this.desiredDirection(dt, ctx, dx, dz, dist);
+    const want = this.desiredDirection(dt, ctx, dx, dz, dist, nav);
     // Rumbo suave: gira hacia la dirección deseada a una velocidad angular limitada.
     if (!this.heading) this.heading = { x: want.x, z: want.z };
     const h = this.heading;
@@ -422,29 +458,17 @@ export class Zombie {
   }
 
   // Empuja al zombi fuera de las cajas del mapa (círculo contra caja en el plano).
+  // Contra cajas fijas y giradas (barreras, autos: su forma real, ver physics/obb.js).
   collideWorld(colliders) {
     const p = this.group.position;
     const r = this.radius;
     for (const b of colliders) {
       if (b.max.y < 0.3 || b.min.y > 1.6) continue;
-      const cx = Math.max(b.min.x, Math.min(p.x, b.max.x));
-      const cz = Math.max(b.min.z, Math.min(p.z, b.max.z));
-      const ox = p.x - cx;
-      const oz = p.z - cz;
-      const d2 = ox * ox + oz * oz;
-      if (d2 >= r * r) continue;
-      if (d2 > 1e-8) {
-        const d = Math.sqrt(d2);
-        p.x = cx + (ox / d) * r;
-        p.z = cz + (oz / d) * r;
-      } else {
-        // Centro dentro de la caja: sale por el lado más cercano.
-        const pens = [p.x - b.min.x, b.max.x - p.x, p.z - b.min.z, b.max.z - p.z];
-        const m = Math.min(...pens);
-        if (m === pens[0]) p.x = b.min.x - r;
-        else if (m === pens[1]) p.x = b.max.x + r;
-        else if (m === pens[2]) p.z = b.min.z - r;
-        else p.z = b.max.z + r;
+      if (p.x + r < b.min.x || p.x - r > b.max.x || p.z + r < b.min.z || p.z - r > b.max.z) continue;
+      const out = pushCircleOut(b, p.x, p.z, r);
+      if (out) {
+        p.x = out[0];
+        p.z = out[1];
       }
     }
   }
@@ -460,6 +484,7 @@ export class Zombie {
     if (!s) return;
     this.syncSkin();
     s.update(dt, {
+      distance: this.distToPlayer ?? 0, // de lejos se anima a 20 Hz y sin sombra (zombieSkin.js)
       anim,
       speed: this.state === 'chase' ? this.moveSpeed : this.speedNow,
       cycle: this.state === 'tear' ? TEAR_EVERY : anim === 'attack' || anim === 'heavy' ? this.stats.attackEvery : 0,

@@ -4,6 +4,7 @@ import { glow, glowScale, paint, surface } from '../../gfx/surfaces.js';
 import { signTexture } from '../../gfx/canvasTextures.js';
 import { World } from '../../scenes/World.js';
 import { Props } from '../../physics/Props.js';
+import { withObb } from '../../physics/obb.js';
 import { placeWeapons } from '../../scenes/props.js';
 import { WEAPONS } from '../../combat/weapons.js';
 import { BARRICADE, DOORS, PERKS } from './zombieData.js';
@@ -191,6 +192,7 @@ export class ZombieMap extends World {
       const b = block(3.2, 0.95, 0.6, M.concrete, x, z);
       b.rotation.y = ry;
       this.fixCollider(b);
+      withObb(this.colliders.at(-1), x, z, 1.6, 0.3, ry); // forma real para jugador, zombis y navegación
     }
     for (const [x, z] of [[-17, 6], [17, -16], [-8, -17]]) {
       for (let i = 0; i < 3; i++) block(1.1, 0.45, 0.7, M.sandbag, x + (i - 1) * 1.05, z, 0);
@@ -463,7 +465,7 @@ export class ZombieMap extends World {
     g.updateMatrixWorld(true);
     for (const m of [body, cabin]) this.solids.push(m);
     // Colisionador alineado a los ejes que envuelve el auto girado.
-    this.colliders.push(new THREE.Box3().setFromObject(body).union(new THREE.Box3().setFromObject(cabin)));
+    this.colliders.push(withObb(new THREE.Box3().setFromObject(body).union(new THREE.Box3().setFromObject(cabin)), x, z, 2.1, 0.95, ry));
   }
 
   // Colisionador de una caja recién creada y girada: la caja alineada que la envuelve.

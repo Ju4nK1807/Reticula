@@ -1,6 +1,6 @@
 {
   "name": "reticula",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Retícula: aim trainer 3D (navegador, Windows y Android)",
   "private": true,
   "type": "module",
