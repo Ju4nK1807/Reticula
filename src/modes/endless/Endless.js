@@ -113,6 +113,7 @@ export class Endless extends Mode {
     this.run?.dispose();
     this.run = new EndlessRun(this);
     this.run.listener = (type, data) => this.onRunEvent(type, data);
+    g.world.props?.reset(); // la utilería vuelve a su lugar
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
     g.equipLoadout(); // arma elegida en el arsenal (1-5 para cambiar, B para el modo de disparo)

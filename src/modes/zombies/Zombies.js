@@ -173,6 +173,7 @@ export class Zombies extends Mode {
     this.run?.dispose();
     this.run = new ZombieRun(this);
     this.run.listener = (type, data) => this.onRunEvent(type, data);
+    g.world.props?.reset(); // la utilería vuelve a su lugar
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
     // Equipo inicial: pistola (munición infinita); el resto se compra, con su reserva.

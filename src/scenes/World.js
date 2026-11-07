@@ -16,6 +16,7 @@ export class World {
     this.spawn = spawn;
     this.playerZone = playerZone;
     this.openArea = null;
+    this.groundY = 0; // altura del piso (física de utilería, casquillos y granadas)
     this.solids = [];
     this.colliders = [];
     this.playerBlockers = [];

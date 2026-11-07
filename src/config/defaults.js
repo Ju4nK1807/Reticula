@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS = {
   gameplay: {
     moveInaccuracy: true, // disparar en movimiento o en el aire desvía las balas (estilo táctico)
     tracers: true,
+    casings: true, // las armas expulsan vainas que rebotan en el suelo
     viewmodel: true,
     autoReload: true, // recargar solo al intentar disparar con el cargador vacío
     zoomSensitivity: 1, // multiplicador de sensibilidad con mira telescópica (1 = misma sensación que sin zoom)

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { glow, glowScale, paint, surface } from '../../gfx/surfaces.js';
 import { World } from '../../scenes/World.js';
+import { Props } from '../../physics/Props.js';
 
 /*
   "Barrio en ruinas": plaza nocturna rodeada de edificios. El jugador se mueve dentro de la plaza
@@ -45,6 +46,7 @@ export class ZombieMap extends World {
     moon.position.set(-18, 30, 12);
     scene.add(moon);
     this.envIntensity = 0.22;
+    this.groundY = 0.02; // el asfalto es una losa de 2 cm
 
     const M = {
       asphalt: surface('asphalt', '#23272e'),
@@ -168,6 +170,38 @@ export class ZombieMap extends World {
     const reach = PLAZA + 3 + OUTSIDE + 1;
     this.nav = { minX: -reach, maxX: reach, minZ: -reach, maxZ: reach };
     this.openArea = { minX: -PLAZA + 2, maxX: PLAZA - 2, minZ: -PLAZA + 2, maxZ: PLAZA - 2 };
+
+    // Utilería con física: latas sobre barreras y sacos (para tirarlas a balazos), conos, botes de
+    // basura en las veredas, cajas y barriles. Los zombis los empujan al pasar.
+    const along = (x, z, ry, d) => [x + Math.cos(ry) * d, z - Math.sin(ry) * d];
+    const cans = [];
+    for (const [x, z, ry, ds] of [[-6, 12, 0, [-0.9, 0, 0.9]], [-14, -12, 0.5, [-0.8, 0, 0.8]], [15, 3, 1.57, [-0.6, 0.6]], [5, -15, 0.2, [-0.7, 0.7]]]) {
+      ds.forEach((d, i) => {
+        const [cx, cz] = along(x, z, ry, d);
+        cans.push({ type: i % 2 ? 'canGreen' : 'can', x: cx, z: cz, y: 0.95, ry: d });
+      });
+    }
+    this.props = new Props(this, [
+      ...cans,
+      { type: 'can', x: -17.4, z: 6.05, y: 0.9 },
+      { type: 'canGreen', x: -16.6, z: 5.95, y: 0.9 },
+      { type: 'ammo', x: 16.6, z: -16, y: 0.9, ry: 0.3 },
+      { type: 'can', x: 17.5, z: -15.95, y: 0.9 },
+      { type: 'can', x: -8.3, z: -17, y: 0.9 },
+      { type: 'canGreen', x: -7.6, z: -16.9, y: 0.9 },
+      { type: 'ammo', x: -18, z: -18, y: 1.4, ry: -0.4 },
+      ...[[-8.6, 12.9], [-3.4, 12.8], [13.8, 5.6], [16.2, 0.5], [3.0, -13.6], [7.6, -16.4], [-16.2, -10.2]].map(([x, z], i) => ({ type: 'cone', x, z, ry: i })),
+      ...[[-20.4, -8.5], [20.3, 6.8], [-6.5, -20.4], [13.2, 20.3], [20.4, -10.5]].map(([x, z]) => ({ type: 'trash', x, z })),
+      { type: 'crate', x: 16.6, z: -11.8, ry: 0.3 },
+      { type: 'crate', x: -3.2, z: -19.6, ry: -0.2 },
+      { type: 'crate', x: -19.4, z: -3.6, ry: 0.6 },
+      { type: 'crateSmall', x: -18.3, z: -2.4, ry: 0.2 },
+      { type: 'crateSmall', x: 2.5, z: 19.6, ry: -0.5 },
+      { type: 'barrel', x: -9.6, z: -14.4 },
+      { type: 'barrelRed', x: 11.2, z: 9.6 },
+      { type: 'barrel', x: -16.4, z: 12.6 },
+      { type: 'barrelRed', x: 19.6, z: 12.0 },
+    ]);
     scene.updateMatrixWorld(true);
   }
 

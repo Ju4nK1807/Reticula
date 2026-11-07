@@ -139,6 +139,7 @@ export class Campaign extends Mode {
     this.map = getMap(level.mapId);
     g.useWorld(this.map.world);
     g.world.scene.add(this.root);
+    g.world.props?.reset(); // la utilería vuelve a su lugar en cada intento
     this.phase?.dispose();
     this.phase = new MissionPhase(this, level);
     this.state = 'brief';

@@ -309,6 +309,7 @@ export function settingsScreen(game, onBack, opts = {}) {
         field('Imprecisión al moverse', checkbox(s.gameplay, 'moveInaccuracy', commit), 'Como en CS2 o Valorant: dispara quieto o caminando.'),
         field('Recarga automática', checkbox(s.gameplay, 'autoReload', commit), 'Recarga sola al disparar con el cargador vacío. Desactívala para recargar siempre a mano.'),
         field('Balas visibles', checkbox(s.gameplay, 'tracers', commit)),
+        field('Casquillos', checkbox(s.gameplay, 'casings', commit), 'Las armas expulsan las vainas, que rebotan en el suelo con su sonido.'),
         field('Arma en pantalla', checkbox(s.gameplay, 'viewmodel', commit)),
         field('Controles táctiles', select({ auto: 'Automático (sin mouse)', on: 'Activados', off: 'Desactivados' }, s.touch.mode, (v) => {
           s.touch.mode = v;

@@ -239,6 +239,38 @@ export class Sfx {
     this.noiseBurst({ type: 'bandpass', f0: 1700, f1: 900, q: 3, peak: 0.08, decay: 0.05, pan });
   }
 
+  // Casquillo que rebota en el suelo: latón (tintineo agudo) o cartucho de escopeta (plástico, sordo).
+  casing(pan = 0, kind = 'brass', strength = 1) {
+    if (!this.ctx) return;
+    const k = Math.min(1, strength);
+    if (kind === 'shell') {
+      this.noiseBurst({ type: 'bandpass', f0: 900, f1: 500, q: 2, peak: 0.05 * k, decay: 0.05, pan });
+      return;
+    }
+    const f = 3000 + Math.random() * 1600;
+    this.tone('sine', f, f * 0.97, 0.07, 0.035 * k, 0, pan);
+    this.tone('sine', f * 1.51, f * 1.48, 0.05, 0.02 * k, 0, pan);
+  }
+
+  // Golpe de un objeto con física contra algo (o un balazo): madera, metal, plástico o lata.
+  propHit(material = 'wood', pan = 0, strength = 1) {
+    if (!this.ctx) return;
+    const k = Math.max(0.15, Math.min(1, strength));
+    const r = 0.9 + Math.random() * 0.2;
+    if (material === 'metal') {
+      for (const [f, p, d] of [[310, 0.12, 0.35], [520, 0.08, 0.26], [870, 0.05, 0.18]]) this.tone('triangle', f * r, f * r * 0.98, d, p * k, 0, pan);
+      this.noiseBurst({ type: 'bandpass', f0: 1800 * r, f1: 700, q: 1.5, peak: 0.12 * k, decay: 0.06, pan });
+    } else if (material === 'can') {
+      this.tone('triangle', 1900 * r, 1700 * r, 0.09, 0.07 * k, 0, pan);
+      this.noiseBurst({ type: 'highpass', f0: 2500, f1: 4000, q: 0.8, peak: 0.08 * k, decay: 0.05, pan });
+    } else if (material === 'plastic') {
+      this.noiseBurst({ type: 'bandpass', f0: 1100 * r, f1: 450, q: 1.2, peak: 0.14 * k, decay: 0.07, pan });
+    } else {
+      this.noiseBurst({ type: 'lowpass', f0: 900 * r, f1: 160, q: 0.7, peak: 0.28 * k, decay: 0.1, pan });
+      this.tone('sine', 150 * r, 80, 0.09, 0.2 * k, 0, pan);
+    }
+  }
+
   // Lanzar la granada (quitar la anilla + lanzamiento).
   throwGrenade() {
     this.tone('square', 2400, 2100, 0.03, 0.04);

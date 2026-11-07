@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { glow, planeWorldUV, surface, tileOf } from '../../gfx/surfaces.js';
 import { World } from '../../scenes/World.js';
+import { Props, autoPropSpawns } from '../../physics/Props.js';
 
 // Medidas del recinto (metros). El patio va de -HALF a HALF en X y en Z.
 const HALF = 24;
@@ -177,6 +178,8 @@ export class BastionMap extends World {
       scene.add(hill);
     }
 
+    // Utilería con física dentro del bastión (cajas, barriles, munición y latas sobre las coberturas).
+    this.props = new Props(this, autoPropSpawns(this, { cans: 6, crates: 4, barrels: 3, ammo: 2, cones: 2 }));
     scene.updateMatrixWorld(true);
   }
 

@@ -25,6 +25,7 @@ export const GRENADE = {
   damage: 420, // en el centro
   shakeRange: 22, // m: más lejos, no sacude la cámara
   cooldown: 0.8, // s entre lanzamientos
+  propImpulse: 90, // N·s en el centro sobre la utilería con física (una caja salta, una lata vuela lejos)
 };
 const BALL = 0.07; // radio de la granada (m)
 
@@ -137,7 +138,7 @@ export class Grenades {
       // Subpasos: a 15 m/s una granada no atraviesa un muro fino entre cuadros.
       const steps = Math.max(1, Math.ceil((n.vel.length() * dt) / 0.2));
       for (let s = 0; s < steps; s++) {
-        if (stepGrenade(n.mesh.position, n.vel, dt / steps, colliders)) g.sfx.bounce(g.panFor(n.mesh.position));
+        if (stepGrenade(n.mesh.position, n.vel, dt / steps, colliders, g.world?.groundY ?? 0)) g.sfx.bounce(g.panFor(n.mesh.position));
       }
       n.mesh.rotation.x += n.spin.x * dt * Math.min(1, n.vel.length() / 4);
       n.mesh.rotation.y += n.spin.y * dt * Math.min(1, n.vel.length() / 4);
@@ -175,6 +176,7 @@ export class Grenades {
     g.sfx.explosion(dist, g.panFor(point));
     if (dist < GRENADE.shakeRange) this.shake = Math.max(this.shake, 1 - dist / GRENADE.shakeRange);
     g.mode?.onExplosion?.(point, GRENADE.radius, (target) => g.ballistics.lineOfSight(point.clone().setY(point.y + 0.3), target));
+    g.world?.props?.explode(point, GRENADE.radius * 1.3, GRENADE.propImpulse);
   }
 
   // Desplazamiento de cámara de la sacudida (lo aplica Game sobre la mirada).
