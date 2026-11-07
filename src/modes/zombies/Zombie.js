@@ -26,6 +26,8 @@ const DIRECT_RANGE = 2.6; // m: más cerca, directo al jugador
 const LINE_EVERY = 0.2; // s entre comprobaciones de línea despejada hacia el jugador
 const SEPARATION = 1.1; // fuerza del empuje entre zombis (m/s por unidad de solape)
 const ROAR_TIME = 1.6; // s que el bruto ruge quieto al aparecer
+const RISE_TIME = 1.3; // s que tarda en salir de la tierra (entradas del vestíbulo)
+const TEAR_EVERY = 1.1; // s por tablón arrancado (zombieData.BARRICADE.tearEvery)
 const BLEED = 0.14; // sin cabeza pero vivo: pierde esta fracción de su vida por segundo
 const DEATH_TIME = 2.2; // s tendido antes de hundirse
 const SINK_TIME = 0.7;
@@ -79,6 +81,10 @@ export class Zombie {
     this.pace = 0.92 + Math.random() * 0.16; // cada zombi camina un poco distinto
     this.stunT = 0; // aturdido (granada aturdidora): se mueve a media velocidad
     this.headless = false; // le volaron la cabeza (sigue caminando si le queda vida)
+    this.entry = null; // entrada por la que llegó (su barricada hay que arrancarla para pasar)
+    this.passed = false; // ya cruzó la barricada
+    this.tearT = 0;
+    this.riseT = 0; // saliendo de la tierra
     this.scale = stats.height / 1.78;
     this.radius = RADIUS * this.scale;
     this.dieAnim = Math.random() < 0.5 ? 'die' : 'die2';
@@ -190,10 +196,37 @@ export class Zombie {
       this.run.onGroan?.(this, dist);
     }
 
+    // Saliendo de la tierra: sube sin moverse (no se le puede dar hasta que asoma).
+    if (this.riseT > 0) {
+      this.riseT = Math.max(0, this.riseT - dt);
+      const k = 1 - this.riseT / RISE_TIME;
+      p.y = -1.9 * this.scale * (1 - k * (2 - k));
+      this.turnTowards(Math.atan2(dx, dz), dt);
+      this.group.rotation.y = this.yaw;
+      this.group.updateMatrixWorld(true);
+      this.updateSkin(dt, 'attack');
+      return;
+    }
+
     if (this.state === 'stagger') {
       this.staggerT -= dt;
       if (this.staggerT <= 0) this.state = 'chase';
       this.speedNow = 0;
+    } else if (this.state === 'tear') {
+      // Arranca los tablones de su entrada; si el jugador está al otro lado, lo ataca por la ventana.
+      const b = this.entry.barricade;
+      this.speedNow = 0;
+      this.moveSpeed = 0;
+      this.turnTowards(Math.atan2(b.inward.x, b.inward.z), dt);
+      if (dist <= reach) {
+        this.state = 'attack';
+        this.attackT = 0;
+        this.hitDone = false;
+      } else if (b.boards <= 0) this.state = 'chase';
+      else if ((this.tearT += dt) >= TEAR_EVERY) {
+        this.tearT = 0;
+        this.run.onTearBoard?.(this, b);
+      }
     } else if (this.state === 'attack') {
       this.speedNow = 0;
       this.attackT += dt;
@@ -205,7 +238,8 @@ export class Zombie {
       if (this.attackT >= this.stats.attackEvery) {
         this.attackT = 0;
         this.hitDone = false;
-        if (dist > reach * 1.15) this.state = 'chase';
+        // Si atacaba por una ventana aún tapiada, vuelve a los tablones.
+        if (dist > reach * 1.15) this.state = this.blockedByBarricade() ? 'tear' : 'chase';
       }
     } else {
       this.chase(dt, ctx, dx, dz, dist);
@@ -247,6 +281,13 @@ export class Zombie {
       dz = ctx.decoy.z - p.z;
       dist = Math.hypot(dx, dz);
     }
+    // Barricada: al llegar a los tablones de su entrada se pone a arrancarlos.
+    if (this.blockedByBarricade()) {
+      this.state = 'tear';
+      this.tearT = 0;
+      this.speedNow = 0;
+      return;
+    }
     const want = this.desiredDirection(dt, ctx, dx, dz, dist);
     // Rumbo suave: gira hacia la dirección deseada a una velocidad angular limitada.
     if (!this.heading) this.heading = { x: want.x, z: want.z };
@@ -267,10 +308,49 @@ export class Zombie {
     p.z += h.z * this.speedNow * dt;
     this.separate(dt, ctx, 1);
     this.collideWorld(ctx.colliders);
+    this.holdAtBarricade();
     // Velocidad real (suavizada) para el ritmo de la animación.
     const moved = Math.hypot(p.x - x0, p.z - z0) / Math.max(dt, 1e-4);
     this.moveSpeed += (moved - this.moveSpeed) * Math.min(1, dt * 8);
     this.turnTowards(Math.atan2(h.x, h.z), dt);
+  }
+
+  // Lado de la barricada de su entrada en que está: > 0 dentro, < 0 fuera (en m). null sin barricada.
+  barricadeSide() {
+    const b = this.entry?.barricade;
+    if (!b || this.passed) return null;
+    const p = this.group.position;
+    const ox = p.x - b.mouth.x;
+    const oz = p.z - b.mouth.z;
+    const side = ox * b.inward.x + oz * b.inward.z;
+    if (side > 0.35) {
+      this.passed = true;
+      return null;
+    }
+    // Distancia a lo largo del hueco: lejos del hueco la barricada no le afecta.
+    const lateral = Math.abs(ox * b.inward.z - oz * b.inward.x);
+    return lateral < b.width / 2 + 1.2 ? side : null;
+  }
+
+  // ¿Está frente a los tablones de su entrada (y quedan)?
+  blockedByBarricade() {
+    const side = this.barricadeSide();
+    return side !== null && this.entry.barricade.boards > 0 && side > -(this.radius + 0.4);
+  }
+
+  // Con tablones puestos no cruza el hueco, aunque la horda lo empuje.
+  holdAtBarricade() {
+    const side = this.barricadeSide();
+    const b = this.entry?.barricade;
+    if (side === null || b.boards <= 0) return;
+    const limit = -(this.radius + 0.3);
+    if (side > limit) this.group.position.addScaledVector(b.inward, limit - side);
+  }
+
+  /** Sale de la tierra antes de avanzar (entradas del vestíbulo). */
+  rise() {
+    this.riseT = RISE_TIME;
+    this.group.position.y = -1.9 * this.scale;
   }
 
   // Empuje entre zombis: corrige la posición poco a poco (no el rumbo), así el grupo no tiembla.
@@ -324,6 +404,7 @@ export class Zombie {
 
   animKey() {
     if (this.state === 'attack') return this.type === 'brute' ? 'heavy' : 'attack';
+    if (this.state === 'tear') return 'attack'; // arrancando tablones
     if (this.state === 'stagger') return 'hit';
     if (this.stats.low) return 'crawl';
     if (this.type === 'runner') return 'run';
@@ -381,7 +462,7 @@ export class Zombie {
     s.update(dt, {
       anim,
       speed: this.state === 'chase' ? this.moveSpeed : this.speedNow,
-      cycle: anim === 'attack' || anim === 'heavy' ? this.stats.attackEvery : 0,
+      cycle: this.state === 'tear' ? TEAR_EVERY : anim === 'attack' || anim === 'heavy' ? this.stats.attackEvery : 0,
       flash: this.flashT > 0 ? 1.4 : 0,
       falling,
     });
