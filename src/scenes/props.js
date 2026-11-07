@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { glow } from '../gfx/surfaces.js';
 import { WEAPON_MODELS, fitWeaponModel } from '../combat/weaponModels.js';
 
@@ -20,53 +21,50 @@ const droneMats = () => ({
 });
 
 /**
- * Cuadricóptero de unos 50 cm. Devuelve { group, update(dt, t), camera } (camera = punto del
- * objetivo de la cámara, para colgarle un láser). La pieza es dinámica: no se une a la geometría fija.
+ * Cuadricóptero de unos 50 cm. Devuelve { group, update(dt, t), camera, setBase } (camera = punto del
+ * objetivo de la cámara, para colgarle un láser). Las piezas fijas van unidas por material (7 mallas en
+ * vez de 26) y las hélices son discos de movimiento: a esa velocidad no se ven las palas.
  */
 export function createDrone() {
   const M = droneMats();
   const group = new THREE.Group();
   group.userData.dynamic = true;
-  const add = (geo, mat, x, y, z, parent = group) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    parent.add(m);
-    return m;
+  const parts = new Map(); // material → geometrías ya ubicadas
+  const put = (geo, mat, x, y, z, ry = 0) => {
+    const g = geo.clone();
+    if (ry) g.rotateY(ry);
+    g.translate(x, y, z);
+    if (!parts.has(mat)) parts.set(mat, []);
+    parts.get(mat).push(g.index ? g.toNonIndexed() : g);
   };
-  add(new THREE.BoxGeometry(0.2, 0.07, 0.3), M.body, 0, 0, 0);
-  add(new THREE.BoxGeometry(0.15, 0.04, 0.22), M.shell, 0, 0.05, -0.01);
-  add(new THREE.BoxGeometry(0.08, 0.025, 0.06), M.shell, 0, 0.08, 0.04); // antena GPS
-  // Brazos en X con motor, hélice y disco de movimiento.
-  const rotors = [];
+  put(new THREE.BoxGeometry(0.2, 0.07, 0.3), M.body, 0, 0, 0);
+  put(new THREE.BoxGeometry(0.15, 0.04, 0.22), M.shell, 0, 0.05, -0.01);
+  put(new THREE.BoxGeometry(0.08, 0.025, 0.06), M.shell, 0, 0.08, 0.04); // antena GPS
   const armGeo = new THREE.BoxGeometry(0.3, 0.022, 0.034);
   const motorGeo = new THREE.CylinderGeometry(0.028, 0.032, 0.045, 12);
-  const bladeGeo = new THREE.BoxGeometry(0.24, 0.004, 0.024);
-  const blurGeo = new THREE.CircleGeometry(0.125, 28);
+  const discGeo = new THREE.CircleGeometry(0.125, 28).rotateX(-Math.PI / 2);
   const ledGeo = new THREE.BoxGeometry(0.03, 0.012, 0.03);
   for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
-    const arm = add(armGeo, M.arm, (sx * 0.15) / 2, 0.01, (sz * 0.15) / 2);
-    arm.rotation.y = Math.atan2(-sz, sx);
-    add(motorGeo, M.body, sx * 0.16, 0.035, sz * 0.16);
-    const rotor = new THREE.Group();
-    rotor.position.set(sx * 0.16, 0.065, sz * 0.16);
-    add(bladeGeo, M.blade, 0, 0, 0, rotor);
-    const blur = add(blurGeo, M.blur, 0, 0.003, 0, rotor);
-    blur.rotation.x = -Math.PI / 2;
-    rotor.userData.dir = sx * sz;
-    group.add(rotor);
-    rotors.push(rotor);
-    add(ledGeo, sz > 0 ? M.ledFront : M.ledBack, sx * 0.16, -0.008, sz * 0.16);
+    put(armGeo, M.arm, (sx * 0.15) / 2, 0.01, (sz * 0.15) / 2, Math.atan2(-sz, sx));
+    put(motorGeo, M.body, sx * 0.16, 0.035, sz * 0.16);
+    put(discGeo, M.blur, sx * 0.16, 0.068, sz * 0.16);
+    put(ledGeo, sz > 0 ? M.ledFront : M.ledBack, sx * 0.16, -0.008, sz * 0.16);
   }
-  // Patas de aterrizaje.
   const legGeo = new THREE.BoxGeometry(0.012, 0.07, 0.2);
-  for (const sx of [-1, 1]) add(legGeo, M.arm, sx * 0.07, -0.07, 0);
+  for (const sx of [-1, 1]) put(legGeo, M.arm, sx * 0.07, -0.07, 0);
   // Cámara con lente brillante, colgando al frente.
-  const gimbal = new THREE.Group();
+  const gimbal = new THREE.Object3D();
   gimbal.position.set(0, -0.055, 0.12);
-  add(new THREE.SphereGeometry(0.03, 14, 10), M.body, 0, 0, 0, gimbal);
-  const lens = add(new THREE.CircleGeometry(0.014, 16), M.lens, 0, -0.004, 0.029, gimbal);
-  lens.rotation.x = -0.25;
   group.add(gimbal);
+  put(new THREE.SphereGeometry(0.03, 14, 10), M.body, 0, -0.055, 0.12);
+  const lensGeo = new THREE.CircleGeometry(0.014, 16).rotateX(-0.25);
+  put(lensGeo, M.lens, 0, -0.059, 0.149);
+  for (const [mat, geos] of parts) {
+    const mesh = new THREE.Mesh(mergeGeometries(geos.map(plainUV), false), mat);
+    mesh.castShadow = mat === M.body; // solo el cuerpo da sombra (las hélices y las luces, no)
+    mesh.userData.noShadow = mat !== M.body;
+    group.add(mesh);
+  }
 
   const base = new THREE.Vector3();
   let baseSet = false;
@@ -74,7 +72,7 @@ export function createDrone() {
   return {
     group,
     camera: gimbal,
-    /** Flota en el sitio (bamboleo suave) y gira las hélices. */
+    /** Flota en el sitio (bamboleo suave). */
     update(dt, t) {
       if (!baseSet) {
         base.copy(group.position);
@@ -84,7 +82,6 @@ export function createDrone() {
       group.position.set(base.x + Math.sin(s * 0.7) * 0.05, base.y + Math.sin(s * 1.6) * 0.035, base.z + Math.cos(s * 0.5) * 0.04);
       group.rotation.z = Math.sin(s * 1.1) * 0.035;
       group.rotation.x = Math.cos(s * 0.9) * 0.03;
-      for (const r of rotors) r.rotation.y += r.userData.dir * dt * 55;
     },
     /** Mueve el punto de reposo (para drones que se desplazan). */
     setBase(v) {
@@ -92,6 +89,15 @@ export function createDrone() {
       baseSet = true;
     },
   };
+}
+
+// Geometría con posición, normal y uv (todas iguales: se pueden unir aunque vengan de primitivas distintas).
+function plainUV(geo) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', geo.attributes.position);
+  g.setAttribute('normal', geo.attributes.normal);
+  g.setAttribute('uv', geo.attributes.uv);
+  return g;
 }
 
 // --- Armas de utilería ------------------------------------------------------------------------------

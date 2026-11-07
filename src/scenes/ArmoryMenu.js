@@ -67,6 +67,19 @@ export class ArmoryMenu extends World {
     this.buildLights();
     this.buildFx();
     this.loadProps();
+    this.limitShadows();
+  }
+
+  // Sombras solo de lo que se mueve o está cerca del suelo (mesa, cajas, soldados): muros, techo,
+  // vigas y luminarias no proyectan. Así la luz cenital entra en la sala y el pase de sombras es corto.
+  limitShadows() {
+    const box = new THREE.Box3();
+    for (const o of this.scene.children) {
+      if (!o.isMesh || o.userData.ground) continue;
+      box.setFromObject(o);
+      const big = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) > 3;
+      if (box.max.y > 2.6 || big) o.userData.noShadow = true;
+    }
   }
 
   buildMaterials() {
