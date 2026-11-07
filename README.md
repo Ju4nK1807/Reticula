@@ -43,60 +43,7 @@ npm run android:sync     # compila el juego y lo copia al proyecto Android (andr
 npm run android:build    # APK de depuración (necesita JDK 21 y el SDK de Android)
 ```
 
-### Publicar una versión
-Crear una etiqueta `v1.0.0` (o lanzar el flujo **Apps** a mano desde *Actions*) compila el APK y el
-instalador de Windows en GitHub Actions y los adjunta a un Release. Para que el APK salga **firmado**
-(necesario para Google Play), el dueño del repositorio debe añadir estos secretos en
-*Settings → Secrets and variables → Actions*: `ANDROID_KEYSTORE_BASE64` (el `.jks` en base64),
-`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD`. Sin ellos se publica el APK
-de depuración, que se instala igual.
 
-Los íconos y la pantalla de inicio se generan desde `assets/icon.svg` y `assets/icon-foreground.svg`.
-
-## Gráficos
-
-Estilo semi-realista con optimización fuerte: materiales PBR con texturas reales, iluminación física
-con tono neutro (los colores de dianas y enemigos se respetan), sombras del sol y brillo (bloom) en luces
-y neón. Todo depende de **Configuración → Video → Calidad**:
-
-| Calidad | Texturas | Sombras | Efectos |
-|---------|----------|---------|---------|
-| Alta | 1K: color, relieve y ARM (oclusión, rugosidad, metal) | suaves, 2048 | bloom y antialiasing MSAA |
-| Media | 512 (4 veces menos memoria) | 1024 | — |
-| Baja | 512 solo de color | no | — |
-
-En teléfonos y tabletas el juego arranca en calidad media. En *Personalizada* se elige por separado la
-resolución de render y el detalle gráfico.
-
-**Menú**: detrás de la pantalla de título hay un escenario propio, la *Armería* (`src/scenes/ArmoryMenu.js`):
-taller de armas con mesa de trabajo, estantes, lámparas colgantes con haz de luz, drones que escanean el
-rifle con un láser, pantallas holográficas, chispas de soldadura y el campo de tiro al fondo, con el
-soldado en primer plano. La cámara pasa a un plano distinto según la opción enfocada del menú, respira y
-sigue un poco al mouse. Las texturas de pantallas, letreros y tableros se dibujan en un canvas
-(`src/gfx/canvasTextures.js`): nada que descargar.
-
-**Cielo**: los mapas al aire libre tienen un cielo procedural (`src/gfx/sky.js`) con degradado,
-resplandor en el horizonte, estrellas y luna, que se funde con la niebla de cada mapa.
-
-Cada mapa conserva su paleta: el color medio de cada textura se calibra al color de la paleta, así la
-textura solo añade detalle. Las superficies están en `src/gfx/surfaces.json`. Para cambiar o añadir
-una, se edita ese archivo y se ejecuta `python tools/textures.py` (necesita Pillow): descarga las
-texturas, las convierte a WebP en 1K y 512 y calcula su color medio.
-
-### Créditos
-- Texturas: [Poly Haven](https://polyhaven.com) (CC0, dominio público).
-- Disparos: grabaciones reales de [The Free Firearm Sound Library](https://opengameart.org/content/the-free-firearm-sound-library)
-  (CC0): 1911, PPSh, AR-15, Benelli Nova y Mosin-Nagant, más un disparo a media distancia para los
-  enemigos (`public/sounds/credits.json`). Si no cargan, suenan los disparos procedurales.
-- Armas en primera persona: modelos de **Pichuliru** en [Poly Pizza](https://poly.pizza) (CC0). Fuentes y
-  comando de optimización en `public/models/weapons/credits.json`. Se cargan bajo demanda; mientras
-  llegan (o si fallan) se ve la versión de cajas.
-- Zombis: **bachosoftdesign** (caminante, reptante y bruto) y **Quaternius** (corredor) en
-  [Poly Pizza](https://poly.pizza), **CC-BY 3.0** (requieren crédito; fuentes en
-  `public/models/characters/credits.json`).
-- Enemigos: soldado animado de **Quaternius** en [Poly Pizza](https://poly.pizza) (CC0). Es solo la
-  apariencia: los impactos los siguen decidiendo las hitboxes de siempre (invisibles), así la puntería y
-  los rangos no cambian. Se une en una sola malla por color de enemigo (1 llamada de dibujo por soldado).
 
 ## Estructura
 
@@ -130,52 +77,7 @@ src/
 tests/                    Pruebas de la lógica pura (guardado, rangos, sensibilidad, registros)
 ```
 
-## Añadir un modo
 
-Un modo nuevo vive en su propia carpeta y **no necesita editar Game.js ni el menú**:
-
-1. Crea `src/modes/<modo>/` con una clase que extienda `Mode` (`src/modes/Mode.js` documenta el ciclo de
-   vida: `start`, `update`, `onShoot`, `onLock`, `onPause`, `wantsLock`, `weaponEnabled`, `hitMeshes`,
-   `bodyColliders`, `restartStage`, `dispose`). Sus fases pueden extender `modes/evaluation/Phase.js`
-   para reutilizar estadísticas, puntos, vida, bots, dianas y spawns.
-2. Si trae mapas propios, regístralos con `registerWorld('clave', () => new MiMapa())`
-   (`src/scenes/registry.js`) y actívalos con `game.useWorld('clave')`.
-3. Crea `src/modes/<modo>/index.js` y llama a `registerMode({ id, title, desc, order, locked, create })`.
-   `modes/index.js` lo descubre solo. Si el `id` coincide con uno de `PLANNED_MODES`
-   (`campaign`, `coordination`, `endless`), el botón "Próximamente" del menú se reemplaza solo.
-4. Para récords y progreso usa `game.store.modeRecord('<id>')` y luego `game.store.persist()`.
-   Si cambias la forma del guardado, sube `DEFAULT_SAVE.version` y añade el paso en
-   `MIGRATIONS` (`src/storage/SaveStore.js`).
-
-Bots más pequeños: `spawnBot({ scale: 0.8, ... })` escala modelo, hitboxes, línea de visión y colisión;
-pasa el mismo `scale` a `randomOpenSpot` y `pickCoverSpot`.
-
-## Fases
-
-1. **Motor base + control FPS + evaluación inicial** ✅
-2. **Campaña** ✅: un mapa por rango, 4 niveles por mapa con estrellas, desbloqueos, sugerencia de bajar de mapa.
-3. **Coordinación ojo-mano** ✅: secuencias, colores, visión periférica, doble tarea.
-4. **Modo infinito** ✅: oleadas, vida del jugador, botiquines, récords.
-5. **Pulido** ✅: progreso e historial con gráficas, copia de seguridad, mira avanzada, calidad gráfica, rendimiento y publicación.
-
-## Evaluación
-
-Hay dos evaluaciones independientes, cada una con su propio rango. En ambas el jugador se mueve
-(WASD, Shift caminar, C agacharse, Espacio saltar), las balas son visibles (trazadoras, impactos y
-partículas), **cada fallo resta puntos** y el rifle tiene **cargador de 25 balas**: hay que recargar
-con R (o se recarga solo al disparar con el cargador vacío, desactivable). Retroceso reinicia la fase.
-
-### Dianas (clásica) — campo de tiro
-
-| Fase | Duración | Qué mide |
-|------|----------|----------|
-| Flicking | 30 s | precisión, objetivos/s, tiempo por objetivo, escapados |
-| Tracking | 30 s, automático | % sobre la diana, % de balas acertadas |
-| Reacción | 8 intentos | reacción promedio y mejor, disparos anticipados |
-| Multi-objetivo | 30 s | objetivos/s y precisión con 3 dianas a la vez |
-| Precisión | 30 s | precisión con dianas pequeñas (fallar resta más que acertar) |
-
-Pesos: flicking 22 %, tracking 20 %, reacción 18 %, multi-objetivo 20 %, precisión 20 %.
 
 ### Enemigos — patio con coberturas
 
