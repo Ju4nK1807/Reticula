@@ -8,6 +8,7 @@ export class HUD {
       <div class="hud-play">
         <div class="hud-scope" data-ref="scope" hidden><i></i><b></b></div>
         <div class="hud-vignette" data-ref="vignette"></div>
+        <div class="hud-whiteout" data-ref="whiteout"></div>
         <div class="hud-dmgdir" data-ref="dmgdir"><i></i></div>
         <div class="hud-crosshair" data-ref="crosshair"></div>
         <div class="hud-hitmarker" data-ref="hitmarker"></div>
@@ -155,6 +156,13 @@ export class HUD {
   }
 
   // angle: radianes del atacante respecto a la mira (positivo = a la izquierda).
+  // Destello blanco de la granada aturdidora (k 0-1: cuanto más cerca, más fuerte).
+  whiteout(k) {
+    const el = this.refs.whiteout;
+    el.style.setProperty('--k', String(Math.min(1, Math.max(0, k))));
+    this.restartAnimation(el, 'show');
+  }
+
   damage(angle) {
     this.restartAnimation(this.refs.vignette, 'show');
     const dir = this.refs.dmgdir;

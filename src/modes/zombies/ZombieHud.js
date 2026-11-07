@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { h } from '../../ui/dom.js';
-import { POWERUPS } from './zombieData.js';
+import { PERKS, POWERUPS } from './zombieData.js';
+import { GRENADE_TYPES } from '../../combat/Grenades.js';
+import { keyLabel } from '../../config/keybinds.js';
 
 const MAX_ARROWS = 6;
 const THREAT_RANGE = 7; // m: zombis más cerca que esto y fuera de pantalla → flecha
@@ -30,8 +32,15 @@ export class ZombieHud {
     this.cashBox = h('div', { class: 'zh-cash' }, h('small', {}, 'Puntos'), this.cash, this.gain);
 
     this.grenades = h('span', { class: 'zh-nades' });
+    this.perks = h('div', { class: 'zh-perks' });
     this.powers = h('div', { class: 'zh-powers' });
-    this.side = h('div', { class: 'zh-side' }, this.grenades, this.powers);
+    this.side = h('div', { class: 'zh-side' }, this.grenades, this.perks, this.powers);
+
+    // Aviso de compra (lo que hay delante: puerta, arma de pared o bebida).
+    this.pKey = h('kbd', {});
+    this.pText = h('span', { class: 'zh-p-text' });
+    this.pPrice = h('strong', { class: 'zh-p-price' });
+    this.prompt = h('div', { class: 'zh-prompt', hidden: true }, this.pKey, this.pText, this.pPrice);
 
     this.bTitle = h('div', { class: 'zh-b-title' });
     this.bSub = h('div', { class: 'zh-b-sub' });
@@ -44,7 +53,7 @@ export class ZombieHud {
       this.arrowLayer.append(el);
       this.arrows.push(el);
     }
-    this.root = h('div', { class: 'zh-root' }, this.arrowLayer, this.panel, this.cashBox, this.side, this.banner);
+    this.root = h('div', { class: 'zh-root' }, this.arrowLayer, this.panel, this.cashBox, this.side, this.banner, this.prompt);
     layer.append(this.root);
     this.cache = new Map();
   }
@@ -67,6 +76,17 @@ export class ZombieHud {
     this.gain.classList.add('show');
   }
 
+  // p = { key, text, price, ok } o null para ocultarlo. ok = false: no alcanzan los puntos.
+  setPrompt(p) {
+    this.set('pShow', this.prompt, !p, 'hidden');
+    if (!p) return;
+    this.set('pKey', this.pKey, p.key ?? '', 'textContent');
+    this.set('pKeyHide', this.pKey, !p.key, 'hidden');
+    this.set('pText', this.pText, p.text);
+    this.set('pPrice', this.pPrice, p.price ? `${fmt(p.price)} pts` : '');
+    this.prompt.classList.toggle('poor', p.ok === false && !!p.price);
+  }
+
   banner_(title, sub) {
     const show = !!title;
     this.set('bShow', this.banner, !show, 'hidden');
@@ -82,7 +102,18 @@ export class ZombieHud {
     this.set('left', this.left, run.state === 'wave' ? `${left} ${left === 1 ? 'zombi' : 'zombis'}` : idle);
     this.set('tag', this.tag, !(run.state === 'wave' && run.cfg?.runnerNight), 'hidden');
     this.set('cash', this.cash, fmt(run.cash));
-    this.set('nades', this.grenades, game.touchMode ? `Granadas ×${mode.grenades}` : `Granadas ×${mode.grenades}  ·  G`);
+    // Granada elegida y cuántas quedan de ese tipo (y del resto).
+    const type = game.grenades.type;
+    const bag = mode.grenadeBag;
+    const others = Object.entries(bag).filter(([t, n]) => t !== type && n > 0).map(([t, n]) => `${GRENADE_TYPES[t].name.slice(0, 4)}. ×${n}`);
+    const keys = game.touchMode ? '' : `  ·  ${keyLabel(game.settings.keys, 'grenade')} / ${keyLabel(game.settings.keys, 'grenadeNext')}`;
+    this.set('nades', this.grenades, `${GRENADE_TYPES[type].name} ×${bag[type] ?? 0}${others.length ? ` (${others.join(', ')})` : ''}${keys}`);
+    // Bebidas tomadas.
+    const perks = [...run.perks].join('|');
+    if (this.cache.get('perks') !== perks) {
+      this.cache.set('perks', perks);
+      this.perks.replaceChildren(...[...run.perks].map((id) => h('span', { class: 'zh-perk', style: { '--c': PERKS[id].color }, title: PERKS[id].desc }, PERKS[id].name)));
+    }
 
     // Potenciadores activos (con su tiempo).
     const active = Object.entries(run.timers)
@@ -101,7 +132,7 @@ export class ZombieHud {
     // Cartel central según el estado del modo.
     if (mode.state === 'countdown') this.banner_('Prepárate', `La horda llega en ${Math.ceil(mode.timer)}`);
     else if (mode.state === 'intermission') {
-      const shop = game.touchMode ? 'Toca «Armería»' : 'E: armería';
+      const shop = game.touchMode ? 'Toca «Armería»' : `${keyLabel(game.settings.keys, 'interact')}: armería`;
       this.banner_(`Oleada ${run.wave} superada`, `${shop} · siguiente oleada en ${Math.ceil(mode.timer)} s`);
     } else if (mode.state === 'wave' && mode.waveBannerT > 0) this.banner_(`Oleada ${run.wave}`, run.cfg?.runnerNight ? 'Noche de corredores: vienen rápido' : `${run.cfg?.count ?? ''} zombis`);
     else this.banner_(null);

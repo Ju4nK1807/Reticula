@@ -437,6 +437,9 @@ input[type='range']:active::-webkit-slider-thumb { transform: scale(1.15); }
   background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 30, 50, 0.55));
 }
 .hud-vignette.show { animation: vignette 0.6s ease-out; }
+.hud-whiteout { position: absolute; inset: 0; opacity: 0; background: #f4fbff; pointer-events: none; }
+.hud-whiteout.show { animation: whiteout 1.4s ease-out; }
+@keyframes whiteout { from { opacity: calc(var(--k, 1) * 0.85); } to { opacity: 0; } }
 @keyframes vignette { from { opacity: 1; } to { opacity: 0; } }
 
 .hud-dmgdir { position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; opacity: 0; }
