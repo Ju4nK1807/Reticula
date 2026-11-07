@@ -7,16 +7,24 @@ import { acquireZombieSkin, loadZombieModel, releaseZombieSkin } from './zombieS
   dispose() y opts.behavior.
 
   Estados: chase → attack → chase … · stagger (golpe fuerte) · dying → gone.
-  - Persigue siguiendo el campo de flujo de la partida (navGrid.js); de cerca va directo.
-  - Se separa de los otros zombis y no atraviesa la geometría del mapa.
+  - Persigue en línea recta si nada se interpone; si no, sigue el campo de flujo (navGrid.js).
+  - El rumbo y la velocidad cambian de forma gradual (STEER, ACCEL): sin el zigzag de la cuadrícula
+    ni giros bruscos al cruzar de celda. El cuerpo mira hacia donde camina.
+  - Se separa de los otros zombis (empuje aparte del rumbo, para que no tiemble en grupo) y no
+    atraviesa la geometría del mapa.
+  - La animación sigue la velocidad real (si se frena contra un muro o la horda, no patina).
   - Ataca con preparación: el golpe se aplica a mitad del gesto y solo si el jugador sigue al alcance
     (se puede esquivar retrocediendo).
   - Las hitboxes (cajas invisibles) siguen al cuerpo; el reptante las tiene a ras del suelo.
 */
 
 const RADIUS = 0.42;
-const TURN = 7; // rad/s
+const TURN = 5; // rad/s: giro del cuerpo
+const STEER = 4.5; // 1/s: qué tan rápido cambia el rumbo hacia la dirección deseada
+const ACCEL = 5; // 1/s: arranque y frenado
 const DIRECT_RANGE = 2.6; // m: más cerca, directo al jugador
+const LINE_EVERY = 0.2; // s entre comprobaciones de línea despejada hacia el jugador
+const SEPARATION = 1.1; // fuerza del empuje entre zombis (m/s por unidad de solape)
 const DEATH_TIME = 2.2; // s tendido antes de hundirse
 const SINK_TIME = 0.7;
 const ATTACK_HIT_AT = 0.45; // fracción del ciclo de ataque en que golpea
@@ -62,6 +70,12 @@ export class Zombie {
     this.flashT = 0;
     this.yaw = 0;
     this.speedNow = 0;
+    this.moveSpeed = 0; // velocidad real medida (para el ritmo de la animación)
+    this.heading = null; // rumbo actual {x, z} (unitario); se fija al primer cuadro
+    this.lineT = Math.random() * LINE_EVERY; // escalonado: no todos comprueban en el mismo cuadro
+    this.lineClear = false;
+    this.pace = 0.92 + Math.random() * 0.16; // cada zombi camina un poco distinto
+    this.stunT = 0; // aturdido (granada aturdidora): se mueve a media velocidad
     this.scale = stats.height / 1.78;
     this.radius = RADIUS * this.scale;
     this.dieAnim = Math.random() < 0.5 ? 'die' : 'die2';
@@ -89,6 +103,7 @@ export class Zombie {
       this.skin = acquireZombieSkin(template, { height: stats.height, tint: stats.tint ?? null });
       run.root.add(this.skin.root);
       this.syncSkin();
+      this.skin.desync?.(); // cada uno en otro punto del ciclo: la horda no marcha al unísono
     });
   }
 
@@ -181,42 +196,105 @@ export class Zombie {
         if (dist > reach * 1.15) this.state = 'chase';
       }
     } else {
-      // Persecución: dirección del campo de flujo (o directo si está cerca o no hay camino).
-      let mx = dx / (dist || 1);
-      let mz = dz / (dist || 1);
-      if (dist > DIRECT_RANGE && this.run.nav?.direction(p.x, p.z, _dir)) {
-        mx = _dir.x;
-        mz = _dir.z;
-      }
-      // Separación de los demás zombis (no se apilan).
-      for (const o of ctx.zombies) {
-        if (o === this || !o.alive) continue;
-        const ox = p.x - o.group.position.x;
-        const oz = p.z - o.group.position.z;
-        const d2 = ox * ox + oz * oz;
-        const min = this.radius + o.radius + 0.15;
-        if (d2 > 0.0001 && d2 < min * min) {
-          const d = Math.sqrt(d2);
-          mx += (ox / d) * (1 - d / min) * 1.6;
-          mz += (oz / d) * (1 - d / min) * 1.6;
-        }
-      }
-      const len = Math.hypot(mx, mz) || 1;
-      const speed = this.stats.speed;
-      this.speedNow += (speed - this.speedNow) * Math.min(1, dt * 6);
-      p.x += (mx / len) * this.speedNow * dt;
-      p.z += (mz / len) * this.speedNow * dt;
-      this.collideWorld(ctx.colliders);
-      this.turnTowards(Math.atan2(mx, mz), dt);
+      this.chase(dt, ctx, dx, dz, dist);
       if (dist <= reach) {
         this.state = 'attack';
         this.attackT = 0;
         this.hitDone = false;
       }
     }
+    if (this.state !== 'chase') this.separate(dt, ctx, 0.5);
+    this.stunT = Math.max(0, this.stunT - dt);
     this.group.rotation.y = this.yaw;
     this.group.updateMatrixWorld(true);
     this.updateSkin(dt, this.animKey());
+  }
+
+  // Hacia dónde quiere ir: directo si está cerca o la recta está despejada; si no, el campo de flujo
+  // (que siempre lleva al jugador). Con señuelo va directo a él.
+  desiredDirection(dt, ctx, dx, dz, dist) {
+    const p = this.group.position;
+    const nav = this.run.nav;
+    _dir.x = dx / (dist || 1);
+    _dir.z = dz / (dist || 1);
+    if (dist <= DIRECT_RANGE || !nav || ctx.decoy) return _dir;
+    this.lineT -= dt;
+    if (this.lineT <= 0) {
+      this.lineT = LINE_EVERY;
+      this.lineClear = nav.clearLine?.(p.x, p.z, p.x + dx, p.z + dz) ?? false;
+    }
+    if (!this.lineClear) nav.direction(p.x, p.z, _dir);
+    return _dir;
+  }
+
+  chase(dt, ctx, dx, dz, dist) {
+    const p = this.group.position;
+    // Señuelo: mientras dura, la horda va hacia él en vez de al jugador.
+    if (ctx.decoy) {
+      dx = ctx.decoy.x - p.x;
+      dz = ctx.decoy.z - p.z;
+      dist = Math.hypot(dx, dz);
+    }
+    const want = this.desiredDirection(dt, ctx, dx, dz, dist);
+    // Rumbo suave: gira hacia la dirección deseada a una velocidad angular limitada.
+    if (!this.heading) this.heading = { x: want.x, z: want.z };
+    const h = this.heading;
+    const k = Math.min(1, dt * STEER);
+    h.x += (want.x - h.x) * k;
+    h.z += (want.z - h.z) * k;
+    const hl = Math.hypot(h.x, h.z) || 1;
+    h.x /= hl;
+    h.z /= hl;
+
+    const target = this.stats.speed * this.pace * (this.stunT > 0 ? 0.45 : 1);
+    this.speedNow += (target - this.speedNow) * Math.min(1, dt * ACCEL);
+    const x0 = p.x;
+    const z0 = p.z;
+    p.x += h.x * this.speedNow * dt;
+    p.z += h.z * this.speedNow * dt;
+    this.separate(dt, ctx, 1);
+    this.collideWorld(ctx.colliders);
+    // Velocidad real (suavizada) para el ritmo de la animación.
+    const moved = Math.hypot(p.x - x0, p.z - z0) / Math.max(dt, 1e-4);
+    this.moveSpeed += (moved - this.moveSpeed) * Math.min(1, dt * 8);
+    this.turnTowards(Math.atan2(h.x, h.z), dt);
+  }
+
+  // Empuje entre zombis: corrige la posición poco a poco (no el rumbo), así el grupo no tiembla.
+  separate(dt, ctx, strength) {
+    const p = this.group.position;
+    let sx = 0;
+    let sz = 0;
+    for (const o of ctx.zombies) {
+      if (o === this || !o.alive) continue;
+      const ox = p.x - o.group.position.x;
+      const oz = p.z - o.group.position.z;
+      const d2 = ox * ox + oz * oz;
+      const min = this.radius + o.radius + 0.15;
+      if (d2 >= min * min) continue;
+      if (d2 > 1e-8) {
+        const d = Math.sqrt(d2);
+        sx += (ox / d) * (1 - d / min);
+        sz += (oz / d) * (1 - d / min);
+      } else {
+        // Exactamente encima: se abren hacia un lado fijo según quién es quién.
+        sx += this.pace > o.pace ? 0.5 : -0.5;
+      }
+    }
+    if (!sx && !sz) return;
+    const push = SEPARATION * strength * Math.max(1, this.stats.speed) * dt;
+    p.x += sx * push;
+    p.z += sz * push;
+  }
+
+  /** Aturdido por una granada: se mueve a media velocidad durante `t` segundos. */
+  stun(t) {
+    if (!this.alive) return;
+    this.stunT = Math.max(this.stunT, t);
+    if (this.type !== 'brute' && this.state !== 'attack') {
+      this.state = 'stagger';
+      this.staggerT = STAGGER_TIME;
+    }
   }
 
   animKey() {
@@ -225,7 +303,8 @@ export class Zombie {
     if (this.stats.low) return 'crawl';
     if (this.type === 'runner') return 'run';
     if (this.type === 'brute') return this.t < 1.4 ? 'scream' : 'walk';
-    return this.stats.speed > 1.6 ? 'fast' : 'walk';
+    // El ciclo lento solo para los que van despacio: acelerarlo a casi el doble parecía cámara rápida.
+    return this.stats.speed * this.pace > 1.25 ? 'fast' : 'walk';
   }
 
   turnTowards(target, dt) {
@@ -274,7 +353,7 @@ export class Zombie {
     this.syncSkin();
     s.update(dt, {
       anim,
-      speed: this.speedNow,
+      speed: this.state === 'chase' ? this.moveSpeed : this.speedNow,
       cycle: anim === 'attack' || anim === 'heavy' ? this.stats.attackEvery : 0,
       flash: this.flashT > 0 ? 1.4 : 0,
       falling,
