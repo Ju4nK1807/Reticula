@@ -1,0 +1,112 @@
+/* Modo zombi: HUD propio (zh-*), armería y resultados. Se carga con el modo. */
+
+.zh-root[hidden] { display: none; }
+
+/* Panel de oleada (arriba a la izquierda, bajo la etiqueta del modo). */
+.zh-panel {
+  position: absolute; left: 22px; top: 44px; display: flex; align-items: center; gap: 14px;
+  padding: 8px 14px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.7); border: 1px solid var(--line);
+}
+.zh-wave { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.zh-wave small { font: 600 10px var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.zh-wave strong { font: 700 30px var(--font-display); color: #ff5a4a; text-shadow: 0 0 14px rgba(255, 90, 74, 0.35); }
+.zh-meta { display: flex; flex-direction: column; gap: 4px; font: 600 13px var(--font-display); letter-spacing: 0.06em; }
+.zh-tag { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffb020; }
+
+/* Puntos para la armería (arriba a la derecha). */
+.zh-cash {
+  position: absolute; right: 22px; top: 44px; display: flex; flex-direction: column; align-items: flex-end;
+  padding: 8px 14px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.7); border: 1px solid var(--line);
+}
+.zh-cash small { font: 600 10px var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.zh-cash strong { font: 700 24px var(--mono); color: #ffd166; }
+.zh-gain { position: absolute; right: 14px; top: 100%; font: 700 14px var(--mono); color: #ffd166; opacity: 0; }
+.zh-gain.show { animation: zh-gain 0.9s var(--ease-out); }
+@keyframes zh-gain {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+
+/* Granadas y potenciadores (encima de la munición). */
+.zh-side { position: absolute; right: 22px; bottom: 146px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.zh-nades { font: 600 12px var(--font-display); letter-spacing: 0.08em; color: var(--text-2); padding: 4px 10px; border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.65); }
+.zh-powers { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.zh-power {
+  font: 700 12px var(--font-display); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--c); padding: 4px 10px; border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.75); border: 1px solid var(--c);
+}
+
+/* Cartel central. */
+.zh-banner {
+  position: absolute; left: 50%; top: 24%; transform: translateX(-50%); text-align: center;
+  padding: 12px 26px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.72); border: 1px solid rgba(255, 90, 74, 0.35);
+}
+.zh-b-title { font: 700 26px var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: #ff5a4a; }
+.zh-b-sub { margin-top: 4px; font-size: 14px; color: var(--text); }
+
+/* Flechas de amenaza alrededor de la mira. */
+.zh-arrows { position: absolute; left: 50%; top: 50%; }
+.zh-arrow {
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  border-left: 11px solid transparent; border-right: 11px solid transparent; border-bottom: 18px solid #ff4d4d;
+  filter: drop-shadow(0 0 6px rgba(255, 60, 60, 0.7));
+}
+
+/* Récords en la pantalla de inicio. */
+.zh-records { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 4px; }
+.zh-records div { display: flex; flex-direction: column; padding: 8px 10px; border-radius: var(--r-md); background: var(--surface-2); }
+.zh-records small { font-size: 11px; color: var(--muted); }
+.zh-records strong { font: 700 20px var(--mono); }
+
+.zh-credit { margin: 4px 0 0; font-size: 11px; color: var(--muted); }
+
+/* Armería. */
+.screen.zh-shop { width: min(1100px, 100%); }
+.zh-shop-cash { display: flex; flex-direction: column; align-items: flex-end; }
+.zh-shop-cash small { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.zh-shop-cash strong { font: 700 30px var(--mono); color: #ffd166; }
+.zh-shop-group h3 { margin: 6px 0 10px; }
+.zh-shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.zh-item { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; }
+.zh-item p { margin: 0; flex: 1; }
+.zh-item.owned { opacity: 0.6; }
+.zh-item-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.zh-item-head strong { font: 700 15px var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.zh-price { font: 700 13px var(--mono); color: #ffd166; white-space: nowrap; }
+/* Cabecera fija al desplazarse: puntos y "Continuar combate" siempre a mano aunque la lista no quepa. */
+.zh-shop-head {
+  position: sticky; top: 0; z-index: 2; align-items: center;
+  padding: 12px 16px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.95); border: 1px solid var(--line);
+}
+.zh-shop-head p { margin-top: 4px; }
+.zh-shop-bar { display: flex; align-items: center; gap: 20px; }
+
+.zh-result-hero { text-align: center; }
+.zh-result-hero h2 { font-size: 44px; color: #ff5a4a; letter-spacing: 0.1em; }
+
+/* Teléfonos en horizontal. */
+@media (max-height: 520px) {
+  .zh-panel { top: 34px; padding: 4px 10px; }
+  .zh-wave strong { font-size: 22px; }
+  .zh-cash { top: 34px; padding: 4px 10px; }
+  .zh-cash strong { font-size: 18px; }
+  .zh-banner { top: 18%; padding: 8px 16px; }
+  .zh-b-title { font-size: 18px; }
+  .zh-side { bottom: 120px; }
+  .zh-records { grid-template-columns: repeat(2, 1fr); }
+  .zh-shop-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .zh-item { padding: 10px 12px; gap: 6px; }
+  .zh-shop-cash strong { font-size: 22px; }
+  .zh-shop-head { padding: 8px 12px; }
+}
+/* Modo táctil: la derecha es de la munición, la vida y los botones; abajo a la izquierda va el pulgar
+   del joystick. Puntos, granadas y potenciadores van en columna bajo el panel de oleada. */
+.touch-mode .zh-panel { left: 72px; }
+.touch-mode .zh-cash { right: auto; left: 72px; top: 108px; align-items: flex-start; }
+.touch-mode .zh-gain { right: auto; left: 14px; }
+.touch-mode .zh-side { right: auto; left: 72px; top: 172px; bottom: auto; align-items: flex-start; }
+.touch-mode .zh-powers { align-items: flex-start; }
+@media (max-height: 520px) {
+  .touch-mode .zh-cash { top: 86px; }
+  .touch-mode .zh-side { top: 140px; }
+}

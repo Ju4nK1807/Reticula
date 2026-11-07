@@ -1,10 +1,50 @@
 {
-  "_info": "Personajes animados. Fuente: Poly Pizza. Optimizado con: npx @gltf-transform/cli optimize <in> <out> --compress false --texture-compress false --simplify false --instance false --palette false",
+  "_info": "Personajes animados. Fuente: Poly Pizza. Optimizado con: npx @gltf-transform/cli optimize <in> <out> --compress false --texture-compress false (zombis: --texture-compress webp --texture-size 512) --simplify false --instance false --palette false",
   "soldier": {
     "file": "soldier.glb",
     "source": "https://poly.pizza/m/Btfn3G5Xv4",
     "author": "Quaternius",
     "license": "CC0 1.0",
-    "animations": ["Idle_Gun_Pointing", "Idle_Gun_Shoot", "Run", "Run_Back", "Run_Left", "Run_Right", "Death"]
+    "animations": [
+      "Idle_Gun_Pointing",
+      "Idle_Gun_Shoot",
+      "Run",
+      "Run_Back",
+      "Run_Left",
+      "Run_Right",
+      "Death"
+    ]
+  },
+  "zombie-walker": {
+    "file": "zombie-walker.glb",
+    "source": "https://poly.pizza/m/xqEzosAVYX",
+    "author": "bachosoftdesign",
+    "license": "CC-BY 3.0",
+    "usedFor": "caminante, reptante y bruto del modo zombi",
+    "animations": [
+      "Walk",
+      "Walk2",
+      "Running_Crawl",
+      "Attack",
+      "Headbutt",
+      "Hit_reaction",
+      "Die",
+      "Die2",
+      "Scream",
+      "Idle"
+    ]
+  },
+  "zombie-runner": {
+    "file": "zombie-runner.glb",
+    "source": "https://poly.pizza/m/jkrEvQZb8J",
+    "author": "Quaternius",
+    "license": "CC-BY 3.0",
+    "usedFor": "corredor del modo zombi",
+    "animations": [
+      "ZombieRun",
+      "ZombieWalk",
+      "ZombieBite",
+      "ZombieIdle"
+    ]
   }
 }

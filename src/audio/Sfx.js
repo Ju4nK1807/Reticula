@@ -245,6 +245,47 @@ export class Sfx {
     this.noiseBurst({ type: 'highpass', f0: 500, f1: 1800, q: 0.7, peak: 0.1, decay: 0.16, delay: 0.06 });
   }
 
+  // Gruñido de zombi: grave, con vibrato y filtrado (más apagado y bajo cuanto más lejos).
+  groan(pan = 0, distance = 5, type = 'walker') {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const k = Math.max(0.15, 1 - distance / 30);
+    const base = { runner: 150, brute: 70, crawler: 120 }[type] ?? 95;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(base * (0.9 + Math.random() * 0.25), t);
+    osc.frequency.linearRampToValueAtTime(base * 0.75, t + 0.7);
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 6 + Math.random() * 4;
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.value = base * 0.08;
+    lfo.connect(lfoGain).connect(osc.frequency);
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 520 + Math.random() * 300;
+    filter.Q.value = 2.2;
+    const env = this.envelope(0.22 * k, 0.12, 0.65, t, pan);
+    osc.connect(filter).connect(env);
+    osc.start(t);
+    lfo.start(t);
+    osc.stop(t + 0.9);
+    lfo.stop(t + 0.9);
+  }
+
+  // Inicio de oleada: bocina grave.
+  horn() {
+    this.tone('sawtooth', 110, 104, 0.9, 0.18);
+    this.tone('sawtooth', 165, 156, 0.9, 0.1);
+  }
+
+  purchase() {
+    [880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.08, 0.12, i * 0.06));
+  }
+
+  powerup() {
+    [660, 990, 1320, 1760].forEach((f, i) => this.tone('sine', f, f * 1.02, 0.1, 0.12, i * 0.05));
+  }
+
   // Sonidos de la interfaz: muy cortos y bajos para que navegar el menú no canse.
   uiMove() {
     this.tone('sine', 2100, 1700, 0.03, 0.025);

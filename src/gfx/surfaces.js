@@ -157,6 +157,11 @@ export function setSurfaceDetail(level, maxAnisotropy = 1) {
   }
 }
 
+/** Multiplicador actual del neón (con bloom es HDR); para materiales glow que se animan. */
+export function glowScale() {
+  return bloomOn ? GLOW_HDR : 1;
+}
+
 /** Activa el brillo HDR de los materiales glow (solo cuando hay bloom). */
 export function setGlowBloom(on) {
   bloomOn = on;
