@@ -71,7 +71,7 @@ export class HUD {
     this.refs.crosshair.style.visibility = on ? 'hidden' : '';
   }
 
-  // Barra de armas (teclas 1-5). weapons: [{ id, key, name }]; locked: no se puede cambiar.
+  // Barra de armas (teclas 1-9). weapons: [{ id, key, name }]; locked: no se puede cambiar.
   // owned(id): false = no se tiene (modo zombi: se compra); se dibuja atenuada.
   setWeaponSlots(weapons, activeId, locked = false, owned = () => true) {
     const key = `${activeId}|${locked}|${weapons.map((w) => (owned(w.id) ? 1 : 0)).join('')}`;
@@ -103,11 +103,12 @@ export class HUD {
 
   // reloadProgress: 0-1 mientras recarga, null si no. reserve: balas de reserva (Infinity = sin
   // límite: se muestra el tamaño del cargador, como siempre).
-  setAmmo(ammo, magazine, reloadProgress, reserve = Infinity) {
-    this.text('ammo', ammo);
-    this.text('mag', Number.isFinite(reserve) ? `/ ${reserve}` : `/ ${magazine}`);
-    this.refs.ammoBox.classList.toggle('low', ammo <= Math.ceil(magazine * 0.2));
-    this.refs.ammoBox.classList.toggle('empty', ammo === 0);
+  // infinite: modos de entrenamiento (sin contar balas ni recargar).
+  setAmmo(ammo, magazine, reloadProgress, reserve = Infinity, infinite = false) {
+    this.text('ammo', infinite ? '∞' : ammo);
+    this.text('mag', infinite ? 'sin recarga' : Number.isFinite(reserve) ? `/ ${reserve}` : `/ ${magazine}`);
+    this.refs.ammoBox.classList.toggle('low', !infinite && ammo <= Math.ceil(magazine * 0.2));
+    this.refs.ammoBox.classList.toggle('empty', !infinite && ammo === 0);
     const reloading = reloadProgress !== null;
     this.refs.reload.hidden = !reloading;
     if (reloading) this.refs.reloadFill.style.width = `${Math.round(reloadProgress * 100)}%`;

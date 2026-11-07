@@ -116,8 +116,8 @@ export class TouchControls {
     this.input.axis.x = this.input.axis.y = 0;
     this.input.mouseDown = false;
     this.input.aimDown = false;
-    this.input.keys.delete('Space');
-    this.input.keys.delete('KeyC');
+    this.input.keys.delete(this.input.codeFor('jump'));
+    this.input.keys.delete(this.input.codeFor('crouch'));
     this.crouched = false;
   }
 
@@ -141,13 +141,13 @@ export class TouchControls {
         if (this.game.weapon.enabled) this.game.weapon.reload();
         return;
       case 'jump':
-        inp.keys.add('Space');
+        inp.keys.add(inp.codeFor('jump'));
         this.lookers.set(e.pointerId, { x: e.clientX, y: e.clientY, jump: true });
         return;
       case 'crouch':
         this.crouched = !this.crouched;
-        if (this.crouched) inp.keys.add('KeyC');
-        else inp.keys.delete('KeyC');
+        if (this.crouched) inp.keys.add(inp.codeFor('crouch'));
+        else inp.keys.delete(inp.codeFor('crouch'));
         return;
       case 'weapon': {
         // Siguiente arma disponible (en el modo zombi, solo las compradas).
@@ -216,7 +216,7 @@ export class TouchControls {
     }
     const look = this.lookers.get(e.pointerId);
     if (look?.fire) this.input.mouseDown = false;
-    if (look?.jump) this.input.keys.delete('Space');
+    if (look?.jump) this.input.keys.delete(this.input.codeFor('jump'));
     this.lookers.delete(e.pointerId);
   }
 }

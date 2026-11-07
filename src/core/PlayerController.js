@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { degPerCount } from '../config/sensitivity.js';
+import { DEFAULT_KEYS } from '../config/keybinds.js';
 import { DEG, clamp } from '../utils/math.js';
 
 const PITCH_LIMIT = 89 * DEG;
@@ -21,7 +22,7 @@ const _right = new THREE.Vector3();
 const _wish = new THREE.Vector3();
 
 // Jugador en primera persona: mirada (yaw/pitch en radianes) + movimiento WASD con colisiones.
-// Controles: WASD mover · Shift caminar · C agacharse · Espacio saltar.
+// Controles (reasignables): WASD mover · Shift caminar · C agacharse · Espacio saltar.
 export class PlayerController {
   constructor(camera, input) {
     this.camera = camera;
@@ -36,6 +37,7 @@ export class PlayerController {
     this.radPerCount = degPerCount('reticula', 1.25) * DEG;
     this.sensScale = 1; // con mira telescópica la sensibilidad baja en proporción al zoom
     this.speedScale = 1; // multiplicador de velocidad (apuntar)
+    this.perkSpeed = 1; // multiplicador de velocidad de las bebidas del modo zombi ("Pies ligeros")
     this.invertY = false;
     this.world = null;
     // Cuerpos móviles que bloquean al jugador (bots vivos): [{ x, z, r, y0, h }]. Los aporta el modo.
@@ -100,7 +102,9 @@ export class PlayerController {
 
   move(dt, active) {
     const keys = this.input;
-    const crouching = active && keys.isDown('KeyC');
+    // Teclas reasignables (config/keybinds.js); una entrada sin acciones (pruebas) usa las de siempre.
+    const down = (id) => (keys.isAction ? keys.isAction(id) : keys.isDown(DEFAULT_KEYS[id]));
+    const crouching = active && down('crouch');
     this.crouch += ((crouching ? 1 : 0) - this.crouch) * Math.min(1, dt * 12);
 
     _wish.set(0, 0, 0);
@@ -109,14 +113,14 @@ export class PlayerController {
       _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
       // Teclado (digital) + joystick táctil (analógico: inclinarlo poco = caminar más lento).
       const axis = keys.axis ?? { x: 0, y: 0 };
-      const f = (keys.isDown('KeyW') ? 1 : 0) - (keys.isDown('KeyS') ? 1 : 0) + axis.y;
-      const r = (keys.isDown('KeyD') ? 1 : 0) - (keys.isDown('KeyA') ? 1 : 0) + axis.x;
+      const f = (down('forward') ? 1 : 0) - (down('back') ? 1 : 0) + axis.y;
+      const r = (down('right') ? 1 : 0) - (down('left') ? 1 : 0) + axis.x;
       _wish.addScaledVector(_fwd, f).addScaledVector(_right, r);
       if (_wish.lengthSq() > 1) _wish.normalize();
     }
 
     // speedScale: apuntar con las miras o con la mira telescópica obliga a caminar más lento.
-    const max = (crouching ? SPEED_CROUCH : active && keys.isDown('ShiftLeft') ? SPEED_WALK : SPEED_RUN) * this.speedScale;
+    const max = (crouching ? SPEED_CROUCH : active && down('walk') ? SPEED_WALK : SPEED_RUN) * this.speedScale * this.perkSpeed;
     // En el suelo la velocidad responde rápido (frenar es casi instantáneo, como el counter-strafe);
     // en el aire hay poco control.
     const response = this.onGround ? (_wish.lengthSq() > 0 ? 11 : 16) : 1.5;
@@ -124,7 +128,7 @@ export class PlayerController {
     this.velocity.x += (_wish.x * max - this.velocity.x) * k;
     this.velocity.z += (_wish.z * max - this.velocity.z) * k;
 
-    if (active && this.onGround && keys.isDown('Space')) {
+    if (active && this.onGround && down('jump')) {
       this.velocity.y = JUMP_VELOCITY;
       this.onGround = false;
     }
