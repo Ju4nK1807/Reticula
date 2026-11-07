@@ -24,6 +24,11 @@ export function modeSummary(id, data) {
       const max = maps.reduce((s, m) => s + m.max, 0);
       return { text: `★ ${stars}/${max}`, sub: `${maps.filter((m) => m.completed).length}/${maps.length} mapas` };
     }
+    case 'story': {
+      const s = data.records?.story;
+      const done = Object.keys(s?.completed ?? {}).length;
+      return s?.finished ? { text: 'Completada', sub: '8/8 capítulos' } : done ? { text: `Capítulo ${done + 1}`, sub: `${done}/8 completados` } : { text: 'Sin empezar', sub: '8 capítulos' };
+    }
     case 'coordination': {
       const c = data.records?.coordination?.circuit;
       return c?.plays ? { text: `Índice ${c.best}`, sub: `${c.plays} circuitos` } : { text: 'Sin jugar', sub: '4 ejercicios · 45 s' };
