@@ -69,7 +69,19 @@ export class HUD {
     if (this.scoped === on) return;
     this.scoped = on;
     this.refs.scope.hidden = !on;
-    this.refs.crosshair.style.visibility = on ? 'hidden' : '';
+    this.updateCrosshairVisibility();
+  }
+
+  // Apuntando con las miras de hierro: la retícula desaparece (se apunta con el arma, como en los
+  // shooters); vuelve al dejar el clic derecho.
+  setAds(on) {
+    if (this.ads === on) return;
+    this.ads = on;
+    this.updateCrosshairVisibility();
+  }
+
+  updateCrosshairVisibility() {
+    this.refs.crosshair.style.visibility = this.scoped || this.ads ? 'hidden' : '';
   }
 
   // Barra de armas (teclas 1-9). weapons: [{ id, key, name }]; locked: no se puede cambiar.
@@ -115,11 +127,16 @@ export class HUD {
     if (reloading) this.refs.reloadFill.style.width = `${Math.round(reloadProgress * 100)}%`;
   }
 
+  // accLabel null: el modo no muestra ese dato (el modo zombi no puntúa la precisión).
   setStats({ score, scoreLabel = 'Puntos', accLabel, accText, time }) {
     this.text('scoreLabel', scoreLabel);
     this.text('score', score);
-    this.text('accLabel', accLabel);
-    this.text('acc', accText);
+    const showAcc = accLabel !== null;
+    if (this.refs.acc.parentElement.hidden === showAcc) this.refs.acc.parentElement.hidden = !showAcc;
+    if (showAcc) {
+      this.text('accLabel', accLabel);
+      this.text('acc', accText);
+    }
     this.text('time', time);
   }
 

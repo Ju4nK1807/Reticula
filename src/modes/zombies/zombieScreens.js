@@ -1,7 +1,7 @@
 import { h } from '../../ui/dom.js';
 import { button } from '../../ui/components.js';
 import { sensSummary } from '../../config/sensitivity.js';
-import { clock, pct } from '../../utils/format.js';
+import { clock } from '../../utils/format.js';
 import { keyLabel } from '../../config/keybinds.js';
 import { DOORS, GRENADE_MAX, PERKS, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
 
@@ -151,7 +151,6 @@ export function zombieResultsScreen({ result, record, isBest, onRetry, onMenu })
       { class: 'metrics' },
       tile('Puntos', fmt(result.score)),
       tile('Bajas', result.kills, `${result.headKills} a la cabeza`),
-      tile('Precisión', pct(result.accuracy)),
       tile('Cuchillo', result.meleeKills, 'bajas cuerpo a cuerpo'),
       tile('Granadas', result.grenadeKills, 'bajas con granadas'),
       tile('Tiempo', clock(result.time), `${Math.round(result.damageTaken)} de daño recibido`),
