@@ -2,9 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { NavGrid } from '../src/modes/zombies/navGrid.js';
 import {
   DROP,
+  PERKS,
   PLAYER,
   POWERUPS,
+  RESERVE,
   SHOP,
+  WALL_BUYS,
+  perkStats,
+  wallAmmoPrice,
   ZOMBIE_TYPES,
   cannotBuy,
   emptyRecord,
@@ -81,15 +86,36 @@ describe('economía zombi', () => {
   });
 
   it('la armería explica por qué no se puede comprar algo', () => {
-    const state = { points: 5000, owned: new Set(['pistol', 'smg']), upgrades: new Set(['armor']), grenades: PLAYER.maxGrenades, health: 100, maxHealth: 100, reserveFull: true };
+    const state = { points: 5000, owned: new Set(['pistol']), perks: new Set(['coraza']), bag: { frag: PLAYER.maxGrenades, fire: 0, stun: 4, decoy: 0 }, health: 100, maxHealth: 100, reserveFull: true };
     const item = (id) => SHOP.find((s) => s.id === id);
-    expect(cannotBuy(item('smg'), state)).toBe('Ya la tienes');
-    expect(cannotBuy(item('armor'), state)).toBe('Ya la tienes');
-    expect(cannotBuy(item('grenades'), state)).toBe('Al máximo');
+    expect(cannotBuy(item('frag'), state)).toBe('Al máximo');
+    expect(cannotBuy(item('stun'), state)).toBe('Al máximo');
     expect(cannotBuy(item('medkit'), state)).toBe('Vida completa');
     expect(cannotBuy(item('ammo'), state)).toBe('Reserva llena');
-    expect(cannotBuy(item('rifle'), state)).toBeNull();
-    expect(cannotBuy(item('rifle'), { ...state, points: 100 })).toBe('Faltan puntos');
+    expect(cannotBuy(item('fire'), state)).toBeNull();
+    expect(cannotBuy(item('decoy'), { ...state, points: 100 })).toBe('Faltan puntos');
+    expect(cannotBuy({ kind: 'perk', id: 'coraza', price: 2500 }, state)).toBe('Ya la tienes');
+    // Las armas ya no están en la armería (se compran en las paredes del mapa).
+    expect(SHOP.some((s) => s.kind === 'weapon')).toBe(false);
+  });
+
+  it('las bebidas cambian los valores del jugador y se combinan', () => {
+    expect(perkStats(new Set())).toMatchObject({ maxHealth: PLAYER.maxHealth, damage: 1, rate: 1, reload: 1, speed: 1, regenDelay: PLAYER.regenDelay });
+    const all = perkStats(new Set(Object.keys(PERKS)));
+    expect(all.maxHealth).toBe(250);
+    expect(all.damage).toBeGreaterThan(1);
+    expect(all.rate).toBeGreaterThan(1);
+    expect(all.reload).toBeLessThan(1);
+    expect(all.speed).toBeGreaterThan(1);
+    expect(all.regenDelay).toBeLessThan(PLAYER.regenDelay);
+  });
+
+  it('cada arma de la pared tiene precio, munición a mitad de precio y reserva', () => {
+    for (const [id, price] of Object.entries(WALL_BUYS)) {
+      expect(RESERVE[id], id).toBeGreaterThan(0);
+      expect(wallAmmoPrice(id)).toBeLessThan(price);
+      expect(wallAmmoPrice(id) % 50).toBe(0);
+    }
   });
 
   it('los potenciadores respetan la probabilidad y el tiempo entre uno y otro', () => {
