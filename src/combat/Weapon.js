@@ -45,6 +45,11 @@ export class Weapon {
     this.bloom = 0;
     this.reloadLeft = 0;
     this.drawLeft = 0;
+    this.aiming = false; // apuntando con las miras (lo decide Game.updateScope)
+    // Munición de reserva por arma (balas fuera del cargador). null = infinita (todos los modos salvo
+    // los que la administran, como el modo zombi). Un arma sin entrada también es infinita.
+    this.reserveBy = null;
+    this.reloadMul = 1; // multiplicador del tiempo de recarga (mejora "Recarga rápida" del modo zombi)
     this.ammoBy = Object.fromEntries(WEAPON_ORDER.map((id) => [id, WEAPONS[id].magazine]));
     this.onShot = null;
     this.onChange = null;
@@ -72,7 +77,7 @@ export class Weapon {
 
   // Progreso de la recarga 0-1, o null si no está recargando.
   get reloadProgress() {
-    return this.reloading ? 1 - this.reloadLeft / this.stats.reloadTime : null;
+    return this.reloading ? 1 - this.reloadLeft / (this.stats.reloadTime * this.reloadMul) : null;
   }
 
   get canToggleMode() {
@@ -126,12 +131,26 @@ export class Weapon {
     this.game.viewmodel.cancelReload();
   }
 
+  // Balas de reserva del arma actual (Infinity si no hay límite).
+  get reserve() {
+    const r = this.reserveBy?.[this.stats.id];
+    return r === undefined || r === null ? Infinity : r;
+  }
+
+  set reserve(v) {
+    if (this.reserveBy) this.reserveBy[this.stats.id] = v;
+  }
+
   reload() {
     if (this.reloading || this.drawing || this.ammo >= this.stats.magazine) return;
-    this.reloadLeft = this.stats.reloadTime;
+    if (this.reserve <= 0) {
+      this.game.hud.flash('Sin munición de reserva', 'bad');
+      return;
+    }
+    this.reloadLeft = this.stats.reloadTime * this.reloadMul;
     this.scoped = false;
     this.game.sfx.reloadStart();
-    this.game.viewmodel.startReload(this.stats.reloadTime);
+    this.game.viewmodel.startReload(this.stats.reloadTime * this.reloadMul);
   }
 
   // Disparo semiautomático; `time` = timeStamp del clic.
@@ -147,7 +166,10 @@ export class Weapon {
       this.reloadLeft -= dt;
       if (this.reloadLeft <= 0) {
         this.reloadLeft = 0;
-        this.ammo = this.stats.magazine;
+        // Se llena con lo que haya en la reserva (si es limitada).
+        const take = Math.min(this.stats.magazine - this.ammo, this.reserve);
+        this.ammo += take;
+        if (Number.isFinite(this.reserve)) this.reserve -= take;
         this.game.sfx.reloadEnd();
       }
     }
@@ -155,12 +177,13 @@ export class Weapon {
   }
 
   tryFire(time) {
-    if (this.cooldown > 0 || this.reloading || this.drawing) return;
+    if (this.cooldown > 0 || this.reloading || this.drawing || this.game.melee?.busy) return;
     if (this.ammo <= 0) {
       // Cargador vacío: "clic" en seco y, si está activada, recarga automática.
       this.cooldown = DRY_FIRE_COOLDOWN;
       this.game.sfx.dryFire();
-      if (this.game.settings.gameplay.autoReload) this.reload();
+      if (this.reserve <= 0) this.game.hud.flash('Sin munición: cambia de arma o busca munición', 'bad');
+      else if (this.game.settings.gameplay.autoReload) this.reload();
       else this.game.hud.flash('Sin balas · R para recargar', 'bad');
       return;
     }
@@ -169,13 +192,19 @@ export class Weapon {
     this.fire(time);
   }
 
-  // Dispersión actual (grados): ráfaga + disparo sin apuntar + movimiento según el arma.
+  // Dispersión actual (grados): ráfaga + disparo sin apuntar + movimiento según el arma. Apuntando con
+  // las miras (ADS) la ráfaga y el movimiento pesan menos (stats.ads.spread).
   currentSpread() {
     const g = this.game;
     const s = this.stats;
     const move = g.settings.gameplay.moveInaccuracy ? g.player.inaccuracy * s.moveSpread : 0;
     const hip = s.zoom && !this.scoped ? s.hipSpread : 0;
-    return this.bloom + hip + move;
+    return (this.bloom + move) * this.aimFactor + hip;
+  }
+
+  // Multiplicador de dispersión por apuntar con las miras (1 = sin apuntar).
+  get aimFactor() {
+    return this.aiming && this.stats.ads ? this.stats.ads.spread : 1;
   }
 
   fire(time = performance.now()) {
@@ -196,7 +225,7 @@ export class Weapon {
     _muzzle.set(0.16, -0.14, -0.6).applyMatrix4(cam.matrixWorld);
     for (let i = 0; i < s.pellets; i++) {
       _shot.copy(_dir);
-      jitter(_shot, s.pelletSpread, _right, _up);
+      jitter(_shot, s.pelletSpread * this.aimFactor, _right, _up);
       const hit = g.ballistics.cast(cam.position, _shot, targets);
       if (hit) _end.copy(hit.point);
       else _end.copy(cam.position).addScaledVector(_shot, 200);

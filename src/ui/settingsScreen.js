@@ -16,7 +16,7 @@ const SHAPES = {
 
 export const CONTROLS = [
   ['Mouse', 'Apuntar · clic izquierdo dispara'],
-  ['Clic derecho', 'Mira telescópica (francotirador)'],
+  ['Clic derecho', 'Apuntar con las miras · mira telescópica (francotirador)'],
   ['W A S D', 'Moverse'],
   ['Shift', 'Caminar (más preciso)'],
   ['C', 'Agacharse'],
@@ -34,7 +34,7 @@ export const TOUCH_CONTROLS = [
   ['Joystick', 'Moverse: apoya el dedo en la mitad izquierda'],
   ['Arrastrar', 'Apuntar: desliza el dedo en la mitad derecha'],
   ['Disparo', 'Botón grande de la derecha (mantenlo para ráfaga)'],
-  ['Mira', 'Mira telescópica (solo armas con zoom)'],
+  ['Mira', 'Apuntar con las miras (o la mira telescópica del francotirador)'],
   ['Recarga', 'Recargar el cargador'],
   ['Salto · Agachar', 'Saltar y agacharse'],
   ['Arma', 'Cambiar de arma (no en la evaluación)'],
@@ -303,6 +303,27 @@ let lastTab = 'sens';
 // opts.tab: abre directamente esa pestaña (p. ej. 'datos' desde el botón de ayuda del menú).
 const DETAIL_OPTIONS = { alta: 'Alta', media: 'Media', baja: 'Baja' };
 
+// "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A7A8) Direct3D11 vs_5_0 ps_5_0, D3D11)" → "Intel(R) UHD Graphics".
+export function shortGpuName(name = '') {
+  const m = /^ANGLE \([^,]+, (.+?)(?: \(0x[0-9a-f]+\))?(?: Direct3D| OpenGL| Vulkan|,|\)$)/i.exec(name);
+  return (m ? m[1] : name).trim();
+}
+
+// En un portátil con gráfica integrada (Intel, Radeon de APU) el juego puede ir mucho mejor con la
+// dedicada, pero quien elige la GPU es Windows. Se explica cómo, solo en escritorio.
+function integratedGpuHint(game) {
+  const name = game.engine.gpuName ?? '';
+  if (game.touchMode || !/intel|uhd|iris|radeon\(tm\) graphics|vega/i.test(name)) return null;
+  const app = location.protocol === 'reticula:';
+  return h(
+    'p',
+    { class: 'readout small' },
+    app
+      ? 'Estás en la gráfica integrada. La app pide a Windows la gráfica dedicada (NVIDIA/AMD) y la usa desde el próximo inicio. Si sigue igual: Configuración de Windows → Sistema → Pantalla → Gráficos → Retícula → Alto rendimiento.'
+      : 'Estás en la gráfica integrada. Si tu equipo tiene una NVIDIA o AMD, el juego irá mucho más fluido con ella: Configuración de Windows → Sistema → Pantalla → Gráficos → agrega tu navegador → Alto rendimiento (y reinícialo). La app de escritorio de Retícula lo hace sola.',
+  );
+}
+
 export function settingsScreen(game, onBack, opts = {}) {
   const s = game.settings;
   const commit = () => {
@@ -328,7 +349,18 @@ export function settingsScreen(game, onBack, opts = {}) {
   );
 
   // Calidad: elegir un preset ajusta resolución y detalle; mover cualquiera de los dos a mano pasa a
-  // "Personalizada" (conservando el otro valor).
+  // "Personalizada" (conservando el otro valor). En "Automática" se ven los valores que está usando.
+  if (s.video.quality === 'auto') s.video.renderScale = s.video.autoScale ?? 1;
+  const gpu = shortGpuName(game.engine.gpuName);
+  const autoInfo = h('p', { class: 'muted small' });
+  const refreshAutoInfo = () => {
+    const auto = s.video.quality === 'auto';
+    const parts = [];
+    if (auto) parts.push(`Ajuste automático ahora: detalle ${DETAIL_OPTIONS[s.video.autoDetail] ?? 'Media'} · ${Math.round((s.video.autoScale ?? 1) * 100)} % de resolución. Se adapta mientras juegas para mantener 60 FPS.`);
+    if (gpu) parts.push(`Tarjeta gráfica en uso: ${gpu}.`);
+    autoInfo.textContent = parts.join(' ');
+  };
+  refreshAutoInfo();
   const toCustom = () => {
     if (s.video.quality !== 'custom') s.video.detail = resolveQuality(s.video).detail;
     s.video.quality = 'custom';
@@ -349,10 +381,14 @@ export function settingsScreen(game, onBack, opts = {}) {
     s.video.quality = v;
     if (QUALITY_PRESETS[v]) {
       s.video.renderScale = QUALITY_PRESETS[v].renderScale;
-      scaleSlider.sync();
       detailSelect.value = QUALITY_PRESETS[v].detail;
+    } else if (v === 'auto') {
+      s.video.renderScale = s.video.autoScale ?? 1;
+      detailSelect.value = s.video.autoDetail ?? 'media';
     }
+    scaleSlider.sync();
     commit();
+    refreshAutoInfo();
   });
 
   const resetSettingsBtn = button('Restablecer configuración', () => {
@@ -393,6 +429,8 @@ export function settingsScreen(game, onBack, opts = {}) {
         field('Calidad', qualitySelect, 'Baja la resolución de render para ganar FPS en equipos modestos.'),
         field('Resolución de render', scaleSlider, 'Porcentaje de la resolución de la pantalla (la interfaz no cambia).'),
         field('Detalle gráfico', detailSelect, 'Alta: texturas 1K, sombras suaves y brillo en luces. Media: texturas 512 y sombras. Baja: sin sombras ni relieve, máximo rendimiento.'),
+        autoInfo,
+        integratedGpuHint(game),
         field('Mostrar FPS', checkbox(s.video, 'showFps', commit), 'FPS promedio, ms por cuadro y 1 % low (tirones).')),
       h('section', { class: 'panel' },
         h('h3', {}, 'Audio'),

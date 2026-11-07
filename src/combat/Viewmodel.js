@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { WEAPON_MODELS, loadWeaponModel } from './weaponModels.js';
 
 const BASE = new THREE.Vector3(0.2, -0.2, -0.45);
+// Apuntar con las miras: el arma va al centro con el lomo justo bajo la mira. Para los modelos 3D se
+// calcula con su colocación (WEAPON_MODELS); este es el de las armas de cajas.
+const ADS_FALLBACK = new THREE.Vector3(0, -0.085, -0.36);
+const AIM_SPEED = 14; // 1/s: entra y sale de apuntar en ~0.15 s
 
 // Materiales compartidos por todos los modelos (low-poly, sin texturas).
 const lambert = (color) => new THREE.MeshLambertMaterial({ color, flatShading: true });
@@ -130,6 +134,9 @@ export class Viewmodel {
     this.scene.add(this.gun);
 
     this.weaponId = null;
+    this.aim = 0; // 0 = cadera, 1 = apuntando con las miras
+    this.aimTarget = 0;
+    this.adsPose = ADS_FALLBACK.clone();
     this.loaded = new Map(); // id → modelo 3D listo
     this.offset = new THREE.Vector3();
     this.recoil = 0;
@@ -138,6 +145,8 @@ export class Viewmodel {
     this.reloadDuration = 0;
     this.drawT = 0;
     this.drawDuration = 0;
+    this.meleeT = 0;
+    this.meleeDuration = 0;
     this.flashT = 0;
     this.bobT = 0;
     this.sway = new THREE.Vector2();
@@ -150,6 +159,7 @@ export class Viewmodel {
     this.weaponId = id;
     this.model.clear();
     this.offset.fromArray(model.offset);
+    this.adsPose.copy(ADS_FALLBACK);
     const ready = this.loaded.get(id);
     if (ready) {
       this.showLoaded(ready);
@@ -177,13 +187,16 @@ export class Viewmodel {
     this.offset.set(0, 0, 0); // el modelo ya viene colocado
     this.model.add(object);
     this.flash.position.copy(muzzle);
+    // Pose de apuntar: modelo centrado y con su lomo (miras) 7 mm bajo el centro de la pantalla.
+    const cfg = WEAPON_MODELS[this.weaponId];
+    if (cfg) this.adsPose.set(-(cfg.x ?? 0), -cfg.top - 0.007, -0.3);
   }
 
   // Descarga en segundo plano todos los modelos (son pequeños): cambiar de arma no espera.
   preload() {
-    for (const id of Object.keys(WEAPON_MODELS)) {
-      loadWeaponModel(id).then((m) => m && this.loaded.set(id, m));
-    }
+    return Promise.all(
+      Object.keys(WEAPON_MODELS).map((id) => loadWeaponModel(id).then((m) => m && this.loaded.set(id, m))),
+    );
   }
 
   resize(aspect) {
@@ -207,6 +220,12 @@ export class Viewmodel {
 
   cancelReload() {
     this.reloadDuration = 0;
+  }
+
+  // Golpe cuerpo a cuerpo: el arma va hacia delante y gira (culatazo) y vuelve.
+  melee(duration) {
+    this.meleeT = 0;
+    this.meleeDuration = duration;
   }
 
   // Sacar el arma: entra desde abajo.
@@ -241,12 +260,32 @@ export class Viewmodel {
     this.sway.x += (THREE.MathUtils.clamp(-dx * 0.0003, -0.03, 0.03) - this.sway.x) * Math.min(1, dt * 10);
     this.sway.y += (THREE.MathUtils.clamp(dy * 0.0003, -0.03, 0.03) - this.sway.y) * Math.min(1, dt * 10);
 
-    const kick = this.recoil * (0.035 + this.kickStrength * 0.04);
+    let strike = 0;
+    if (this.meleeDuration > 0) {
+      this.meleeT += dt;
+      const k = this.meleeT / this.meleeDuration;
+      if (k >= 1) this.meleeDuration = 0;
+      // Ida rápida (25 %) y vuelta suave.
+      else strike = k < 0.25 ? Math.sin((k / 0.25) * (Math.PI / 2)) : Math.cos(((k - 0.25) / 0.75) * (Math.PI / 2)) ** 2;
+    }
+    // Apuntar: interpolación suave entre la cadera y la pose de miras; menos balanceo y retroceso.
+    this.aim += (this.aimTarget - this.aim) * Math.min(1, dt * AIM_SPEED);
+    const a = this.aim * this.aim * (3 - 2 * this.aim);
+    const calm = 1 - 0.8 * a;
+    const hx = BASE.x + this.offset.x;
+    const hy = BASE.y + this.offset.y;
+    const hz = BASE.z + this.offset.z;
+    const kick = this.recoil * (0.035 + this.kickStrength * 0.04) * (1 - 0.5 * a);
     this.gun.position.set(
-      BASE.x + this.offset.x + Math.sin(this.bobT) * 0.012 * speed + this.sway.x,
-      BASE.y + this.offset.y - Math.abs(Math.cos(this.bobT)) * 0.01 * speed + this.sway.y - player.crouch * 0.01 - reload * 0.14 - draw * 0.25,
-      BASE.z + this.offset.z + kick,
+      hx + (this.adsPose.x - hx) * a + (Math.sin(this.bobT) * 0.012 * speed + this.sway.x) * calm,
+      hy + (this.adsPose.y - hy) * a + (-Math.abs(Math.cos(this.bobT)) * 0.01 * speed + this.sway.y) * calm - player.crouch * 0.01 - reload * 0.14 - draw * 0.25,
+      hz + (this.adsPose.z - hz) * a + kick - strike * 0.16,
     );
-    this.gun.rotation.set(this.recoil * (0.06 + this.kickStrength * 0.1) - reload * 0.5 - draw * 0.6, this.sway.x * 1.5, reload * 0.7);
+    this.gun.position.x -= strike * 0.14;
+    this.gun.rotation.set(
+      this.recoil * (0.06 + this.kickStrength * 0.1) * (1 - 0.5 * a) - reload * 0.5 - draw * 0.6 - strike * 0.25,
+      this.sway.x * 1.5 * calm + strike * 0.9,
+      reload * 0.7 + strike * 0.55,
+    );
   }
 }

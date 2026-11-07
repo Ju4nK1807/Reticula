@@ -29,6 +29,7 @@ export class Effects {
     for (let i = 0; i < TRACER_POOL; i++) {
       const mesh = new THREE.Mesh(tracerGeo, this.tracerMaterials.player);
       mesh.visible = false;
+      mesh.userData.warm = i === 0; // el precalentamiento compila su sombreador (Engine.warmup)
       mesh.frustumCulled = false;
       this.root.add(mesh);
       this.tracers.push({ mesh, from: new THREE.Vector3(), dir: new THREE.Vector3(), dist: 0, t: 0, active: false, width: 0.012 });

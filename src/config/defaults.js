@@ -36,7 +36,9 @@ export const DEFAULT_SETTINGS = {
   audio: { volume: 0.6 },
   // Controles táctiles (teléfono/tableta). mode: auto | on | off. sensitivity: independiente del mouse.
   touch: { mode: 'auto', sensitivity: 1, invertY: false },
-  video: { showFps: true, quality: 'alta', renderScale: 1 }, // quality: alta | media | baja | custom
+  // quality: auto (resolución dinámica, ver gfx/AutoQuality.js) | alta | media | baja | custom.
+  // autoDetail / autoScale: lo que aprendió la calidad automática en este equipo (se retoma al volver).
+  video: { showFps: true, quality: 'auto', renderScale: 1 },
 };
 
 export const ENEMY_COLORS = {
@@ -48,7 +50,7 @@ export const ENEMY_COLORS = {
 
 // Al cambiar la forma del guardado: subir `version` y añadir el paso en storage/SaveStore.js (MIGRATIONS).
 export const DEFAULT_SAVE = {
-  version: 3,
+  version: 4,
   settings: DEFAULT_SETTINGS,
   profile: {
     // Rango general = el mejor rango actual entre las variantes (ver storage/profile.js).

@@ -67,12 +67,15 @@ export class TouchControls {
       ${btn('pause', 'Pausa', 'gear')}
       <div class="tc-cluster">
         ${btn('fire', 'Disparar', 'target')}
-        ${btn('aim', 'Mira telescópica', 'eye')}
+        ${btn('aim', 'Apuntar', 'eye')}
         ${btn('reload', 'Recargar', 'bolt')}
         ${btn('jump', 'Saltar', 'arrow')}
         ${btn('crouch', 'Agacharse', 'back')}
         ${btn('weapon', 'Cambiar de arma', 'gun', '<span class="tc-weapon-key"></span>')}
-      </div>`;
+        ${btn('melee', 'Golpe cuerpo a cuerpo', 'knife')}
+        ${btn('grenade', 'Granada', 'grenade')}
+      </div>
+      ${btn('shop', 'Armería', 'cart', '<span class="tc-label">Armería</span>')}`;
     root.append(this.el);
     this.stickEl = this.el.querySelector('.tc-stick');
     this.knob = this.stickEl.querySelector('i');
@@ -94,9 +97,15 @@ export class TouchControls {
 
   update() {
     const w = this.game.weapon;
-    this.el.classList.toggle('has-zoom', !!w.stats.zoom);
+    // Botón de apuntar: mira telescópica o, en las demás armas, las miras (salvo en la evaluación).
+    this.el.classList.toggle('has-zoom', !!w.stats.zoom || (!!w.stats.ads && this.game.adsAllowed()));
     this.el.classList.toggle('aiming', this.input.aimDown);
     this.el.classList.toggle('crouched', this.crouched);
+    // Botones que dependen del modo: golpe, granada (si quedan) y armería (entre oleadas).
+    const m = this.game.mode;
+    this.el.classList.toggle('can-melee', !!m?.meleeAllowed?.());
+    this.el.classList.toggle('can-grenade', !!m?.grenadesAllowed?.() && (m.grenades ?? 0) > 0);
+    this.el.classList.toggle('can-shop', m?.state === 'intermission' && !!m.openShop);
     if (this.weaponKey.textContent !== w.stats.key) this.weaponKey.textContent = w.stats.key;
   }
 
@@ -141,10 +150,26 @@ export class TouchControls {
         else inp.keys.delete('KeyC');
         return;
       case 'weapon': {
+        // Siguiente arma disponible (en el modo zombi, solo las compradas).
         const i = WEAPON_ORDER.indexOf(this.game.weapon.id);
-        this.game.selectWeapon(WEAPON_ORDER[(i + 1) % WEAPON_ORDER.length]);
+        for (let k = 1; k <= WEAPON_ORDER.length; k++) {
+          const id = WEAPON_ORDER[(i + k) % WEAPON_ORDER.length];
+          if (this.game.mode?.ownsWeapon?.(id) !== false) {
+            this.game.selectWeapon(id);
+            break;
+          }
+        }
         return;
       }
+      case 'melee':
+        this.game.melee.trigger();
+        return;
+      case 'grenade':
+        this.game.grenades.throw();
+        return;
+      case 'shop':
+        this.game.mode?.openShop?.();
+        return;
       case 'pause':
         inp.unlock();
         return;

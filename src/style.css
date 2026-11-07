@@ -505,6 +505,7 @@ input[type='range']:active::-webkit-slider-thumb { transform: scale(1.15); }
 }
 .hud-slot kbd { padding: 0 4px; font-size: 10px; }
 .hud-slot.active { color: var(--text); border-color: var(--accent); background: rgba(0, 255, 163, 0.08); }
+.hud-slot.missing { opacity: 0.35; }
 
 .hud-health { position: absolute; left: 22px; bottom: 22px; display: flex; align-items: center; gap: 10px; }
 .hud-health .bar { width: 220px; height: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 6px; overflow: hidden; }

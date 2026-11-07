@@ -29,6 +29,11 @@ const CLIPS = {
   death: 'Death',
 };
 
+// Esfera de recorte en el espacio de la malla (unidades del modelo): centro a media altura, radio que
+// alcanza al soldado tendido en el suelo al morir.
+const BOUNDS = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.9);
+const ANIM_FAR = 28; // m: más lejos, la animación se actualiza a 20 Hz (no se nota y ahorra CPU)
+const ANIM_FAR_STEP = 1 / 20;
 const CROUCH_DROP = 0.55; // m que baja la cadera agachado: la cabeza visible coincide con su hitbox
 const _a = new THREE.Vector3();
 const _s = new THREE.Vector3();
@@ -156,11 +161,51 @@ export function loadSoldier(color = '#ff3b4f') {
   return templates.get(key);
 }
 
+// Reserva de soldados ya creados, por color de enemigo. Crear uno cuesta: clonar 62 huesos, armar el
+// mezclador (~400 enlaces de animación) y su textura de huesos. Al morir un bot su soldado vuelve aquí
+// y el siguiente lo reutiliza: aparecer un enemigo deja de producir tirones.
+const POOL_MAX = 24;
+const pool = new Map(); // color → BotSkin[]
+
+/** Soldado listo para usar: de la reserva si hay, si no uno nuevo. */
+export function acquireSkin(template, color) {
+  const skin = pool.get(color)?.pop();
+  if (skin) {
+    skin.reset();
+    return skin;
+  }
+  return new BotSkin(template, color);
+}
+
+/** Devuelve un soldado a la reserva (o lo libera si ya hay suficientes). */
+export function releaseSkin(skin) {
+  skin.root.removeFromParent();
+  const list = pool.get(skin.color) ?? [];
+  pool.set(skin.color, list);
+  if (list.length >= POOL_MAX) skin.dispose();
+  else {
+    skin.mixer.stopAllAction();
+    list.push(skin);
+  }
+}
+
+/** Cantidad de soldados en reserva de un color (para precargar en el menú). */
+export function pooledSkins(color) {
+  return pool.get(color)?.length ?? 0;
+}
+
 export class BotSkin {
   constructor(template, color) {
+    this.color = color;
     this.root = template.clone(template.scene);
+    // Recorte por frustum con una esfera fija y holgada (cubre correr, agacharse y caer): los
+    // soldados fuera de cámara no se dibujan, tampoco en el pase de sombras. La esfera calculada por
+    // Three.js sería la de una sola pose y además cuesta calcularla con la piel.
     this.root.traverse((o) => {
-      if (o.isMesh) o.frustumCulled = false; // la caja de una malla con piel no sigue a la animación
+      if (o.isSkinnedMesh) {
+        o.boundingSphere = BOUNDS.clone();
+        o.frustumCulled = true;
+      } else if (o.isMesh) o.frustumCulled = false; // el arma va dentro de la esfera del soldado
     });
 
     // Materiales propios del bot (para el destello al recibir daño). Si no se pudo unir el soldado en
@@ -197,7 +242,12 @@ export class BotSkin {
     // de cada cuadro, así nada se acumula aunque la animación activa no los mueva.
     this.root.updateMatrixWorld(true);
     this.poseBones = ['Body', 'UpperLegL', 'LowerLegL', 'UpperLegR', 'LowerLegR'].map((n) => this.bones[n]).filter(Boolean);
-    this.cleanPose = this.poseBones.map((bone) => ({ bone, pos: bone.position.clone(), quat: bone.quaternion.clone() }));
+    this.cleanPose = this.poseBones.map((bone) => ({
+      bone,
+      pos: bone.position.clone(),
+      quat: bone.quaternion.clone(),
+      rest: { pos: bone.position.clone(), quat: bone.quaternion.clone() }, // pose inicial (reset)
+    }));
     // Tibia en reposo: vector rodilla → pie en el espacio del hueso de la pierna (para la IK).
     this.shin = {};
     for (const side of ['L', 'R']) {
@@ -244,6 +294,14 @@ export class BotSkin {
    * @param {{ lateral: number, forward: number, speed: number, crouch: number, shotT: number, dying: boolean, flash: number }} s
    */
   update(dt, s) {
+    // Nivel de detalle de la animación: de lejos se acumula el tiempo y se actualiza a 20 Hz.
+    this.animAcc = (this.animAcc ?? 0) + dt;
+    if ((s.distance ?? 0) > ANIM_FAR && this.animAcc < ANIM_FAR_STEP && !s.dying) {
+      for (const m of this.mats) m.emissiveIntensity = s.flash;
+      return;
+    }
+    dt = this.animAcc;
+    this.animAcc = 0;
     if (s.dying) {
       this.play('death', 0.1);
       this.actions.death && (this.actions.death.timeScale = 1.4);
@@ -306,6 +364,24 @@ export class BotSkin {
     aimBone(upper, K0, K);
     const shinEnd = lower.localToWorld(shin.local.clone());
     aimBone(lower, shinEnd, F);
+  }
+
+  // Deja el soldado como recién creado (al sacarlo de la reserva).
+  reset() {
+    this.mixer.stopAllAction();
+    this.current = null;
+    this.animAcc = 0;
+    for (const p of this.cleanPose) {
+      p.bone.position.copy(p.rest.pos);
+      p.bone.quaternion.copy(p.rest.quat);
+      p.pos.copy(p.rest.pos);
+      p.quat.copy(p.rest.quat);
+    }
+    for (const m of this.mats) m.emissiveIntensity = 0;
+    this.root.position.set(0, 0, 0);
+    this.root.quaternion.identity();
+    this.root.scale.set(1, 1, 1);
+    this.play('idle', 0);
   }
 
   dispose() {

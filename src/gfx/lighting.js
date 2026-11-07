@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeStatic } from './mergeStatic.js';
 
 /*
   Iluminación de los mapas:
@@ -80,7 +81,9 @@ export function prepareWorld(world, renderer) {
     sun.updateMatrixWorld(true);
     sun.target.updateMatrixWorld(true);
   }
-  world.gfx = { sun, shadowSize: -1 };
+  // Geometría estática unida por material: muchas menos llamadas de dibujo (ver mergeStatic.js).
+  const merge = mergeStatic(world);
+  world.gfx = { sun, shadowSize: -1, merge };
   return world.gfx;
 }
 

@@ -81,6 +81,9 @@ texturas, las convierte a WebP en 1K y 512 y calcula su color medio.
 - Armas en primera persona: modelos de **Pichuliru** en [Poly Pizza](https://poly.pizza) (CC0). Fuentes y
   comando de optimización en `public/models/weapons/credits.json`. Se cargan bajo demanda; mientras
   llegan (o si fallan) se ve la versión de cajas.
+- Zombis: **bachosoftdesign** (caminante, reptante y bruto) y **Quaternius** (corredor) en
+  [Poly Pizza](https://poly.pizza), **CC-BY 3.0** (requieren crédito; fuentes en
+  `public/models/characters/credits.json`).
 - Enemigos: soldado animado de **Quaternius** en [Poly Pizza](https://poly.pizza) (CC0). Es solo la
   apariencia: los impactos los siguen decidiendo las hitboxes de siempre (invisibles), así la puntería y
   los rangos no cambian. Se une en una sola malla por color de enemigo (1 llamada de dibujo por soldado).
@@ -250,6 +253,48 @@ Se desbloquea al hacer cualquier evaluación. Oleadas sin fin en el **Bastión**
   racha (bajas sin recibir daño) y bonificación por oleada superada (×2.5 si fue perfecta).
 - **Controles extra**: `B` cambia entre disparo automático y semiautomático.
 - **Récords** en `records.endless`: mejor oleada, puntaje, bajas y racha, y las últimas 20 partidas.
+
+## Modo zombi
+
+Oleadas de zombis en el **Barrio en ruinas**: una plaza nocturna rodeada de edificios, con seis
+callejones por donde entra la horda. No requiere evaluación.
+
+- **Tipos**: caminante, corredor (rápido), reptante (bajo, difícil de acertar) y bruto (mucha vida y
+  golpe fuerte; desde la oleada 5). Cada 6 oleadas, *noche de corredores*.
+- **Puntos y armería**: cada impacto da puntos y matar da más, sobre todo a la cabeza, cuerpo a cuerpo
+  o con granadas. Entre oleadas se abre la armería (`E` o botón táctil): subfusil, escopeta, rifle,
+  francotirador, munición, granadas, botiquín y mejoras (blindaje, recarga rápida, munición expansiva).
+  Se empieza con la pistola, de munición infinita; el resto de armas tiene munición de reserva.
+- **Potenciadores** que sueltan los zombis: munición máxima, doble puntos, muerte instantánea, bomba y
+  botiquín.
+- **IA**: la horda rodea los obstáculos con un campo de flujo compartido (Dijkstra sobre una
+  cuadrícula de 1 m, recalculado al moverse el jugador). Los zombis se separan entre sí y atacan con un
+  gesto previo: retroceder a tiempo esquiva el golpe.
+- La vida se regenera tras unos segundos sin recibir golpes. Flechas rojas junto a la mira avisan de
+  zombis cerca y fuera de la vista.
+- Igual que con los soldados, los modelos son solo la apariencia: los impactos los deciden hitboxes
+  invisibles alineadas al cuerpo (el reptante, a ras del suelo).
+
+## Mecánicas
+
+- **Apuntar con las miras** (clic derecho) en todas las armas: aumento propio de cada arma, menos
+  dispersión y caminar más lento. El francotirador conserva su mira telescópica.
+- **Golpe cuerpo a cuerpo** (`V`) y **granadas** (`G`) en los modos que lo permiten (campaña, infinito
+  y zombi; granadas solo en el modo zombi).
+- La evaluación no tiene ADS ni golpe: los rangos siguen siendo comparables.
+
+## Rendimiento
+
+- **Calidad automática** (por defecto): ajusta la resolución mientras se juega para mantener 60 FPS y,
+  si no alcanza, baja el detalle. Parte de un nivel según la GPU.
+- Geometría estática unida por material y zona (pocas llamadas de dibujo), sombreadores precompilados
+  y texturas subidas al cargar cada mapa, soldados y zombis reutilizados de una reserva: sin tirones al
+  aparecer enemigos.
+- Con un menú encima la escena no se dibuja (menos GPU y batería).
+- El motor 3D (Three.js) va en un archivo aparte del código del juego: entre versiones queda en la
+  caché del navegador y solo se descarga lo que cambió.
+- En portátiles con dos tarjetas gráficas, la app de Windows pide la dedicada a Windows. En el
+  navegador hay que asignarla en *Configuración de Windows → Sistema → Pantalla → Gráficos*.
 
 ## Progreso
 

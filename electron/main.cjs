@@ -5,7 +5,37 @@
 // - F11: pantalla completa. Una sola instancia: abrir otra vez enfoca la ventana existente.
 const { app, BrowserWindow, Menu, net, protocol, shell } = require('electron');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
+
+// Portátiles con dos GPU (integrada + NVIDIA/AMD): Windows decide cuál usa cada programa y por
+// defecto suele darle la integrada a apps como esta (mucho menos FPS). Se registra la preferencia
+// "Alto rendimiento" SOLO para este ejecutable, igual que haría el usuario en Configuración →
+// Sistema → Pantalla → Gráficos. Si ya hay una elección (del usuario o nuestra), no se toca.
+// Devuelve true si se acaba de registrar (Windows la aplica al volver a abrir el proceso).
+function preferHighPerformanceGpu() {
+  if (process.platform !== 'win32') return false;
+  const key = String.raw`HKCU\Software\Microsoft\DirectX\UserGpuPreferences`;
+  const exe = process.execPath;
+  const opts = { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] };
+  try {
+    if (/GpuPreference=/.test(execFileSync('reg', ['query', key, '/v', exe], opts))) return false;
+  } catch {
+    // No existe todavía: se crea.
+  }
+  try {
+    execFileSync('reg', ['add', key, '/v', exe, '/t', 'REG_SZ', '/d', 'GpuPreference=2;', '/f'], opts);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// La primera vez se reinicia al instante (antes de abrir la ventana) para arrancar ya en la dedicada.
+if (preferHighPerformanceGpu() && !process.argv.includes('--gpu-relaunched')) {
+  app.relaunch({ args: [...process.argv.slice(1), '--gpu-relaunched'] });
+  app.exit(0);
+}
 
 const DIST = path.join(__dirname, '..', 'dist');
 const SCHEME = 'reticula';

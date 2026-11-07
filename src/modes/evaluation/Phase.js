@@ -191,6 +191,23 @@ export class Phase {
     }
   }
 
+  // Golpe cuerpo a cuerpo (combat/Melee.js): como un disparo que acierta, sin contar como disparo.
+  handleMelee(hit, damage) {
+    const { bot, part } = hit;
+    if (!bot?.alive) return;
+    const { killed } = bot.damage(damage);
+    this.stats.melee = (this.stats.melee ?? 0) + 1;
+    this.score += this.points[part] ?? 0;
+    this.game.hud.hitmarker(killed ? 'kill' : 'hit');
+    this.onHit(bot, part, killed);
+    if (killed) {
+      this.stats.kills++;
+      this.score += this.points.kill;
+      this.game.sfx.kill();
+      this.onKill(bot, part);
+    }
+  }
+
   onHit() {}
   onMiss() {}
   onKill() {}

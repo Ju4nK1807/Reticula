@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Ambiente del menú: polvo en suspensión y chispas que suben por delante de la cámara.
 // Un solo THREE.Points (una draw call); solo se ve en la pantalla de título.
-const COUNT = 260;
+const COUNT = 260; // por defecto (menú)
 const SPARK_SHARE = 0.28; // proporción de chispas (ámbar, más rápidas) frente al polvo (verde frío)
 const BOX = { x: 13, yMin: 0.2, yMax: 6.5, zNear: 3, zFar: 30 };
 
@@ -23,16 +23,19 @@ function dotTexture() {
 }
 
 export class Ambience {
-  constructor() {
-    this.positions = new Float32Array(COUNT * 3);
-    this.colors = new Float32Array(COUNT * 3);
-    this.speed = new Float32Array(COUNT);
-    this.phase = new Float32Array(COUNT);
+  // opts: { spark, dust, count } — colores de chispas y polvo y cuántas partículas (el modo zombi usa
+  // ceniza gris y brasas).
+  constructor({ spark: sparkColor = '#ffb54d', dust: dustColor = '#7de8c4', count = COUNT } = {}) {
+    this.count = count;
+    this.positions = new Float32Array(count * 3);
+    this.colors = new Float32Array(count * 3);
+    this.speed = new Float32Array(count);
+    this.phase = new Float32Array(count);
     this.origin = new THREE.Vector3();
-    const spark = new THREE.Color('#ffb54d');
-    const dust = new THREE.Color('#7de8c4');
-    for (let i = 0; i < COUNT; i++) {
-      const isSpark = i < COUNT * SPARK_SHARE;
+    const spark = new THREE.Color(sparkColor);
+    const dust = new THREE.Color(dustColor);
+    for (let i = 0; i < count; i++) {
+      const isSpark = i < count * SPARK_SHARE;
       const c = isSpark ? spark : dust;
       const k = isSpark ? 1.2 : 0.55 + Math.random() * 0.4;
       this.colors.set([c.r * k, c.g * k, c.b * k], i * 3);
@@ -81,12 +84,21 @@ export class Ambience {
     this.points.visible = visible;
     if (!visible) return;
     const p = this.positions;
-    for (let i = 0; i < COUNT; i++) {
+    for (let i = 0; i < this.count; i++) {
       this.phase[i] += dt * 0.8;
       p[i * 3] += Math.sin(this.phase[i]) * dt * 0.12;
       p[i * 3 + 1] += this.speed[i] * dt;
       if (p[i * 3 + 1] > BOX.yMax) this.respawn(i);
     }
     this.points.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // Para las instancias de un modo (la del menú vive todo el juego).
+  dispose() {
+    this.points.removeFromParent();
+    this.points.geometry.dispose();
+    this.points.material.map?.dispose();
+    this.points.material.dispose();
+    this.scene = null;
   }
 }

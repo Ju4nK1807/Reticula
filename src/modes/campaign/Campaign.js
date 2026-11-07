@@ -102,6 +102,15 @@ export class Campaign extends Mode {
     return this.wantsLock();
   }
 
+  // Golpe cuerpo a cuerpo (V): permitido en campaña.
+  meleeAllowed() {
+    return this.state === 'running';
+  }
+
+  onMeleeHit(hit, damage) {
+    if (this.state === 'running') this.phase.handleMelee(hit, damage);
+  }
+
   hitMeshes() {
     return this.state === 'running' ? this.phase.hitMeshes() : [];
   }

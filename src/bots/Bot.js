@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildBotModel, BOT_DIMENSIONS } from './botModel.js';
-import { BotSkin, loadSoldier } from './botSkin.js';
+import { acquireSkin, loadSoldier, releaseSkin } from './botSkin.js';
 import { rand, randSign } from '../utils/math.js';
 
 const JUMP_TIME = 0.6;
@@ -80,8 +80,11 @@ export class Bot {
     this.prevPos = this.group.position.clone();
     loadSoldier(opts.color).then((template) => {
       if (!template || this.disposed || this.state === 'gone') return;
-      this.skin = new BotSkin(template, opts.color);
-      this.group.add(this.skin.root);
+      this.skin = acquireSkin(template, opts.color);
+      // Va junto al grupo de hitboxes, no dentro: así applyPose (que actualiza las matrices de las
+      // hitboxes cada cuadro) no recalcula también los 62 huesos; el render lo hace una sola vez.
+      (this.group.parent ?? parent).add(this.skin.root);
+      this.syncSkin();
       for (const m of Object.values(this.mats)) m.visible = false;
     });
   }
@@ -195,6 +198,7 @@ export class Bot {
     }
 
     this.face(ctx.playerPos);
+    this.distanceToPlayer = this.group.position.distanceTo(ctx.playerPos);
     this.crouch += (this.crouchTarget - this.crouch) * Math.min(1, dt * 14);
     if (this.jumpT >= 0) {
       this.jumpT += dt;
@@ -205,9 +209,18 @@ export class Bot {
     this.updateSkin(dt);
   }
 
+  // El soldado copia la posición, el giro y la escala (aparecer / irse) del grupo de hitboxes.
+  syncSkin() {
+    const r = this.skin.root;
+    r.position.copy(this.group.position);
+    r.quaternion.copy(this.group.quaternion);
+    r.scale.copy(this.group.scale);
+  }
+
   // Animación del soldado según el movimiento real del bot (en su espacio: adelante y lateral).
   updateSkin(dt) {
     if (!this.skin) return;
+    this.syncSkin();
     this.shotT += dt;
     const p = this.group.position;
     const dx = p.x - this.prevPos.x;
@@ -224,6 +237,7 @@ export class Bot {
       shotT: this.shotT,
       dying: this.state === 'dying',
       flash: this.flashT > 0 ? 0.9 : 0,
+      distance: this.distanceToPlayer ?? 0,
     });
   }
 
@@ -382,7 +396,8 @@ export class Bot {
 
   dispose() {
     this.disposed = true;
-    this.skin?.dispose();
+    if (this.skin) releaseSkin(this.skin); // vuelve a la reserva para el próximo bot
+    this.skin = null;
     this.group.removeFromParent();
     for (const m of Object.values(this.mats)) m.dispose();
   }
