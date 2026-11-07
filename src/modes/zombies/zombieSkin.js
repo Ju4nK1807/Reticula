@@ -113,6 +113,11 @@ export class ZombieSkin {
       this.mats.push(m);
     });
     castsShadow(this.body);
+    // Hueso de la cabeza (Mixamo: "mixamorigHead" / "Head"): al decapitar se encoge a cero.
+    this.headBone = null;
+    this.body.traverse((o) => {
+      if (!this.headBone && o.isBone && /(^|[:_])?head$/i.test(o.name) && !/top/i.test(o.name)) this.headBone = o;
+    });
     this.mixer = new THREE.AnimationMixer(this.body);
     this.actions = {};
     for (const [k, clip] of Object.entries(template.clips)) {
@@ -131,6 +136,10 @@ export class ZombieSkin {
     this.current = null;
     this.currentKey = null;
     this.fall = 0;
+    // Tamaño respecto a un zombi normal: uno más grande da pasos más largos (su ciclo va más lento).
+    this.size = height / 1.78;
+    this.headless = false;
+    if (this.headBone) this.headBone.scale.setScalar(1);
     this.body.rotation.set(0, 0, 0);
     this.body.position.set(0, 0, 0);
     this.body.scale.setScalar(height / this.baseHeight);
@@ -143,6 +152,12 @@ export class ZombieSkin {
 
   has(key) {
     return !!this.actions[key];
+  }
+
+  // Le vuela la cabeza (headshot): el hueso queda en cero hasta que el zombi vuelve a la reserva.
+  decapitate() {
+    this.headless = true;
+    this.headBone?.scale.setScalar(0.001);
   }
 
   // Empieza el ciclo actual en un punto al azar: dos zombis nunca dan el mismo paso a la vez.
@@ -173,7 +188,7 @@ export class ZombieSkin {
     this.play(key);
     const a = this.current;
     if (a) {
-      const pace = this.pace[key];
+      const pace = this.pace[key] ? this.pace[key] * (this.size ?? 1) : 0;
       if (pace && s.speed) a.timeScale = THREE.MathUtils.clamp(s.speed / pace, 0.5, 2.4);
       else if (s.cycle) a.timeScale = a.getClip().duration / s.cycle;
       else a.timeScale = key === 'die' || key === 'die2' ? 1.35 : 1;
@@ -184,6 +199,8 @@ export class ZombieSkin {
       this.body.rotation.x = -this.fall * this.fall * 1.5;
     }
     this.mixer.update(dt);
+    // Sin cabeza: el hueso se mantiene encogido aunque la animación lo mueva.
+    if (this.headless && this.headBone) this.headBone.scale.setScalar(0.001);
     const flash = s.flash ?? 0;
     for (const m of this.mats) m.emissiveIntensity = flash;
   }

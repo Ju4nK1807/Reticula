@@ -25,6 +25,8 @@ const ACCEL = 5; // 1/s: arranque y frenado
 const DIRECT_RANGE = 2.6; // m: más cerca, directo al jugador
 const LINE_EVERY = 0.2; // s entre comprobaciones de línea despejada hacia el jugador
 const SEPARATION = 1.1; // fuerza del empuje entre zombis (m/s por unidad de solape)
+const ROAR_TIME = 1.6; // s que el bruto ruge quieto al aparecer
+const BLEED = 0.14; // sin cabeza pero vivo: pierde esta fracción de su vida por segundo
 const DEATH_TIME = 2.2; // s tendido antes de hundirse
 const SINK_TIME = 0.7;
 const ATTACK_HIT_AT = 0.45; // fracción del ciclo de ataque en que golpea
@@ -76,6 +78,7 @@ export class Zombie {
     this.lineClear = false;
     this.pace = 0.92 + Math.random() * 0.16; // cada zombi camina un poco distinto
     this.stunT = 0; // aturdido (granada aturdidora): se mueve a media velocidad
+    this.headless = false; // le volaron la cabeza (sigue caminando si le queda vida)
     this.scale = stats.height / 1.78;
     this.radius = RADIUS * this.scale;
     this.dieAnim = Math.random() < 0.5 ? 'die' : 'die2';
@@ -103,6 +106,7 @@ export class Zombie {
       this.skin = acquireZombieSkin(template, { height: stats.height, tint: stats.tint ?? null });
       run.root.add(this.skin.root);
       this.syncSkin();
+      if (this.headless) this.skin.decapitate?.(); // perdió la cabeza antes de que llegara el modelo
       this.skin.desync?.(); // cada uno en otro punto del ciclo: la horda no marcha al unísono
     });
   }
@@ -150,8 +154,10 @@ export class Zombie {
       this.run.onZombieDeath?.(this, part);
       return { killed: true };
     }
-    // Un golpe fuerte (o en la cabeza) lo frena un instante; el bruto no se inmuta.
-    if (this.type !== 'brute' && (amount >= this.maxHp * 0.35 || part === 'head') && this.state !== 'attack') {
+    // Un golpe fuerte (o en la cabeza) lo frena un instante; el bruto no se inmuta. Sin cabeza, el daño
+    // "a la cabeza" es el desangrado: no lo frena (si no, quedaría congelado en vez de seguir caminando).
+    const headHit = part === 'head' && !this.headless;
+    if (this.type !== 'brute' && (amount >= this.maxHp * 0.35 || headHit) && this.state !== 'attack') {
       this.state = 'stagger';
       this.staggerT = STAGGER_TIME;
     }
@@ -163,6 +169,12 @@ export class Zombie {
     this.flashT -= dt;
     if (this.state === 'dying') return this.updateDeath(dt);
     if (this.state === 'gone') return;
+
+    // Sin cabeza se desangra: la baja se acredita al jugador (la decide el modo).
+    if (this.headless) {
+      this.run.onBleed?.(this, this.maxHp * BLEED * dt);
+      if (!this.alive) return this.updateDeath(dt);
+    }
 
     const p = this.group.position;
     const player = ctx.playerPos;
@@ -246,7 +258,8 @@ export class Zombie {
     h.x /= hl;
     h.z /= hl;
 
-    const target = this.stats.speed * this.pace * (this.stunT > 0 ? 0.45 : 1);
+    const roaring = this.type === 'brute' && this.t < ROAR_TIME;
+    const target = roaring ? 0 : this.stats.speed * this.pace * (this.stunT > 0 ? 0.45 : 1);
     this.speedNow += (target - this.speedNow) * Math.min(1, dt * ACCEL);
     const x0 = p.x;
     const z0 = p.z;
@@ -287,6 +300,18 @@ export class Zombie {
     p.z += sz * push;
   }
 
+  /**
+   * Le vuela la cabeza. Si sigue vivo, camina sin ella y se desangra (BLEED por segundo) hasta caer;
+   * sin cabeza ya no hay hitbox de la cabeza. Devuelve false si ya no la tenía.
+   */
+  decapitate() {
+    if (this.headless) return false;
+    this.headless = true;
+    this.hitMeshes = this.hitMeshes.filter((m) => m.userData.part !== 'head');
+    this.skin?.decapitate?.();
+    return true;
+  }
+
   /** Aturdido por una granada: se mueve a media velocidad durante `t` segundos. */
   stun(t) {
     if (!this.alive) return;
@@ -302,7 +327,9 @@ export class Zombie {
     if (this.state === 'stagger') return 'hit';
     if (this.stats.low) return 'crawl';
     if (this.type === 'runner') return 'run';
-    if (this.type === 'brute') return this.t < 1.4 ? 'scream' : 'walk';
+    // El bruto ruge quieto al aparecer y luego camina con el ciclo normal (el "Walk" lento del modelo es
+    // una cojera de 4 s: acelerada se veía trabado), a un ritmo acorde a su tamaño.
+    if (this.type === 'brute') return this.t < ROAR_TIME ? 'scream' : 'fast';
     // El ciclo lento solo para los que van despacio: acelerarlo a casi el doble parecía cámara rápida.
     return this.stats.speed * this.pace > 1.25 ? 'fast' : 'walk';
   }
