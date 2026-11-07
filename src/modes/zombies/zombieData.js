@@ -18,12 +18,57 @@ export const ZOMBIE_TYPES = {
 
 export const PLAYER = {
   maxHealth: 100,
-  armoredHealth: 150, // con el blindaje de la armería
   regenDelay: 4, // s sin recibir daño antes de regenerar
   regenRate: 15, // vida por segundo
   startPoints: 500,
   startGrenades: 2,
-  maxGrenades: 6,
+  maxGrenades: 6, // de fragmentación
+};
+
+// Máximo de cada tipo de granada que se puede llevar (combat/Grenades.js).
+export const GRENADE_MAX = { frag: PLAYER.maxGrenades, fire: 4, stun: 4, decoy: 2 };
+
+// --- Bebidas (máquinas del mapa) --------------------------------------------------------------------
+// Mejoras permanentes durante la partida (se pierden al morir). Nombres propios del juego.
+export const PERKS = {
+  coraza: { name: 'Coraza', desc: 'Vida máxima 100 → 250: aguantas más del doble de golpes.', price: 2500, color: '#ff5a3d' },
+  plomo: { name: 'Doble Plomo', desc: '+50 % de daño y +25 % de cadencia con todas las armas.', price: 2000, color: '#ffb020' },
+  mano: { name: 'Mano Rápida', desc: 'Recargas el doble de rápido.', price: 3000, color: '#36d6ff' },
+  pies: { name: 'Pies Ligeros', desc: 'Corres un 15 % más rápido.', price: 2000, color: '#8aff5a' },
+  aire: { name: 'Segundo Aire', desc: 'Empiezas a recuperar vida a los 1.5 s (no a los 4) y el doble de rápido.', price: 1500, color: '#c86bff' },
+};
+export const PERK_EFFECTS = {
+  coraza: { maxHealth: 250 },
+  plomo: { damage: 1.5, rate: 1.25 },
+  mano: { reload: 0.5 },
+  pies: { speed: 1.15 },
+  aire: { regenDelay: 1.5, regenRate: 30 },
+};
+
+/** Valores del jugador con las bebidas que tiene (Set de ids). */
+export function perkStats(perks) {
+  const has = (id) => perks.has(id);
+  return {
+    maxHealth: has('coraza') ? PERK_EFFECTS.coraza.maxHealth : PLAYER.maxHealth,
+    damage: has('plomo') ? PERK_EFFECTS.plomo.damage : 1,
+    rate: has('plomo') ? PERK_EFFECTS.plomo.rate : 1,
+    reload: has('mano') ? PERK_EFFECTS.mano.reload : 1,
+    speed: has('pies') ? PERK_EFFECTS.pies.speed : 1,
+    regenDelay: has('aire') ? PERK_EFFECTS.aire.regenDelay : PLAYER.regenDelay,
+    regenRate: has('aire') ? PERK_EFFECTS.aire.regenRate : PLAYER.regenRate,
+  };
+}
+
+// --- Armas de la pared --------------------------------------------------------------------------------
+// Precio del arma; con el arma ya comprada, el mismo puesto vende su munición a mitad de precio.
+export const WALL_BUYS = { magnum: 900, smg: 1000, rifle: 1600, shotgun: 1500, burst: 1800, dmr: 2000, lmg: 2500, sniper: 2500 };
+export const wallAmmoPrice = (id) => Math.round((WALL_BUYS[id] ?? 1000) / 2 / 50) * 50;
+
+// --- Puertas entre secciones del mapa ------------------------------------------------------------------
+export const DOORS = {
+  mercado: { name: 'Mercado', price: 750 },
+  estacion: { name: 'Estación', price: 1000 },
+  iglesia: { name: 'Iglesia', price: 1250 },
 };
 
 // --- Oleadas ------------------------------------------------------------------------------------
@@ -93,31 +138,29 @@ export function pointsFor({ part, killed, type, melee = false }, double = false)
   return double ? p * 2 : p;
 }
 
-// --- Armería ------------------------------------------------------------------------------------
+// --- Armería (entre oleadas): suministros y granadas ----------------------------------------------------
+// Las armas ya no se compran aquí: están en las paredes del mapa (WALL_BUYS), como en los modos de
+// supervivencia clásicos; las mejoras son las bebidas de las máquinas (PERKS).
 // Munición de reserva al comprar el arma o rellenarla (la pistola es infinita: nunca te quedas sin nada).
-export const RESERVE = { pistol: null, smg: 180, shotgun: 36, rifle: 150, sniper: 30 };
+export const RESERVE = { pistol: null, smg: 180, shotgun: 36, rifle: 150, sniper: 30, magnum: 42, burst: 210, lmg: 300, dmr: 72 };
 
 export const SHOP = [
-  { id: 'smg', kind: 'weapon', name: 'Subfusil', desc: 'Cadencia altísima: limpia grupos de cerca.', price: 1000 },
-  { id: 'shotgun', kind: 'weapon', name: 'Escopeta', desc: 'Nueve perdigones: detiene a cualquiera de cerca.', price: 1500 },
-  { id: 'rifle', kind: 'weapon', name: 'Rifle', desc: 'Preciso y potente a media distancia.', price: 2000 },
-  { id: 'sniper', kind: 'weapon', name: 'Francotirador', desc: 'Atraviesa la horda desde lejos (y mata brutos).', price: 2500 },
   { id: 'ammo', kind: 'ammo', name: 'Munición', desc: 'Rellena la reserva de todas tus armas.', price: 500 },
-  { id: 'grenades', kind: 'grenades', name: '+2 granadas', desc: `Llevas hasta ${PLAYER.maxGrenades} a la vez.`, price: 300 },
   { id: 'medkit', kind: 'heal', name: 'Botiquín', desc: 'Recupera toda la vida.', price: 400 },
-  { id: 'armor', kind: 'upgrade', name: 'Blindaje', desc: `Vida máxima ${PLAYER.maxHealth} → ${PLAYER.armoredHealth}.`, price: 1500 },
-  { id: 'reload', kind: 'upgrade', name: 'Recarga rápida', desc: 'Recargas un 35 % más rápido.', price: 1800 },
-  { id: 'damage', kind: 'upgrade', name: 'Munición expansiva', desc: '+25 % de daño con todas las armas.', price: 3000 },
+  { id: 'frag', kind: 'grenade', amount: 2, name: '+2 de fragmentación', desc: `Explotan a los 1.6 s. Llevas hasta ${GRENADE_MAX.frag}.`, price: 300 },
+  { id: 'fire', kind: 'grenade', amount: 2, name: '+2 incendiarias', desc: 'Se rompen al caer y dejan fuego unos segundos: cierra un pasillo.', price: 500 },
+  { id: 'stun', kind: 'grenade', amount: 2, name: '+2 aturdidoras', desc: 'Frenan a la horda unos segundos para que escapes o recargues.', price: 400 },
+  { id: 'decoy', kind: 'grenade', amount: 1, name: '+1 señuelo', desc: 'Pita y atrae a los zombis; al final explota en medio de ellos.', price: 700 },
 ];
 
 /**
  * ¿Se puede comprar? Devuelve null si sí o el motivo si no.
- * state = { points, owned: Set, upgrades: Set, grenades, health, maxHealth, reserveFull }
+ * state = { points, owned: Set, perks: Set, bag: { frag, fire, stun, decoy }, health, maxHealth, reserveFull }
  */
 export function cannotBuy(item, state) {
   if (item.kind === 'weapon' && state.owned.has(item.id)) return 'Ya la tienes';
-  if (item.kind === 'upgrade' && state.upgrades.has(item.id)) return 'Ya la tienes';
-  if (item.kind === 'grenades' && state.grenades >= PLAYER.maxGrenades) return 'Al máximo';
+  if (item.kind === 'perk' && state.perks?.has(item.id)) return 'Ya la tienes';
+  if (item.kind === 'grenade' && (state.bag?.[item.id] ?? 0) >= GRENADE_MAX[item.id]) return 'Al máximo';
   if (item.kind === 'heal' && state.health >= state.maxHealth) return 'Vida completa';
   if (item.kind === 'ammo' && state.reserveFull) return 'Reserva llena';
   if (state.points < item.price) return 'Faltan puntos';
