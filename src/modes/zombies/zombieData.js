@@ -74,8 +74,29 @@ export function perkStats(perks) {
 export const WALL_BUYS = { magnum: 900, smg: 1000, rifle: 1600, shotgun: 1500, burst: 1800, dmr: 2000, lmg: 2500, sniper: 2500 };
 export const wallAmmoPrice = (id) => Math.round((WALL_BUYS[id] ?? 1000) / 2 / 50) * 50;
 
+// --- Caja misteriosa y barricadas ------------------------------------------------------------------------
+export const BOX_PRICE = 950; // un arma al azar de las que no tienes
+export const BOX_POOL = ['smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr'];
+
+/** Arma de la caja: una al azar entre las que no se tienen (null si ya se tienen todas). */
+export function rollBox(owned, rng = Math.random) {
+  const pool = BOX_POOL.filter((id) => !owned.has(id));
+  return pool.length ? pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))] : null;
+}
+
+// Barricadas en las entradas de zombis: tablones que arrancan para entrar y que el jugador repara.
+export const BARRICADE = {
+  boards: 6,
+  tearEvery: 1.1, // s que tarda un zombi en arrancar un tablón
+  repairEvery: 0.55, // s por tablón al mantener la tecla de usar
+  repairPoints: 10, // puntos por tablón reparado
+  repairCapPerWave: 500, // tope de puntos por reparar en cada oleada
+  reach: 2.2, // m: distancia para reparar (desde dentro)
+};
+
 // --- Puertas entre secciones del mapa ------------------------------------------------------------------
 export const DOORS = {
+  plaza: { name: 'Plaza', price: 750 },
   mercado: { name: 'Mercado', price: 750 },
   estacion: { name: 'Estación', price: 1000 },
   iglesia: { name: 'Iglesia', price: 1250 },
