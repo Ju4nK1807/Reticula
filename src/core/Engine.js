@@ -27,6 +27,7 @@ export class Engine {
     this.camera.rotation.order = 'YXZ';
     this.horizontalFov = 103;
     this.zoom = 1; // aumento de la mira telescópica (1 = sin zoom)
+    this.fovOverride = null; // FOV vertical fijo (grados) para la cámara del menú; null = el del jugador
     this.overlay = null;
     this.showOverlay = true;
 
@@ -59,6 +60,11 @@ export class Engine {
   }
 
   applyFov() {
+    if (this.fovOverride) {
+      this.camera.fov = this.fovOverride;
+      this.camera.updateProjectionMatrix();
+      return;
+    }
     const h = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(this.horizontalFov) / 2) / this.zoom);
     const v = 2 * Math.atan(Math.tan(h / 2) / this.camera.aspect);
     this.camera.fov = THREE.MathUtils.radToDeg(v);

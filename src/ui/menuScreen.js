@@ -205,7 +205,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings, on
       label: 'Jugar',
       badge: `${listModes().length} modos`,
       onSelect: () => openList('play', null, 'right'),
-      detail: { kind: 'play', eyebrow: 'Modos de juego', title: 'Jugar', desc: 'Elige cualquier modo: evaluación, campaña, coordinación ojo-mano o el modo infinito.', art: icon('target', 150) },
+      detail: { kind: 'play', eyebrow: 'Modos de juego', title: 'Jugar', desc: 'Elige cualquier modo: evaluación, campaña, coordinación ojo-mano, infinito o zombi.', art: icon('target', 150) },
     },
     {
       id: 'arsenal',
@@ -278,7 +278,11 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings, on
   const heading = h('div', { class: 'ts-heading' });
   const listSlot = h('div', { class: 'ts-list' });
 
-  const showDetail = (item) => detail.replaceChildren(...detailFor(item, ctx));
+  // El panel describe la opción y la cámara del escenario va a su plano (en "Jugar", al campo de tiro).
+  const showDetail = (item) => {
+    detail.replaceChildren(...detailFor(item, ctx));
+    game.focusMenu?.(memory.path === 'play' ? (item.back ? 'main' : 'play') : item.id);
+  };
 
   function openList(path, focus, enter = null) {
     memory.path = path;
