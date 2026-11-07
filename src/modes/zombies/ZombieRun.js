@@ -3,18 +3,22 @@ import { Phase } from '../evaluation/Phase.js';
 import { glow } from '../../gfx/surfaces.js';
 import { explosionDamage } from '../../combat/Grenades.js';
 import { WEAPONS } from '../../combat/weapons.js';
-import { clock, pct } from '../../utils/format.js';
+import { clock } from '../../utils/format.js';
 import { rand } from '../../utils/math.js';
 import { NavGrid } from './navGrid.js';
 import { Zombie } from './Zombie.js';
-import { DOORS, DROP, GRENADE_MAX, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
+import { DOORS, DROP, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
 const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
 const VIEW_AVOID = Math.PI / 3; // en oleadas altas se prefieren entradas fuera de la vista (±60°)
 const NEAR_ENTRIES = 4; // los zombis salen de las entradas abiertas más cercanas al jugador
 const _v = new THREE.Vector3();
 const _to = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);
 const powerGeo = new THREE.OctahedronGeometry(0.32, 0);
+// Cabeza que sale volando (low-poly, piel gris verdosa).
+const headGeo = new THREE.DodecahedronGeometry(0.13, 0);
+const headMat = new THREE.MeshStandardMaterial({ color: '#5f6b55', roughness: 0.85, flatShading: true });
 
 /*
   Una partida del modo zombi. Extiende Phase para reutilizar disparos, vida, daño direccional,
@@ -50,6 +54,7 @@ export class ZombieRun extends Phase {
     this.timers = { double: 0, instakill: 0 };
     this.sinceDrop = DROP.cooldown;
     this.drops = []; // { id, mesh, t }
+    this.heads = []; // cabezas que salieron volando { mesh, vel, spin, t }
     this.waveKills = 0;
     this.stats.headKills = 0;
     this.stats.meleeKills = 0;
@@ -91,6 +96,7 @@ export class ZombieRun extends Phase {
 
   update(dt) {
     super.update(dt); // zombis y retirada de los muertos
+    this.updateHeads(dt);
     this.updateNav(dt);
     this.updateHealth(dt);
     this.updateDrops(dt);
@@ -160,7 +166,8 @@ export class ZombieRun extends Phase {
   // tick: daño continuo (fuego): solo da los puntos de la baja, no los de cada impacto.
   hitZombie(z, amount, part, { melee = false, grenade = false, tick = false } = {}) {
     if (!z.alive) return false;
-    const dmg = this.timers.instakill > 0 ? z.hp + 1 : amount * this.dmgMul;
+    // El cuchillo tiene daño fijo (las bebidas de daño solo afectan a las armas).
+    const dmg = this.timers.instakill > 0 ? z.hp + 1 : amount * (melee ? 1 : this.dmgMul);
     const { killed } = z.damage(dmg, part);
     let points = pointsFor({ part, killed, type: z.type, melee }, this.timers.double > 0);
     if (tick) points = killed ? points - pointsFor({ part, killed: false }, this.timers.double > 0) : 0;
@@ -188,16 +195,67 @@ export class ZombieRun extends Phase {
     s.hits++;
     s[part]++;
     const base = this.game.weapon.stats.damage[part] * (hit.pelletHits ?? 1);
+    const before = bot.hp;
     const killed = this.hitZombie(bot, base, part);
+    // Tiro a la cabeza: si lo mata, la cabeza sale volando; si no, a veces también (un golpe fuerte) y
+    // el zombi sigue caminando sin ella hasta desangrarse, como en los clásicos.
+    if (part === 'head' && bot.type !== 'brute') {
+      const strong = (before - Math.max(0, bot.hp)) >= bot.maxHp * 0.25;
+      if (killed || (strong && Math.random() < 0.45)) this.decapitate(bot, hit);
+    }
     hud.hitmarker(killed ? 'kill' : part === 'head' ? 'head' : 'hit');
     if (part === 'head') sfx.headshot();
     else sfx.hit();
     if (killed) sfx.kill();
   }
 
-  handleMelee(hit, damage) {
+  // Cuchillo: daño fijo KNIFE_DAMAGE (1 golpe en la ronda 1, 2 en la 2, 3 en la 3…).
+  // La cabeza sale volando: salpicadura y la cabeza que cae rodando (y la hitbox desaparece).
+  decapitate(z, hit) {
+    if (!z.decapitate()) return;
+    const g = this.game;
+    const head = z.headPosition(new THREE.Vector3());
+    g.effects.burst(head, _up, '#6b0d0d', 22, 4.5);
+    g.effects.burst(head, _up, '#a8261f', 12, 2.5);
+    const dir = hit?.point ? head.clone().sub(g.player.eye).setY(0).normalize() : new THREE.Vector3(0, 0, 1);
+    const mesh = new THREE.Mesh(headGeo, headMat);
+    mesh.position.copy(head);
+    mesh.scale.setScalar(z.scale);
+    this.root.add(mesh);
+    this.heads.push({ mesh, vel: dir.multiplyScalar(2.5).setY(3.2), spin: new THREE.Vector3(Math.random() * 9, Math.random() * 9, 0), t: 0 });
+    g.sfx.meleeHit?.();
+  }
+
+  // Sin cabeza se desangra: daño continuo que solo da los puntos de la baja (a la cabeza).
+  onBleed(z, amount) {
+    if (this.hitZombie(z, amount, 'head', { tick: true })) this.game.hud.hitmarker('kill');
+  }
+
+  updateHeads(dt) {
+    for (let i = this.heads.length - 1; i >= 0; i--) {
+      const h = this.heads[i];
+      h.t += dt;
+      h.vel.y -= 14 * dt;
+      h.mesh.position.addScaledVector(h.vel, dt);
+      const floor = 0.12 * h.mesh.scale.x;
+      if (h.mesh.position.y < floor) {
+        h.mesh.position.y = floor;
+        h.vel.y = Math.abs(h.vel.y) * 0.3;
+        h.vel.x *= 0.6;
+        h.vel.z *= 0.6;
+      }
+      h.mesh.rotation.x += h.spin.x * dt * Math.min(1, h.vel.length());
+      h.mesh.rotation.y += h.spin.y * dt * Math.min(1, h.vel.length());
+      if (h.t > 6) {
+        h.mesh.removeFromParent();
+        this.heads.splice(i, 1);
+      }
+    }
+  }
+
+  handleMelee(hit) {
     if (!hit.bot?.alive) return;
-    const killed = this.hitZombie(hit.bot, damage, hit.part, { melee: true });
+    const killed = this.hitZombie(hit.bot, KNIFE_DAMAGE, hit.part, { melee: true });
     this.game.hud.hitmarker(killed ? 'kill' : 'hit');
     if (killed) this.game.sfx.kill();
   }
@@ -427,7 +485,8 @@ export class ZombieRun extends Phase {
   // --- Interfaz / resultados ----------------------------------------------------------------------
   hudStats() {
     // Los puntos para gastar van en su propio panel (dorado); arriba, las bajas.
-    return { score: this.stats.kills, scoreLabel: 'Bajas', accLabel: 'Precisión', accText: pct(this.accuracy), time: clock(this.elapsed) };
+    // Sin precisión: aquí no se puntúa la puntería, se sobrevive (accLabel null oculta ese dato).
+    return { score: this.stats.kills, scoreLabel: 'Bajas', accLabel: null, accText: '', time: clock(this.elapsed) };
   }
 
   results() {
@@ -452,6 +511,8 @@ export class ZombieRun extends Phase {
       d.mesh.material.dispose();
     }
     this.drops.length = 0;
+    for (const h of this.heads) h.mesh.removeFromParent();
+    this.heads.length = 0;
     super.dispose();
   }
 }
