@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pushCircleOut } from '../physics/obb.js';
 import { degPerCount } from '../config/sensitivity.js';
 import { DEG, clamp } from '../utils/math.js';
 
@@ -151,31 +152,16 @@ export class PlayerController {
   }
 
   // Empuja al jugador (círculo en XZ) fuera de cada caja que se solape en altura.
+  // (Las cajas giradas usan su forma real: physics/obb.js.)
   collide(boxes, height) {
     const p = this.position;
     for (const b of boxes) {
       if (b.max.y <= p.y + 0.01 || b.min.y >= p.y + height) continue;
-      const cx = clamp(p.x, b.min.x, b.max.x);
-      const cz = clamp(p.z, b.min.z, b.max.z);
-      const dx = p.x - cx;
-      const dz = p.z - cz;
-      const d2 = dx * dx + dz * dz;
-      if (d2 >= RADIUS * RADIUS) continue;
-      if (d2 > 1e-8) {
-        const d = Math.sqrt(d2);
-        p.x += (dx / d) * (RADIUS - d);
-        p.z += (dz / d) * (RADIUS - d);
-      } else {
-        // Centro dentro de la caja: salir por el lado más cercano.
-        const exits = [
-          [b.min.x - RADIUS - p.x, 0],
-          [b.max.x + RADIUS - p.x, 0],
-          [0, b.min.z - RADIUS - p.z],
-          [0, b.max.z + RADIUS - p.z],
-        ];
-        exits.sort((a, c) => Math.abs(a[0] + a[1]) - Math.abs(c[0] + c[1]));
-        p.x += exits[0][0];
-        p.z += exits[0][1];
+      if (p.x + RADIUS < b.min.x || p.x - RADIUS > b.max.x || p.z + RADIUS < b.min.z || p.z - RADIUS > b.max.z) continue;
+      const out = pushCircleOut(b, p.x, p.z, RADIUS);
+      if (out) {
+        p.x = out[0];
+        p.z = out[1];
       }
     }
   }

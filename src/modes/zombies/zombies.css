@@ -27,6 +27,35 @@
   100% { opacity: 0; transform: translateY(-14px); }
 }
 
+/* Defensa: botellas que quedan en la barra (bajo los puntos). */
+.zh-barbox {
+  position: absolute; right: 22px; top: 112px; min-width: 170px; display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+  padding: 8px 14px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.7); border: 1px solid rgba(255, 181, 77, 0.35);
+}
+.zh-barbox[hidden] { display: none; }
+.zh-barbox small { font: 600 10px var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.zh-barbox strong { font: 700 15px var(--mono); color: #ffb54d; }
+.zh-barmeter { width: 100%; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.zh-barmeter i { display: block; height: 100%; background: #ffb54d; transition: width 0.2s; }
+.zh-barbox.low { border-color: rgba(255, 77, 77, 0.6); animation: zh-pulse 0.9s ease-in-out infinite alternate; }
+.zh-barbox.low strong, .zh-barbox.low .zh-barmeter i { color: #ff5a4a; background: #ff5a4a; }
+.zh-barbox.low strong { background: none; }
+@keyframes zh-pulse { from { box-shadow: 0 0 0 rgba(255, 77, 77, 0); } to { box-shadow: 0 0 18px rgba(255, 77, 77, 0.35); } }
+
+/* Dificultad (pantalla de inicio). */
+.zh-diffs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 6px; }
+.zh-diff {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; text-align: left; cursor: pointer; color: var(--text-2);
+  background: rgba(6, 9, 13, 0.55); border: 1px solid var(--line-2); border-radius: var(--r-md);
+  transition: transform var(--d-press) var(--ease-out), border-color var(--d-fast) ease, background-color var(--d-fast) ease;
+}
+.zh-diff:active { transform: scale(0.97); }
+.zh-diff strong { font: 700 14px var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); }
+.zh-diff small { font-size: 12px; line-height: 1.35; color: var(--muted); }
+.zh-diff.active { border-color: var(--c, var(--accent)); background: color-mix(in srgb, var(--c, var(--accent)) 14%, transparent); }
+.zh-diff.active strong { color: var(--c, var(--accent)); }
+.zh-diff .zh-best { font: 600 11px var(--mono); color: var(--text-2); }
+
 /* Granadas y potenciadores (encima de la munición). */
 .zh-side { position: absolute; right: 22px; bottom: 146px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .zh-nades { font: 600 12px var(--font-display); letter-spacing: 0.08em; color: var(--text-2); padding: 4px 10px; border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.65); }
@@ -105,8 +134,12 @@
 .touch-mode .zh-cash { right: auto; left: 72px; top: 108px; align-items: flex-start; }
 .touch-mode .zh-gain { right: auto; left: 14px; }
 .touch-mode .zh-side { right: auto; left: 72px; top: 172px; bottom: auto; align-items: flex-start; }
+.touch-mode .zh-barbox { right: auto; left: 72px; top: 234px; align-items: flex-start; }
 .touch-mode .zh-powers { align-items: flex-start; }
 @media (max-height: 520px) {
   .touch-mode .zh-cash { top: 86px; }
   .touch-mode .zh-side { top: 140px; }
+  .touch-mode .zh-barbox { top: 196px; min-width: 140px; padding: 4px 10px; }
+  .zh-barbox { top: 84px; }
+  .zh-diffs { grid-template-columns: repeat(2, 1fr); }
 }

@@ -217,7 +217,7 @@ export function menuScreen(game, { onMode, onArsenal, onCrosshair, onProgress, o
       label: 'Jugar',
       badge: `${listModes().length} modos`,
       onSelect: () => openList('play', null, 'right'),
-      detail: { kind: 'play', eyebrow: 'Modos de juego', title: 'Jugar', desc: 'Elige cualquier modo: evaluación, campaña, coordinación ojo-mano, infinito o zombi.', art: icon('target', 150) },
+      detail: { kind: 'play', eyebrow: 'Modos de juego', title: 'Jugar', desc: 'Elige cualquier modo: evaluación, campaña, coordinación ojo-mano, infinito, zombi o defensa de la barra.', art: icon('target', 150) },
     },
     {
       id: 'arsenal',
