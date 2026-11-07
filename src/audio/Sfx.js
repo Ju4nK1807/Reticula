@@ -235,6 +235,26 @@ export class Sfx {
     this.noiseBurst({ type: 'bandpass', f0: 900, f1: 300, q: 0.8, peak: 0.25 * k, decay: 1.4, delay: 0.08, pan });
   }
 
+  // Incendiaria: vidrio que se rompe y la llamarada que prende.
+  ignite(distance = 0, pan = 0) {
+    const k = Math.max(0.25, 1 - distance / 50);
+    this.noiseBurst({ type: 'highpass', f0: 3000, f1: 5000, q: 1.2, peak: 0.22 * k, decay: 0.09, pan });
+    this.noiseBurst({ type: 'lowpass', f0: 500, f1: 1800, q: 0.5, peak: 0.5 * k, decay: 0.7, delay: 0.04, pan });
+    this.noiseBurst({ type: 'bandpass', f0: 700, f1: 400, q: 0.6, peak: 0.18 * k, decay: 1.6, delay: 0.2, pan });
+  }
+
+  // Aturdidora: estallido seco y agudo con zumbido.
+  stunBang(distance = 0, pan = 0) {
+    const k = Math.max(0.25, 1 - distance / 50);
+    this.noiseBurst({ type: 'highpass', f0: 1800, f1: 600, q: 0.6, peak: 0.7 * k, decay: 0.25, pan });
+    this.tone('sine', 3200, 3000, 0.9, 0.06 * k, 0.05, pan);
+  }
+
+  // Señuelo: pitido corto.
+  decoyBeep(pan = 0) {
+    this.tone('square', 1320, 1320, 0.05, 0.05, 0, pan);
+  }
+
   // Granada que rebota en el suelo.
   bounce(pan = 0) {
     this.noiseBurst({ type: 'bandpass', f0: 1700, f1: 900, q: 3, peak: 0.08, decay: 0.05, pan });
