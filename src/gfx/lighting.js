@@ -53,7 +53,7 @@ export function prepareWorld(world, renderer) {
 
   scene.traverse((o) => {
     if (!o.isMesh) return;
-    const lit = !o.material?.isMeshBasicMaterial;
+    const lit = !o.material?.isMeshBasicMaterial && !o.userData.noShadow; // el cielo no proyecta sombra
     o.receiveShadow = lit;
     o.castShadow = lit && !o.userData.ground;
   });

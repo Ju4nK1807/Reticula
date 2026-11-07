@@ -27,6 +27,9 @@ const CLIPS = {
   left: 'Run_Left',
   right: 'Run_Right',
   death: 'Death',
+  // Poses del menú (MenuShowcase): arma abajo, en reposo; y de pie sin arma.
+  rest: 'Idle_Gun',
+  neutral: 'Idle_Neutral',
 };
 
 // Esfera de recorte en el espacio de la malla (unidades del modelo): centro a media altura, radio que
@@ -140,10 +143,14 @@ function loadBase() {
   return basePromise;
 }
 
-/** Soldado listo para clonar con el color de enemigo dado (se prepara una vez por color). */
-export function loadSoldier(color = '#ff3b4f') {
+/**
+ * Soldado listo para clonar con el color de enemigo dado (se prepara una vez por color).
+ * `parts`: conserva las piezas con sus materiales (uniforme, equipo, piel, visor) en vez de unirlas en
+ * una malla. Cuesta 4 llamadas de dibujo en vez de 1; lo usan los soldados del menú (visor encendido).
+ */
+export function loadSoldier(color = '#ff3b4f', { parts = false } = {}) {
   if (typeof document === 'undefined') return Promise.resolve(null);
-  const key = new THREE.Color(color).getHexString();
+  const key = `${new THREE.Color(color).getHexString()}${parts ? '|piezas' : ''}`;
   if (!templates.has(key)) {
     templates.set(
       key,
@@ -152,7 +159,7 @@ export function loadSoldier(color = '#ff3b4f') {
           if (!base) return null;
           const scene = base.clone(base.scene);
           const tint = new THREE.Color(color).multiplyScalar(0.8);
-          await mergeSoldier(scene, tint);
+          if (!parts) await mergeSoldier(scene, tint);
           return { ...base, scene };
         })
         .catch(() => null),

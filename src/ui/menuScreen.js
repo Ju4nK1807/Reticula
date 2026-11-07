@@ -12,6 +12,7 @@ import { getRank } from '../config/ranks.js';
 import { sensSummary } from '../config/sensitivity.js';
 import { getWeapon } from '../combat/weapons.js';
 import { shortDate } from '../utils/format.js';
+import { crosshairSVG } from './Crosshair.js';
 import { PLANNED_MODES, getMode, listModes } from '../modes/registry.js';
 import { version } from '../../package.json';
 
@@ -150,6 +151,17 @@ function detailFor(item, ctx) {
       if (chart) parts.push(chart);
       break;
     }
+    case 'crosshair': {
+      const saved = settings.savedCrosshairs?.length ?? 0;
+      parts.push(
+        h('div', { class: 'td-xh', 'aria-hidden': 'true', html: crosshairSVG(ctx.game.activeCrosshair()) }),
+        rows([
+          ['Modo', settings.crosshairPerWeapon ? 'Una retícula por arma' : 'La misma en todas las armas'],
+          ['Guardadas', saved ? `${saved}` : 'Ninguna todavía'],
+        ]),
+      );
+      break;
+    }
     case 'settings':
       parts.push(
         rows([
@@ -170,7 +182,7 @@ function detailFor(item, ctx) {
   return parts;
 }
 
-export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings, onHelp }) {
+export function menuScreen(game, { onMode, onArsenal, onCrosshair, onProgress, onSettings, onHelp }) {
   const data = game.store.data;
   const { profile, settings } = data;
   const rank = getRank(profile.rank);
@@ -205,7 +217,7 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings, on
       label: 'Jugar',
       badge: `${listModes().length} modos`,
       onSelect: () => openList('play', null, 'right'),
-      detail: { kind: 'play', eyebrow: 'Modos de juego', title: 'Jugar', desc: 'Elige cualquier modo: evaluación, campaña, coordinación ojo-mano o el modo infinito.', art: icon('target', 150) },
+      detail: { kind: 'play', eyebrow: 'Modos de juego', title: 'Jugar', desc: 'Elige cualquier modo: evaluación, campaña, coordinación ojo-mano, infinito o zombi.', art: icon('target', 150) },
     },
     {
       id: 'arsenal',
@@ -216,6 +228,22 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings, on
         onArsenal();
       },
       detail: { kind: 'arsenal', eyebrow: 'Equipamiento', title: 'Arsenal', desc: 'Cinco armas con su propio manejo, sonido y mira. La evaluación usa siempre el rifle.', art: weaponIcon(weapon.id) },
+    },
+    onCrosshair && {
+      id: 'crosshair',
+      icon: 'reticle',
+      label: 'Retícula',
+      onSelect: () => {
+        remember('main', 'crosshair');
+        onCrosshair();
+      },
+      detail: {
+        kind: 'crosshair',
+        eyebrow: 'Personalización',
+        title: 'Retícula',
+        desc: 'Diseña tu mira pieza por pieza: líneas, punto, anillo, contorno, color y rotación. Guarda tus favoritas y compártelas con un código.',
+        art: icon('reticle', 150),
+      },
     },
     {
       id: 'progress',
@@ -278,7 +306,11 @@ export function menuScreen(game, { onMode, onArsenal, onProgress, onSettings, on
   const heading = h('div', { class: 'ts-heading' });
   const listSlot = h('div', { class: 'ts-list' });
 
-  const showDetail = (item) => detail.replaceChildren(...detailFor(item, ctx));
+  // El panel describe la opción y la cámara del escenario va a su plano (en "Jugar", al campo de tiro).
+  const showDetail = (item) => {
+    detail.replaceChildren(...detailFor(item, ctx));
+    game.focusMenu?.(memory.path === 'play' ? (item.back ? 'main' : 'play') : item.id);
+  };
 
   function openList(path, focus, enter = null) {
     memory.path = path;

@@ -38,6 +38,7 @@ export class Ballistics {
       distance: hit.distance,
       bot: hit.object.userData.bot ?? null,
       part: hit.object.userData.part ?? null,
+      prop: hit.object.userData.prop ?? null, // utilería con física (physics/Props.js)
     };
   }
 

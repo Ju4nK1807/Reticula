@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import { SKIES, createSky } from '../../gfx/sky.js';
 import { glow, planeWorldUV, surface, tileOf } from '../../gfx/surfaces.js';
 import { World } from '../../scenes/World.js';
+import { Props, autoPropSpawns } from '../../physics/Props.js';
 
 // Medidas del recinto (metros). El patio va de -HALF a HALF en X y en Z.
 const HALF = 24;
@@ -46,6 +48,8 @@ export class BastionMap extends World {
 
     const scene = this.scene;
     scene.add(new THREE.HemisphereLight('#d9e2ff', '#3b2f26', 1.75));
+    // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
+    scene.add(createSky({ ...SKIES.night, horizon: '#191e2b' }));
     const sun = new THREE.DirectionalLight('#ffd9b0', 1.7);
     sun.position.set(14, 22, 9);
     scene.add(sun);
@@ -177,6 +181,8 @@ export class BastionMap extends World {
       scene.add(hill);
     }
 
+    // Utilería con física dentro del bastión (cajas, barriles, munición y latas sobre las coberturas).
+    this.props = new Props(this, autoPropSpawns(this, { cans: 6, crates: 4, barrels: 3, ammo: 2, cones: 2 }));
     scene.updateMatrixWorld(true);
   }
 

@@ -50,7 +50,10 @@ jobs:
           npm test
 
       - name: Compilar el juego y copiarlo al proyecto Android
-        run: npm run android:sync
+        run: |
+          # La versión de la etiqueta también en el juego (el menú la muestra).
+          npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+          npm run android:sync
 
       - name: Preparar la firma (si hay secretos)
         id: sign

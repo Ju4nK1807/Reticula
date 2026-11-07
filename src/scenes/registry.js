@@ -1,5 +1,6 @@
 import { ShootingRange } from './ShootingRange.js';
 import { TrainingYard } from './TrainingYard.js';
+import { ArmoryMenu } from './ArmoryMenu.js';
 
 // Registro de mapas. Cada modo registra los suyos (en su index.js) con registerWorld y luego los
 // usa con game.useWorld(key); así un mapa nuevo no obliga a editar Game.js.
@@ -22,6 +23,7 @@ export function createWorld(key) {
   return factory();
 }
 
-// Mapas base: el campo de tiro también es el fondo del menú.
+// Mapas base. La armería es el escenario de la pantalla de título (no se juega).
 registerWorld('range', () => new ShootingRange());
 registerWorld('yard', () => new TrainingYard());
+registerWorld('armory', () => new ArmoryMenu());

@@ -13,11 +13,13 @@ import { Viewmodel } from '../combat/Viewmodel.js';
 import { Effects } from '../effects/Effects.js';
 import { Ambience } from '../effects/Ambience.js';
 import { MenuShowcase } from '../effects/MenuShowcase.js';
+import { MENU_VFOV, MenuCamera } from '../effects/MenuCamera.js';
 import { applyShadowQuality, environment, prepareWorld } from '../gfx/lighting.js';
 import { AutoQuality, guessDetail } from '../gfx/AutoQuality.js';
 import { whenSurfacesReady } from '../gfx/surfaces.js';
 import { Melee } from '../combat/Melee.js';
 import { Grenades } from '../combat/Grenades.js';
+import { Casings } from '../effects/Casings.js';
 import { BotSkin, acquireSkin, loadSoldier, pooledSkins, releaseSkin } from '../bots/botSkin.js';
 import { HUD } from '../ui/HUD.js';
 import { UI } from '../ui/UI.js';
@@ -26,6 +28,7 @@ import { settingsScreen } from '../ui/settingsScreen.js';
 import { pauseScreen } from '../ui/pauseScreen.js';
 import { progressScreen } from '../ui/progressScreen.js';
 import { arsenalScreen } from '../ui/arsenalScreen.js';
+import { crosshairScreen } from '../ui/crosshairScreen.js';
 import { getMode } from '../modes/index.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
 import { spreadToPixels } from '../ui/Crosshair.js';
@@ -42,6 +45,9 @@ const ZOOM_SPEED = 14; // qué tan rápido entra y sale la mira telescópica
 // mapas en scenes/registry.js, así que un modo nuevo no necesita editar este archivo.
 // Soldados que se dejan creados en el menú (los primeros enemigos aparecen sin coste).
 const SKIN_PREFILL = 6;
+const MENU_WORLD = 'armory'; // escenario de la pantalla de título (scenes/ArmoryMenu.js)
+const PLAYER_PUSH = { r: 0.38, h: 1.75 }; // cilindro con el que el jugador empuja la utilería
+const movers = []; // quienes empujan la utilería este cuadro (jugador + enemigos), reutilizado
 
 export class Game {
   constructor(root) {
@@ -53,10 +59,12 @@ export class Game {
     this.weapon = new Weapon(this);
     this.melee = new Melee(this); // golpe cuerpo a cuerpo (V)
     this.grenades = new Grenades(this); // granadas (G), en los modos que las dan
+    this.casings = new Casings(this); // vainas que expulsan las armas
     this.viewmodel = new Viewmodel();
     this.effects = new Effects();
     this.ambience = new Ambience(); // polvo y chispas de la pantalla de título
-    this.showcase = new MenuShowcase('range'); // soldado de la pantalla de título
+    this.showcase = new MenuShowcase(); // soldados de la pantalla de título
+    this.menuCamera = new MenuCamera(); // planos de cámara del menú
     this.sfx = new Sfx();
     this.hud = new HUD(root.querySelector('#hud'));
     this.ui = new UI(root.querySelector('#ui'), root.querySelector('#toast'));
@@ -101,7 +109,7 @@ export class Game {
     // La calidad se aplica antes de crear el primer mapa: sus texturas ya cargan en el tamaño justo.
     this.engine.setQuality(video);
     this.worlds = {};
-    this.useWorld('range');
+    this.useWorld(MENU_WORLD);
     this.applySettings();
 
     this.input.on('shoot', (time) => {
@@ -144,13 +152,19 @@ export class Game {
     this.world = world;
     prepareWorld(world, this.engine.renderer);
     applyShadowQuality(world, this.engine.detail);
+    world.setDetail?.(this.engine.detail);
+    world.detail = this.engine.detail;
     this.engine.scene = world.scene;
     this.effects.attach(world.scene);
     this.grenades.attach(world.scene);
+    this.casings.attach(world.scene);
     this.ambience.attach(world.scene, world.spawn);
-    this.showcase.attach(world.scene, world.spawn, key);
+    this.showcase.attach(world.scene, world.spawn, key, world);
+    this.menuCamera.setShots(world.menuShots ?? null);
     this.player.setWorld(world);
     this.ballistics.setWorld(world);
+    // Utilería con física: suena al chocar (según su material y lo fuerte del golpe).
+    if (world.props) world.props.onImpact = (it, speed) => this.sfx.propHit(it.def.material, this.panFor(it.body.position), speed / 6);
     this.player.reset(world.spawn);
     // Sombreadores y texturas del mapa listos antes de jugar (sin tirones al girar la cámara). Las
     // texturas llegan un momento después: al terminar de cargar se suben a la GPU de una vez.
@@ -309,10 +323,15 @@ export class Game {
 
     this.player.bodies = this.mode?.bodyColliders?.() ?? NO_BODIES;
     this.player.update(dt, playing);
-    if (!this.mode) {
-      // Paneo lento de fondo en el menú.
-      this.player.look(Math.sin(this.time * 0.12) * 0.35, 0.04 + Math.sin(this.time * 0.2) * 0.03);
+    // Menú: la cámara la llevan los planos del escenario (Armería) con su lente; en otro mapa, paneo lento.
+    const menuView = !this.mode && !!this.world.menuShots;
+    const fov = menuView ? MENU_VFOV : null;
+    if (this.engine.fovOverride !== fov) {
+      this.engine.fovOverride = fov;
+      this.engine.applyFov();
     }
+    if (menuView) this.menuCamera.update(dt, this.time, this.engine.camera);
+    else if (!this.mode) this.player.look(Math.sin(this.time * 0.12) * 0.35, 0.04 + Math.sin(this.time * 0.2) * 0.03);
     // Sacudida de cámara de las explosiones cercanas (no se acumula: el jugador fija la mirada cada cuadro).
     const shake = this.grenades.shakeOffset(this.time);
     if (shake) {
@@ -331,7 +350,9 @@ export class Game {
       this.weapon.update(dt);
       this.melee.update(dt);
       this.grenades.update(dt);
+      this.casings.update(dt);
       this.mode.update(dt);
+      this.updateProps(dt);
     }
     // Mira dinámica: se abre exactamente lo que se desvían las balas (movimiento, salto, ráfaga).
     if (this.activeCrosshair().dynamic) {
@@ -345,6 +366,11 @@ export class Game {
     if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress, this.weapon.reserve);
     // El arma se oculta solo dentro de la mira telescópica (con las miras de hierro se sigue viendo).
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && !(this.weapon.scoped && this.zoomLevel > 1.15);
+    // El detalle puede cambiar en cualquier momento (calidad automática): el mapa ajusta sus luces.
+    if (this.world.detail !== this.engine.detail) {
+      this.world.detail = this.engine.detail;
+      this.world.setDetail?.(this.engine.detail);
+    }
     this.world.update(dt);
 
     const now = performance.now();
@@ -476,6 +502,7 @@ export class Game {
       menuScreen(this, {
         onMode: (id) => this.startModeById(id),
         onArsenal: () => this.showArsenal(),
+        onCrosshair: () => this.showCrosshair(() => this.showMenu()),
         onProgress: () => this.ui.show(progressScreen(this, { onBack: () => this.showMenu() })),
         onSettings: () => this.showSettings(() => this.showMenu()),
         onHelp: () => this.showSettings(() => this.showMenu(), { tab: 'datos' }),
@@ -485,14 +512,18 @@ export class Game {
 
   showSettings(onBack, opts) {
     this.ui.show(settingsScreen(this, onBack, opts));
-    if (opts?.crosshairWeapon) this.ui.el.querySelector('.xh-preview')?.scrollIntoView({ block: 'center' });
+  }
+
+  // Editor de retícula. `weapon`: abre editando la de esa arma (desde el Arsenal).
+  showCrosshair(onBack, { weapon = null } = {}) {
+    this.ui.show(crosshairScreen(this, { onBack, weapon }));
   }
 
   showArsenal() {
     this.ui.show(
       arsenalScreen(this, {
         onBack: () => this.showMenu(),
-        onCrosshair: (id) => this.showSettings(() => this.showArsenal(), { crosshairWeapon: id }),
+        onCrosshair: (id) => this.showCrosshair(() => this.showArsenal(), { weapon: id }),
       }),
     );
   }
@@ -500,10 +531,23 @@ export class Game {
   startMode(mode) {
     this.melee.reset();
     this.grenades.clear();
+    this.casings.clear();
     this.mode?.dispose();
     this.paused = false;
     this.mode = mode;
     mode.start();
+    this.world.props?.reset(); // la utilería vuelve a su lugar en cada partida
+  }
+
+  // Física de la utilería del mapa: el jugador y los enemigos la empujan al pasar.
+  updateProps(dt) {
+    const props = this.world.props;
+    if (!props) return;
+    movers.length = 0;
+    const p = this.player.position;
+    movers.push({ x: p.x, z: p.z, r: PLAYER_PUSH.r, y0: p.y, h: PLAYER_PUSH.h });
+    for (const b of this.player.bodies) movers.push(b);
+    props.update(dt, movers);
   }
 
   // Inicia un modo del registro (lo usa el menú). Respeta su condición de bloqueo.
@@ -526,11 +570,18 @@ export class Game {
   quitToMenu() {
     this.melee.reset();
     this.grenades.clear();
+    this.casings.clear();
     this.mode?.dispose();
     this.mode = null;
     this.paused = false;
     this.input.unlock();
+    this.useWorld(MENU_WORLD);
     this.player.reset(this.world.spawn);
     this.showMenu();
+  }
+
+  /** La pantalla de título avisa qué opción está enfocada: la cámara del menú va a su plano. */
+  focusMenu(id) {
+    this.menuCamera.focus(id);
   }
 }

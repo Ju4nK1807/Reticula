@@ -1,5 +1,6 @@
 import { DEFAULT_SAVE } from '../config/defaults.js';
 import { refreshProfile } from './profile.js';
+import { upgradeCrosshair } from '../ui/Crosshair.js';
 
 const KEY = 'reticula.save.v1';
 const BACKUP_KEY = 'reticula.save.corrupt'; // copia de un guardado ilegible, para no perderlo
@@ -43,6 +44,13 @@ export const MIGRATIONS = {
     const v = data.settings.video;
     if (v.quality === 'alta' || (v.quality === 'media' && v.touchTuned)) v.quality = 'auto';
     delete v.touchTuned;
+  },
+  // v5: la mira pasa a armarse con piezas (líneas, punto, anillo…). En los guardados viejos la forma
+  // (`shape`) es la que manda: las piezas que trajera la mezcla vinieron de los valores por defecto.
+  4: (data) => {
+    const s = data.settings;
+    upgradeCrosshair(s.crosshair);
+    for (const c of Object.values(s.weaponCrosshairs ?? {})) upgradeCrosshair(c);
   },
 };
 

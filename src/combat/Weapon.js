@@ -8,6 +8,7 @@ export const RIFLE = WEAPONS.rifle;
 const MAX_TRACERS_PER_SHOT = 5; // la escopeta no satura el pool de trazadoras
 const DRY_FIRE_COOLDOWN = 0.25;
 const PART_RANK = { head: 3, body: 2, legs: 1 };
+const PROP_IMPULSE = 0.035; // N·s por punto de daño al cuerpo: una lata sale volando, una caja apenas se mueve
 
 const _dir = new THREE.Vector3();
 const _shot = new THREE.Vector3();
@@ -236,6 +237,10 @@ export class Weapon {
         entry.count++;
         if ((PART_RANK[hit.part] ?? 0) > (PART_RANK[entry.best.part] ?? 0)) entry.best = hit;
         byBot.set(hit.bot, entry);
+      } else if (hit?.prop) {
+        // Utilería con física: recibe el balazo en el punto exacto (sin marca: se mueve).
+        g.world?.props?.hit(hit.prop, hit.point, _shot, PROP_IMPULSE * s.damage.body);
+        if (i < MAX_TRACERS_PER_SHOT) g.effects.burst(hit.point, hit.normal, '#d8c9a8', s.pellets > 1 ? 3 : 6, 2.5);
       } else if (hit) {
         g.effects.decal(hit.point, hit.normal);
         if (i < MAX_TRACERS_PER_SHOT) g.effects.burst(hit.point, hit.normal, '#c9c2b4', s.pellets > 1 ? 3 : 6, 2.5);
@@ -259,6 +264,7 @@ export class Weapon {
 
     g.sfx.shot(s.sound);
     g.viewmodel.kick(s.recoil);
+    if (g.settings.gameplay.casings !== false) g.casings?.eject(s.id);
     this.onShot?.(result, spread, time);
   }
 }

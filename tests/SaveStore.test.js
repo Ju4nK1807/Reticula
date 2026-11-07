@@ -114,6 +114,28 @@ describe('migraciones', () => {
     expect(load({ quality: 'custom', renderScale: 0.6, detail: 'baja' }).quality).toBe('custom');
   });
 
+  it('v4 → v5: las miras de antes (por forma) pasan a piezas sin cambiar cómo se ven', () => {
+    const legacy = (c) => ({ outline: true, opacity: 1, dot: false, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false, ...c });
+    const settings = {
+      crosshair: legacy({ shape: 'dot', color: '#ff0000', dotSize: 3 }),
+      weaponCrosshairs: {
+        rifle: legacy({ shape: 't', color: '#ffffff', size: 7, thickness: 1, gap: 2 }),
+        shotgun: legacy({ shape: 'circle', color: '#ffb020', size: 10, thickness: 2, gap: 6, dot: true }),
+        pistol: legacy({ shape: 'cross-dot', color: '#00ffa3', size: 4, thickness: 2, gap: 2 }),
+      },
+    };
+    const s = load({ version: 4, settings }).data.settings;
+    // Solo punto: sin líneas aunque los valores por defecto nuevos traigan líneas.
+    expect(s.crosshair).toMatchObject({ lines: false, dot: true, ring: false, dotSize: 3, color: '#ff0000', shape: 'dot' });
+    expect(s.weaponCrosshairs.rifle).toMatchObject({ lines: true, tShape: true, size: 7, thickness: 1, gap: 2, shape: 't' });
+    // El círculo conserva su radio (separación + medio largo + 2) y su grosor.
+    expect(s.weaponCrosshairs.shotgun).toMatchObject({ lines: false, ring: true, ringRadius: 13, ringThickness: 2, dot: true });
+    expect(s.weaponCrosshairs.pistol).toMatchObject({ lines: true, dot: true, tShape: false });
+    // Las armas que no estaban en el guardado reciben su mira por defecto (ya en piezas).
+    expect(s.weaponCrosshairs.sniper).toMatchObject({ lines: false, dot: true });
+    expect(s.savedCrosshairs).toEqual([]);
+  });
+
   it('un guardado sin versión se trata como v1', () => {
     const data = structuredClone(DEFAULT_SAVE);
     expect(migrate(data, undefined)).toBe(true);

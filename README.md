@@ -68,6 +68,16 @@ y neón. Todo depende de **Configuración → Video → Calidad**:
 En teléfonos y tabletas el juego arranca en calidad media. En *Personalizada* se elige por separado la
 resolución de render y el detalle gráfico.
 
+**Menú**: detrás de la pantalla de título hay un escenario propio, la *Armería* (`src/scenes/ArmoryMenu.js`):
+taller de armas con mesa de trabajo, estantes, lámparas colgantes con haz de luz, drones que escanean el
+rifle con un láser, pantallas holográficas, chispas de soldadura y el campo de tiro al fondo, con el
+soldado en primer plano. La cámara pasa a un plano distinto según la opción enfocada del menú, respira y
+sigue un poco al mouse. Las texturas de pantallas, letreros y tableros se dibujan en un canvas
+(`src/gfx/canvasTextures.js`): nada que descargar.
+
+**Cielo**: los mapas al aire libre tienen un cielo procedural (`src/gfx/sky.js`) con degradado,
+resplandor en el horizonte, estrellas y luna, que se funde con la niebla de cada mapa.
+
 Cada mapa conserva su paleta: el color medio de cada textura se calibra al color de la paleta, así la
 textura solo añade detalle. Las superficies están en `src/gfx/surfaces.json`. Para cambiar o añadir
 una, se edita ese archivo y se ejecuta `python tools/textures.py` (necesita Pillow): descarga las
@@ -96,19 +106,25 @@ src/
   style.css
   core/                   Motor: Game (estados), Engine (render/FOV/overlay), Input (mouse y teclado),
                           PlayerController (mirada, movimiento, colisiones), Emitter
-  combat/                 Ballistics (hitscan y línea de visión), Weapon, Viewmodel (arma en pantalla)
-  effects/                Trazadoras, marcas de impacto y partículas
+  combat/                 Ballistics (hitscan y línea de visión), Weapon, Viewmodel (arma en pantalla),
+                          Melee (golpe), Grenades (granadas)
+  effects/                Trazadoras, marcas de impacto, partículas, casquillos, chispas, cámara y
+                          soldados del menú
+  physics/                Cuerpos rígidos (RigidBody) y utilería con física de los mapas (Props)
+  gfx/                    Superficies PBR, iluminación, calidad automática, cielo y texturas de canvas
   config/                 defaults, ranks, sensitivity (conversión entre 8 juegos y cm/360)
   storage/                SaveStore (localStorage versionado con migraciones), profile (rango general)
   audio/Sfx.js            Sonidos procedurales con Web Audio API
-  scenes/                 Mapas low-poly (ShootingRange, TrainingYard) y registry.js (registro de mapas)
+  scenes/                 Mapas base (ShootingRange, TrainingYard), la Armería del menú y registry.js
   bots/                   Bots humanoides: hitboxes, strafing, peeks, agachadas, saltos y disparo
   modes/                  Mode.js (interfaz base), registry.js (registro), index.js (descubre los modos)
   modes/evaluation/       Evaluación: dos variantes de 5 fases + scoring → rango
   modes/campaign/         Campaña: mapas Bodega/Ciudad/Arena, 12 niveles, misiones, progreso y estrellas
   modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
   modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
-  ui/                     HUD, mira, gráficas y pantallas (menú, progreso, ajustes, pausa, resultados, compatibilidad)
+  modes/zombies/          Modo zombi: Barrio en ruinas, zombis con campo de flujo, armería y potenciadores
+  ui/                     HUD, mira, gráficas y pantallas (menú, editor de retícula, progreso, ajustes, pausa,
+                          resultados, compatibilidad)
   stats/                  history.js: series e historial unificado para la pantalla de Progreso
   utils/                  math, format
 tests/                    Pruebas de la lógica pura (guardado, rangos, sensibilidad, registros)
@@ -283,6 +299,20 @@ callejones por donde entra la horda. No requiere evaluación.
   y zombi; granadas solo en el modo zombi).
 - La evaluación no tiene ADS ni golpe: los rangos siguen siendo comparables.
 
+## Física
+
+- **Casquillos**: cada disparo expulsa la vaina del calibre del arma por la derecha (la escopeta al
+  accionar la corredera, el francotirador al abrir el cerrojo); rebotan con su tintineo y quedan un rato en
+  el piso. Se desactivan en *Configuración → Juego*.
+- **Utilería con física** en el modo zombi y en el infinito: cajas, barriles, botes de basura, latas,
+  conos y cajas de munición. El balazo los empuja desde el punto del impacto según el daño del arma (una
+  lata sale volando, una caja apenas se mueve), las granadas los lanzan y el jugador, los bots y los
+  zombis los empujan al pasar. Frenan las balas como cualquier cobertura y vuelven a su lugar en cada
+  partida.
+- Motor propio (`src/physics/`): cuerpos rígidos con puntos de contacto, rebote y rozamiento, cilindros
+  que ruedan, choques entre objetos y reposo (lo que está quieto no gasta CPU). La evaluación y la campaña
+  no tienen utilería, para que los rangos sigan siendo comparables.
+
 ## Rendimiento
 
 - **Calidad automática** (por defecto): ajusta la resolución mientras se juega para mantener 60 FPS y,
@@ -313,10 +343,16 @@ una tabla de datos por gráfica.
 
 ## Mira y video
 
-- **Mira**: cruz, cruz + punto, punto, círculo o T; color, largo, grosor, separación, opacidad, punto
-  central independiente, contorno (grosor y color) y **mira dinámica**, que se abre exactamente lo que se
-  desvían las balas al moverse, saltar o disparar en ráfaga. Incluye 7 presets y **códigos para
-  compartir** (`RTC1;s=cross;c=00ffa3;…`).
+- **Retícula** (opción del menú principal, también desde el Arsenal y Configuración): editor de la mira
+  pieza por pieza, con vista previa en vivo sobre cuatro fondos, zoom y *Simular disparo*:
+  - líneas interiores (largo, grosor, separación, en forma de T) y líneas exteriores;
+  - punto central (tamaño, opacidad, redondo o cuadrado) y anillo (radio, grosor, opacidad);
+  - contorno (grosor, color, opacidad), color (muestras rápidas o a elección), opacidad general y
+    rotación hasta 45° (cruz en X);
+  - **mira dinámica**, que se abre exactamente lo que se desvían las balas al moverse, saltar o disparar
+    en ráfaga;
+  - una retícula por arma o la misma para todas, 12 presets, *Mis retículas* (guardar con nombre) y
+    **códigos para compartir** (`RTC2;c=00ffa3;…`; los `RTC1` anteriores se siguen leyendo).
 - **Calidad gráfica**: Alta, Media, Baja o Personalizada (resolución de render del 50 % al 100 %). Es lo
   que más FPS gana en equipos modestos.
 - **Contador de FPS**: FPS promedio, ms por cuadro y *1 % low* (los cuadros más lentos, que se sienten

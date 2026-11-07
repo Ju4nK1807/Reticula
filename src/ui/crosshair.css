@@ -1,0 +1,100 @@
+/* Editor de retícula (ui/crosshairScreen.js). */
+
+.xs-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+.xs-preview-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* Escenario de la vista previa: la retícula a su tamaño real (o ampliada) sobre un fondo de prueba. */
+.xs-stage {
+  position: relative; height: 300px; border-radius: var(--r-lg); overflow: hidden;
+  border: 1px solid var(--line-2); isolation: isolate;
+}
+.xs-stage::before {
+  /* Cuadrícula tenue: ayuda a ver si la retícula queda centrada y simétrica. */
+  content: ''; position: absolute; inset: 0; z-index: 0; opacity: 0.35;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px; background-position: center;
+}
+.xs-horizon { position: absolute; left: 0; right: 0; top: 58%; bottom: 0; z-index: 0; }
+.xs-target { position: absolute; left: 50%; top: 50%; z-index: 1; transform: translate(-50%, -50%); transform-origin: center; line-height: 0; }
+.xs-target svg { display: block; }
+
+.xs-stage.bg-taller { background: radial-gradient(ellipse 60% 70% at 30% 35%, rgba(45, 255, 192, 0.12), transparent 70%), radial-gradient(ellipse 50% 60% at 78% 30%, rgba(255, 154, 69, 0.14), transparent 70%), linear-gradient(180deg, #1a242c, #0d1318); }
+.xs-stage.bg-taller .xs-horizon { background: linear-gradient(180deg, #232c33, #151b20); }
+.xs-stage.bg-cielo { background: linear-gradient(180deg, #a9c8e4 0%, #dbe8f2 55%, #c7d2d9 58%); }
+.xs-stage.bg-cielo .xs-horizon { background: linear-gradient(180deg, #8c9a8a, #6d7a68); }
+.xs-stage.bg-arena { background: linear-gradient(180deg, #f2e2bf 0%, #e9cf98 55%); }
+.xs-stage.bg-arena .xs-horizon { background: linear-gradient(180deg, #c9a467, #a9844b); }
+.xs-stage.bg-noche { background: radial-gradient(ellipse 40% 30% at 70% 20%, rgba(120, 140, 170, 0.12), transparent 70%), #05070a; }
+.xs-stage.bg-noche .xs-horizon { background: #0a0d11; }
+
+.xs-stage-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.xs-stage-bar .chips { margin: 0; }
+.xs-editing { margin: 0; }
+
+/* Chips de arma con su retícula en miniatura. */
+.xs-weapons { margin: 0; }
+.xs-chip { display: inline-flex; align-items: center; gap: 8px; }
+.xs-chip-xh { display: grid; place-items: center; width: 26px; height: 22px; overflow: hidden; background: #0e141b; border-radius: 2px; }
+.xs-chip-xh svg { max-width: 24px; max-height: 20px; }
+.chip.active .xs-chip-xh { background: rgba(1, 38, 26, 0.85); }
+
+/* Editor por pestañas. */
+.xs-editor { padding-top: 10px; }
+.xs-tabs { margin-bottom: 4px; position: static; }
+.xs-tab-body .field { grid-template-columns: 150px 1fr; }
+.xs-group { border-left: 2px solid var(--line-2); margin: 0 0 4px 4px; padding-left: 12px; transition: opacity var(--d-fast) ease; }
+.xs-group.off { opacity: 0.35; pointer-events: none; }
+.xs-color-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.xs-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.xs-swatch {
+  width: 24px; height: 24px; border-radius: 50%; cursor: pointer; background: var(--c);
+  border: 2px solid rgba(0, 0, 0, 0.55); box-shadow: 0 0 0 1px var(--line-2);
+  transition: transform var(--d-press) var(--ease-out), box-shadow var(--d-fast) ease;
+}
+.xs-swatch:active { transform: scale(0.92); }
+.xs-swatch.active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
+.xs-actions { flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+/* Biblioteca: presets y retículas guardadas. */
+.xs-library h3 { margin: 4px 0 10px; }
+.xs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.xs-card { position: relative; }
+.xs-card-main {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 10px 8px 8px; cursor: pointer;
+  color: var(--text-2); background: rgba(6, 9, 13, 0.55); border: 1px solid var(--line-2); border-radius: var(--r-md);
+  transition: transform var(--d-press) var(--ease-out), border-color var(--d-fast) ease, color var(--d-fast) ease;
+}
+.xs-card-main:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { .xs-card-main:hover { border-color: var(--accent-line); color: var(--text); } }
+.xs-card-xh {
+  display: grid; place-items: center; width: 100%; height: 64px; border-radius: var(--r-sm); overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #1f2a33, #0d1318);
+}
+.xs-card-xh svg { transform: scale(1.6); }
+.xs-card-name { font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; }
+.xs-card-del {
+  position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; display: grid; place-items: center; cursor: pointer;
+  font-size: 15px; line-height: 1; color: var(--text-2); background: rgba(6, 9, 13, 0.85); border: 1px solid var(--line-2); border-radius: 50%;
+}
+@media (hover: hover) and (pointer: fine) { .xs-card-del:hover { color: var(--danger, #ff5d6c); border-color: currentColor; } }
+.xs-saved-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+.xs-saved-head h3 { margin: 0; }
+.xs-save-row { display: flex; gap: 8px; align-items: center; }
+.xs-name { width: 200px !important; }
+
+/* Detalle del menú principal: la retícula actual, grande. */
+.td-xh {
+  display: grid; place-items: center; height: 120px; margin: 4px 0 6px; border-radius: var(--r-md); overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, rgba(45, 255, 192, 0.08), transparent 70%), rgba(6, 9, 13, 0.6); border: 1px solid var(--line);
+}
+.td-xh svg { transform: scale(2.6); }
+
+/* Pantallas angostas y teléfonos en horizontal. */
+@media (max-width: 900px) {
+  .xs-layout { grid-template-columns: 1fr; }
+}
+@media (max-height: 520px) {
+  .xs-stage { height: 200px; }
+  .xs-card-xh { height: 48px; }
+  .xs-tab-body .field { grid-template-columns: 120px 1fr; }
+}

@@ -1,34 +1,26 @@
 // Valores por defecto de configuración y del guardado completo.
 import { DEFAULT_WEAPON, WEAPONS, WEAPON_ORDER } from '../combat/weapons.js';
+import { CROSSHAIR_DEFAULTS } from '../ui/Crosshair.js';
 
 export const DEFAULT_SETTINGS = {
   // La sensibilidad se guarda en la escala del juego elegido (ver config/sensitivity.js).
   sens: { game: 'reticula', value: 1.25, dpi: 800, invertY: false },
   // FOV horizontal en grados (equivalente 16:9).
   fov: 103,
-  crosshair: {
-    shape: 'cross', // cross | cross-dot | dot | circle | t
-    color: '#00ffa3',
-    size: 6,
-    thickness: 2,
-    gap: 3,
-    outline: true,
-    opacity: 1,
-    dot: false, // punto central además de la forma
-    dotSize: 2,
-    outlineThickness: 1,
-    outlineColor: '#000000',
-    dynamic: false, // se abre con la dispersión real del arma (moverse, saltar, ráfaga)
-  },
+  // Mira global (piezas combinables: líneas, líneas exteriores, punto, anillo, contorno… ver ui/Crosshair.js).
+  crosshair: { ...CROSSHAIR_DEFAULTS },
   // Arma elegida en el arsenal (la evaluación usa siempre el rifle).
   weapon: DEFAULT_WEAPON,
   // Mira propia de cada arma (true) o la misma para todas (false → `crosshair`).
   crosshairPerWeapon: true,
   weaponCrosshairs: Object.fromEntries(WEAPON_ORDER.map((id) => [id, { ...WEAPONS[id].crosshair }])),
+  // Retículas guardadas por el jugador en el editor: [{ name, config }].
+  savedCrosshairs: [],
   enemyColor: '#ff3b4f',
   gameplay: {
     moveInaccuracy: true, // disparar en movimiento o en el aire desvía las balas (estilo táctico)
     tracers: true,
+    casings: true, // las armas expulsan vainas que rebotan en el suelo
     viewmodel: true,
     autoReload: true, // recargar solo al intentar disparar con el cargador vacío
     zoomSensitivity: 1, // multiplicador de sensibilidad con mira telescópica (1 = misma sensación que sin zoom)
@@ -50,7 +42,7 @@ export const ENEMY_COLORS = {
 
 // Al cambiar la forma del guardado: subir `version` y añadir el paso en storage/SaveStore.js (MIGRATIONS).
 export const DEFAULT_SAVE = {
-  version: 4,
+  version: 5,
   settings: DEFAULT_SETTINGS,
   profile: {
     // Rango general = el mejor rango actual entre las variantes (ver storage/profile.js).
