@@ -105,7 +105,8 @@ export class TouchControls {
     const m = this.game.mode;
     this.el.classList.toggle('can-melee', !!m?.meleeAllowed?.());
     this.el.classList.toggle('can-grenade', !!m?.grenadesAllowed?.() && (m.grenades ?? 0) > 0);
-    this.el.classList.toggle('can-shop', m?.state === 'intermission' && !!m.openShop);
+    // Botón de usar: armería entre oleadas o lo comprable que hay delante (puerta, arma, bebida).
+    this.el.classList.toggle('can-shop', (m?.state === 'intermission' && !!m.openShop) || !!m?.near);
     if (this.weaponKey.textContent !== w.stats.key) this.weaponKey.textContent = w.stats.key;
   }
 
@@ -168,7 +169,8 @@ export class TouchControls {
         this.game.grenades.throw();
         return;
       case 'shop':
-        this.game.mode?.openShop?.();
+        if (this.game.mode?.near) this.game.mode.buyNear();
+        else this.game.mode?.openShop?.();
         return;
       case 'pause':
         inp.unlock();
