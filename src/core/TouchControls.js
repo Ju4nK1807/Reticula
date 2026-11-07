@@ -106,7 +106,7 @@ export class TouchControls {
     this.el.classList.toggle('can-melee', !!m?.meleeAllowed?.());
     this.el.classList.toggle('can-grenade', !!m?.grenadesAllowed?.() && (m.grenades ?? 0) > 0);
     // Botón de usar: armería entre oleadas o lo comprable que hay delante (puerta, arma, bebida).
-    this.el.classList.toggle('can-shop', (m?.state === 'intermission' && !!m.openShop) || !!m?.near);
+    this.el.classList.toggle('can-shop', (m?.state === 'intermission' && !!m.openShop) || !!m?.near || !!m?.nearBarricade);
     if (this.weaponKey.textContent !== w.stats.key) this.weaponKey.textContent = w.stats.key;
   }
 
@@ -169,7 +169,11 @@ export class TouchControls {
         this.game.grenades.throw();
         return;
       case 'shop':
-        if (this.game.mode?.near) this.game.mode.buyNear();
+        // Junto a una barricada, mantener el botón repara (como mantener la tecla de usar).
+        if (this.game.mode?.nearBarricade) {
+          inp.keys.add(inp.codeFor('interact'));
+          this.lookers.set(e.pointerId, { x: e.clientX, y: e.clientY, jump: true, interact: true });
+        } else if (this.game.mode?.near) this.game.mode.buyNear();
         else this.game.mode?.openShop?.();
         return;
       case 'pause':
@@ -218,7 +222,8 @@ export class TouchControls {
     }
     const look = this.lookers.get(e.pointerId);
     if (look?.fire) this.input.mouseDown = false;
-    if (look?.jump) this.input.keys.delete(this.input.codeFor('jump'));
+    if (look?.interact) this.input.keys.delete(this.input.codeFor('interact'));
+    else if (look?.jump) this.input.keys.delete(this.input.codeFor('jump'));
     this.lookers.delete(e.pointerId);
   }
 }

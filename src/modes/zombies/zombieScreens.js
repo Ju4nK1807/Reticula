@@ -3,7 +3,7 @@ import { button } from '../../ui/components.js';
 import { sensSummary } from '../../config/sensitivity.js';
 import { clock } from '../../utils/format.js';
 import { keyLabel } from '../../config/keybinds.js';
-import { DOORS, GRENADE_MAX, PERKS, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
+import { BARRICADE, BOX_PRICE, DOORS, GRENADE_MAX, PERKS, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
 
 const fmt = (n) => Math.round(n).toLocaleString('es');
 
@@ -15,7 +15,9 @@ function rules(game) {
   return [
     ['Resiste la horda', 'Cada oleada trae más zombis, más resistentes y más rápidos. La partida termina cuando caes. Te recuperas si pasas unos segundos sin recibir golpes.'],
     ['Gana puntos', `Cada impacto da puntos; matar da más, sobre todo a la cabeza, con el cuchillo${key('melee')} o con granadas${key('grenade')}.`],
-    ['Abre el mapa', `Las puertas tapiadas de la plaza se compran${key('interact')}: ${doors}. Cada sección tiene más armas y bebidas, pero también más entradas de zombis.`],
+    ['Barricadas', `Empiezas encerrado en el Vestíbulo. La horda sale de la tierra y arranca los tablones de las ventanas; mantén${key('interact')} junto a una ventana para repararla (+${BARRICADE.repairPoints} por tablón).`],
+    ['Abre el mapa', `Las puertas tapiadas se compran${key('interact')}: ${doors}. Cada sección tiene más armas y bebidas, pero también más entradas de zombis.`],
+    ['Caja misteriosa', `En la plaza, el haz de luz azul: ${BOX_PRICE} puntos por un arma al azar de las que no tienes.`],
     ['Armas en la pared', `Empiezas con la pistola (munición infinita). Las demás están colgadas en las paredes: acércate y cómpralas${key('interact')}; con el arma ya comprada, el mismo puesto vende su munición.`],
     ['Bebidas', `Cinco máquinas repartidas por el mapa: ${Object.values(PERKS).map((p) => p.name).join(', ')}. Duran hasta que caes.`],
     ['Granadas y armería', `Entre oleadas abre la armería${key('interact')}: munición, botiquín y cuatro tipos de granada (fragmentación, incendiaria, aturdidora y señuelo). Cambia de tipo${key('grenadeNext')}.`],
@@ -59,7 +61,7 @@ export function zombieIntroScreen(game, { record, onStart, onSettings, onBack })
       { class: 'panel zh-intro' },
       h('div', { class: 'eyebrow' }, 'Modo zombi · Barrio en ruinas'),
       h('h2', {}, 'Sobrevive a la horda'),
-      h('p', { class: 'muted' }, 'De noche, en una plaza rodeada de edificios. Los zombis entran por los callejones; detrás de las puertas tapiadas esperan el Mercado, la Estación y la Iglesia. Gasta bien tus puntos.'),
+      h('p', { class: 'muted' }, 'De noche, encerrado en el Vestíbulo de un barrio en ruinas. La horda arranca los tablones de las ventanas; detrás de las puertas tapiadas esperan la Plaza, el Mercado, la Estación y la Iglesia. Gasta bien tus puntos.'),
       records(record),
       h('ol', { class: 'stage-list' }, rules(game).map(([t, x], i) => h('li', {}, h('span', { class: 'num' }, i + 1), h('div', {}, h('strong', {}, t), h('p', {}, x))))),
       !game.touchMode && h('dl', { class: 'controls compact' }, controls(game.settings.keys).map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
