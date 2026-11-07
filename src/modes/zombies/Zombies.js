@@ -61,25 +61,37 @@ export class Zombies extends Mode {
 
   // Mientras se lee la pantalla de inicio: carga los modelos, compila sus sombreadores (dibujo real,
   // diminuto, detrás del menú) y deja zombis creados en reserva. El primero ya no traba la partida.
+  // La reserva cubre una oleada llena (hasta 24 vivos): crear un zombi en plena partida (clonar su
+  // esqueleto) costaba varios ms y se notaba como tirones cuando aparecían muchos a la vez. Se crean
+  // de a pocos, cediendo el hilo entre tandas, para no trabar la pantalla de inicio.
   async warmZombies() {
     const g = this.game;
     const kinds = [
-      ['walker', ZOMBIE_TYPES.walker, 6],
-      ['runner', ZOMBIE_TYPES.runner, 4],
-      ['walker', ZOMBIE_TYPES.brute, 1],
+      ['walker', ZOMBIE_TYPES.walker, 18],
+      ['runner', ZOMBIE_TYPES.runner, 10],
+      ['walker', ZOMBIE_TYPES.brute, 2],
     ];
+    const breathe = () => new Promise((r) => setTimeout(r, 30));
     for (const [model, type, n] of kinds) {
       const template = await loadZombieModel(model);
       if (!template || g.mode !== this) return;
-      const skins = Array.from({ length: n }, () => acquireZombieSkin(template, { height: type.height, tint: type.tint ?? null }));
+      const opts = { height: type.height, tint: type.tint ?? null };
+      // Uno se dibuja diminuto delante de la cámara: compila sus sombreadores.
+      const first = acquireZombieSkin(template, opts);
       const cam = g.engine.camera;
-      for (const s of skins) {
-        s.root.position.set(0, 0, -3).applyQuaternion(cam.quaternion).add(cam.position);
-        s.root.scale.setScalar(0.002);
-        s.update(1 / 60, { anim: 'walk', speed: 1 });
+      first.root.position.set(0, 0, -3).applyQuaternion(cam.quaternion).add(cam.position);
+      first.root.scale.setScalar(0.002);
+      first.update(1 / 60, { anim: 'walk', speed: 1 });
+      g.engine.warmup(g.world.scene, cam, [first.root]);
+      const made = [first];
+      for (let i = 1; i < n; i++) {
+        if (i % 3 === 0) {
+          await breathe();
+          if (g.mode !== this) break;
+        }
+        made.push(acquireZombieSkin(template, opts));
       }
-      g.engine.warmup(g.world.scene, cam, skins.map((s) => s.root));
-      for (const s of skins) releaseZombieSkin(s);
+      for (const s of made) releaseZombieSkin(s);
     }
   }
 
