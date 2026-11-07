@@ -28,6 +28,10 @@ export function modeSummary(id, data) {
       const c = data.records?.coordination?.circuit;
       return c?.plays ? { text: `Índice ${c.best}`, sub: `${c.plays} circuitos` } : { text: 'Sin jugar', sub: '4 ejercicios · 45 s' };
     }
+    case 'zombie-defense': {
+      const z = data.records?.['zombie-defense'];
+      return z?.totalRuns ? { text: `Oleada ${z.bestWave}`, sub: `récord · ${z.bestScore} pts` } : { text: 'Sin jugar', sub: 'protege la barra' };
+    }
     case 'zombies': {
       const z = data.records?.zombies;
       return z?.totalRuns ? { text: `Oleada ${z.bestWave}`, sub: `récord · ${z.bestScore} pts` } : { text: 'Sin jugar', sub: 'hasta caer' };

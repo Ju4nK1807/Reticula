@@ -18,6 +18,7 @@ const PATHS = {
   knife: '<path d="M4 20 15.5 8.5a2.2 2.2 0 0 0 0-3.1l-.9-.9L3.5 15.6z"/><path d="m14.2 9.8 3.3 3.3a1.5 1.5 0 0 0 2.1 0l.9-.9a1.5 1.5 0 0 0 0-2.1l-3.3-3.3"/>',
   grenade: '<circle cx="12" cy="14" r="6.5"/><path d="M10 7.5V5h4v2.5"/><path d="M14 5c1.5 0 3 .6 3.5 2"/><path d="M9 14h6"/>',
   cart: '<path d="M3 4h2.5l2.2 10.2a1 1 0 0 0 1 .8h8.6a1 1 0 0 0 1-.8L20 8H6.4"/><circle cx="9.5" cy="19" r="1.3"/><circle cx="16.5" cy="19" r="1.3"/>',
+  bottle: '<path d="M10 2.5h4v3.2l1.6 2.6c.6 1 .9 2.1.9 3.2V20a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 7.5 20v-8.5c0-1.1.3-2.2.9-3.2L10 5.7z"/><path d="M7.5 13h9"/>',
   skull: '<path d="M12 3a7.5 7.5 0 0 0-7.5 7.5c0 2.3 1 4 2.5 5.1V19a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3.4c1.5-1.1 2.5-2.8 2.5-5.1A7.5 7.5 0 0 0 12 3z"/><circle cx="9" cy="11" r="1.6"/><circle cx="15" cy="11" r="1.6"/><path d="M10 20v-2.5M14 20v-2.5"/>',
 };
 
@@ -33,4 +34,5 @@ export const MODE_ICONS = {
   coordination: 'eye',
   endless: 'waves',
   zombies: 'skull',
+  'zombie-defense': 'bottle',
 };

@@ -13,13 +13,16 @@
 */
 
 export const AUTO_DETAILS = ['alta', 'media', 'baja'];
-export const AUTO_SCALE = { min: 0.6, max: 1, step: 0.05 };
+export const AUTO_SCALE = { min: 0.5, max: 1, step: 0.05 };
 const WINDOW = 0.75; // s de cuadros por decisión
-const SLOW = 1.12; // ×presupuesto: por encima, va lento (60 FPS → < ~53.6 FPS)
+const SLOW = 1.08; // ×presupuesto: por encima, va lento (60 FPS → < ~55.5 FPS)
 const OK = 1.04; // ×presupuesto: hasta aquí, está en el objetivo
 const STABLE_TO_RAISE = 4; // s estables antes de probar a subir la escala
 const MAX_BACKOFF = 60; // s
 const HITCH = 250; // ms: cuadros más largos son tirones aislados (carga, cambio de pestaña), no cuentan
+// Bajar el detalle recompila todos los sombreadores (un tirón grande): solo si en la escala mínima
+// sigue lento varias ventanas seguidas, no por un momento de carga (una tanda de enemigos).
+const SLOW_AT_MIN = 3;
 
 /** Detalle inicial según la GPU (nombre de WEBGL_debug_renderer_info) y el tipo de dispositivo. */
 export function guessDetail(renderer = '', { touch = false } = {}) {
@@ -41,6 +44,7 @@ export class AutoQuality {
     this.stable = 0; // s seguidos en el objetivo
     this.needStable = STABLE_TO_RAISE;
     this.probe = null; // escala anterior mientras se prueba una subida
+    this.slowAtMin = 0; // ventanas lentas seguidas ya en la escala mínima
     this.changes = 0;
   }
 
@@ -78,12 +82,19 @@ export class AutoQuality {
     if (slow) {
       this.stable = 0;
       const step = avg > this.budget * 1.5 ? AUTO_SCALE.step * 2 : AUTO_SCALE.step;
-      if (this.scale - step >= AUTO_SCALE.min - 1e-6) return this.set(this.detail, this.scale - step);
-      const i = AUTO_DETAILS.indexOf(this.detail);
-      if (i < AUTO_DETAILS.length - 1) return this.set(AUTO_DETAILS[i + 1], Math.min(AUTO_SCALE.max, this.scale + 0.15));
+      if (this.scale - step >= AUTO_SCALE.min - 1e-6) {
+        this.slowAtMin = 0;
+        return this.set(this.detail, this.scale - step);
+      }
       if (this.scale > AUTO_SCALE.min) return this.set(this.detail, AUTO_SCALE.min);
-      return null; // ya está en lo mínimo
+      const i = AUTO_DETAILS.indexOf(this.detail);
+      if (i < AUTO_DETAILS.length - 1 && ++this.slowAtMin >= SLOW_AT_MIN) {
+        this.slowAtMin = 0;
+        return this.set(AUTO_DETAILS[i + 1], Math.min(AUTO_SCALE.max, this.scale + 0.15));
+      }
+      return null; // ya está en lo mínimo (o esperando confirmar antes de bajar el detalle)
     }
+    this.slowAtMin = 0;
     if (avg <= this.budget * OK) {
       this.stable += elapsed;
       if (this.stable >= this.needStable && this.scale < AUTO_SCALE.max - 1e-6) {

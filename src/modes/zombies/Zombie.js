@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { acquireZombieSkin, loadZombieModel, releaseZombieSkin } from './zombieSkin.js';
+import { pushCircleOut } from '../../physics/obb.js';
+import { DEFENSE } from './zombieData.js';
 
 /*
   Un zombi. Misma interfaz que los bots para que Phase, Ballistics y el jugador lo traten igual:
@@ -25,6 +27,7 @@ const STAGGER_TIME = 0.32;
 const hitboxGeo = new THREE.BoxGeometry(1, 1, 1);
 const hitboxMat = new THREE.MeshBasicMaterial({ visible: false });
 const _dir = { x: 0, z: 0 };
+const _near = { x: 0, z: 0 };
 const _v = new THREE.Vector3();
 
 // Hitboxes [parte, ancho, alto, fondo, y, z] en metros para una altura de 1.78 (se escalan).
@@ -62,6 +65,8 @@ export class Zombie {
     this.flashT = 0;
     this.yaw = 0;
     this.speedNow = 0;
+    this.aggroT = 0; // s que sigue enojado con el jugador (defensa: deja la barra y lo persigue)
+    this.attackOn = 'player';
     this.scale = stats.height / 1.78;
     this.radius = RADIUS * this.scale;
     this.dieAnim = Math.random() < 0.5 ? 'die' : 'die2';
@@ -128,6 +133,7 @@ export class Zombie {
   damage(amount, part = 'body') {
     if (!this.alive) return { killed: false };
     this.hp -= amount;
+    this.aggroT = DEFENSE.aggroTime; // quien lo lastima pasa a ser su objetivo un rato
     this.flashT = 0.07;
     if (this.hp <= 0) {
       this.state = 'dying';
@@ -146,15 +152,35 @@ export class Zombie {
   update(dt, ctx) {
     this.t += dt;
     this.flashT -= dt;
+    this.aggroT -= dt;
     if (this.state === 'dying') return this.updateDeath(dt);
     if (this.state === 'gone') return;
 
     const p = this.group.position;
     const player = ctx.playerPos;
-    const dx = player.x - p.x;
-    const dz = player.z - p.z;
-    const dist = Math.hypot(dx, dz);
+    const pdx = player.x - p.x;
+    const pdz = player.z - p.z;
+    const dist = Math.hypot(pdx, pdz);
+    this.distToPlayer = dist;
     const reach = this.stats.attackRange * Math.max(1, this.scale * 0.9);
+
+    // Objetivo: el jugador, o en la defensa la barra (salvo que el jugador esté encima o le haya
+    // disparado hace poco y no se haya alejado demasiado).
+    const obj = ctx.objective;
+    const chasePlayer = !obj || dist < DEFENSE.aggroRange || (this.aggroT > 0 && dist < DEFENSE.aggroLeash);
+    let tx = player.x;
+    let tz = player.z;
+    let tdist = dist;
+    let nav = this.run.nav;
+    if (!chasePlayer) {
+      obj.bar.nearest(p.x, p.z, _near);
+      tx = _near.x;
+      tz = _near.z;
+      tdist = obj.bar.distance(p.x, p.z);
+      nav = obj.nav;
+    }
+    const dx = tx - p.x;
+    const dz = tz - p.z;
 
     // Gruñidos de vez en cuando (más seguido cuanto más cerca).
     this.groanT -= dt;
@@ -170,25 +196,37 @@ export class Zombie {
     } else if (this.state === 'attack') {
       this.speedNow = 0;
       this.attackT += dt;
-      this.turnTowards(Math.atan2(dx, dz), dt);
+      const onBar = this.attackOn === 'bar';
+      // Mientras ataca la barra, mira a la barra; si no, al jugador.
+      if (onBar && obj) {
+        obj.bar.nearest(p.x, p.z, _near);
+        this.turnTowards(Math.atan2(_near.x - p.x, _near.z - p.z), dt);
+      } else this.turnTowards(Math.atan2(pdx, pdz), dt);
+      const targetDist = onBar && obj ? obj.bar.distance(p.x, p.z) : dist;
       if (!this.hitDone && this.attackT >= this.stats.attackEvery * ATTACK_HIT_AT) {
         this.hitDone = true;
-        if (dist <= reach + 0.35) this.run.onZombieAttack?.(this);
+        if (targetDist <= reach + 0.35) {
+          if (onBar) this.run.onZombieAttackBar?.(this);
+          else this.run.onZombieAttack?.(this);
+        }
       }
       if (this.attackT >= this.stats.attackEvery) {
         this.attackT = 0;
         this.hitDone = false;
-        if (dist > reach * 1.15) this.state = 'chase';
+        // Termina el gesto: sigue si su objetivo sigue a mano; si cambió de objetivo, a perseguir.
+        const wantBar = !chasePlayer;
+        if (targetDist > reach * 1.15 || wantBar !== onBar) this.state = 'chase';
       }
     } else {
       // Persecución: dirección del campo de flujo (o directo si está cerca o no hay camino).
-      let mx = dx / (dist || 1);
-      let mz = dz / (dist || 1);
-      if (dist > DIRECT_RANGE && this.run.nav?.direction(p.x, p.z, _dir)) {
+      let mx = dx / (tdist || Math.hypot(dx, dz) || 1);
+      let mz = dz / (tdist || Math.hypot(dx, dz) || 1);
+      if (tdist > DIRECT_RANGE && nav?.direction(p.x, p.z, _dir)) {
         mx = _dir.x;
         mz = _dir.z;
       }
-      // Separación de los demás zombis (no se apilan).
+      // Separación de los demás zombis (no se apilan): dirección; la corrección firme la hace la
+      // partida después de mover a todos (ZombieRun.resolveCrowd).
       for (const o of ctx.zombies) {
         if (o === this || !o.alive) continue;
         const ox = p.x - o.group.position.x;
@@ -208,8 +246,9 @@ export class Zombie {
       p.z += (mz / len) * this.speedNow * dt;
       this.collideWorld(ctx.colliders);
       this.turnTowards(Math.atan2(mx, mz), dt);
-      if (dist <= reach) {
+      if (tdist <= reach) {
         this.state = 'attack';
+        this.attackOn = chasePlayer ? 'player' : 'bar';
         this.attackT = 0;
         this.hitDone = false;
       }
@@ -235,29 +274,17 @@ export class Zombie {
   }
 
   // Empuja al zombi fuera de las cajas del mapa (círculo contra caja en el plano).
+  // Contra cajas fijas y giradas (barreras, autos: su forma real, ver physics/obb.js).
   collideWorld(colliders) {
     const p = this.group.position;
     const r = this.radius;
     for (const b of colliders) {
       if (b.max.y < 0.3 || b.min.y > 1.6) continue;
-      const cx = Math.max(b.min.x, Math.min(p.x, b.max.x));
-      const cz = Math.max(b.min.z, Math.min(p.z, b.max.z));
-      const ox = p.x - cx;
-      const oz = p.z - cz;
-      const d2 = ox * ox + oz * oz;
-      if (d2 >= r * r) continue;
-      if (d2 > 1e-8) {
-        const d = Math.sqrt(d2);
-        p.x = cx + (ox / d) * r;
-        p.z = cz + (oz / d) * r;
-      } else {
-        // Centro dentro de la caja: sale por el lado más cercano.
-        const pens = [p.x - b.min.x, b.max.x - p.x, p.z - b.min.z, b.max.z - p.z];
-        const m = Math.min(...pens);
-        if (m === pens[0]) p.x = b.min.x - r;
-        else if (m === pens[1]) p.x = b.max.x + r;
-        else if (m === pens[2]) p.z = b.min.z - r;
-        else p.z = b.max.z + r;
+      if (p.x + r < b.min.x || p.x - r > b.max.x || p.z + r < b.min.z || p.z - r > b.max.z) continue;
+      const out = pushCircleOut(b, p.x, p.z, r);
+      if (out) {
+        p.x = out[0];
+        p.z = out[1];
       }
     }
   }
@@ -273,6 +300,7 @@ export class Zombie {
     if (!s) return;
     this.syncSkin();
     s.update(dt, {
+      distance: this.distToPlayer ?? 0,
       anim,
       speed: this.speedNow,
       cycle: anim === 'attack' || anim === 'heavy' ? this.stats.attackEvery : 0,

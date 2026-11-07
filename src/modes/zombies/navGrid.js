@@ -1,3 +1,4 @@
+import { insideBox } from '../../physics/obb.js';
 /*
   Navegación de la horda: campo de flujo sobre una cuadrícula.
 
@@ -36,7 +37,7 @@ export class NavGrid {
       for (const b of colliders) {
         // Solo cuenta lo que bloquea el paso a la altura de un cuerpo.
         if (b.max.y < 0.3 || b.min.y > 1.6) continue;
-        if (x > b.min.x - radius && x < b.max.x + radius && z > b.min.z - radius && z < b.max.z + radius) {
+        if (insideBox(b, x, z, radius)) {
           this.blocked[i] = 1;
           break;
         }
@@ -64,12 +65,33 @@ export class NavGrid {
     if (t < 0) return false;
     if (this.blocked[t]) t = this.nearestFree(t);
     if (t < 0) return false;
-    this.target = t;
+    return this.buildFrom([t]);
+  }
+
+  /**
+   * Campo de flujo hacia el más cercano de varios puntos [{ x, z }] (p. ej. todo el contorno de un
+   * objetivo: cada zombi va al lado que le queda más cerca).
+   */
+  buildToMany(points) {
+    const seeds = [];
+    for (const p of points) {
+      let t = this.index(p.x, p.z);
+      if (t < 0) continue;
+      if (this.blocked[t]) t = this.nearestFree(t);
+      if (t >= 0 && !seeds.includes(t)) seeds.push(t);
+    }
+    return seeds.length ? this.buildFrom(seeds) : false;
+  }
+
+  buildFrom(seeds) {
+    this.target = seeds[0];
     this.dist.fill(Infinity);
     this.next.fill(-1);
-    this.dist[t] = 0;
     this.heapLen = 0;
-    this.push(t);
+    for (const t of seeds) {
+      this.dist[t] = 0;
+      this.push(t);
+    }
     const w = this.w;
     while (this.heapLen) {
       const i = this.pop();
@@ -106,10 +128,10 @@ export class NavGrid {
       i = this.nearestFree(i, true);
       if (i < 0) return false;
     }
-    if (i === this.target) return false; // ya está en la celda del jugador: que vaya directo
+    if (this.dist[i] === 0) return false; // ya está en la celda de destino: que vaya directo
     let j = this.next[i];
     if (j < 0) return false;
-    if (this.next[j] >= 0 && this.next[j] !== this.target) j = this.next[j];
+    if (this.next[j] >= 0 && this.dist[this.next[j]] > 0) j = this.next[j];
     const c = this.center(j, _c);
     const dx = c.x - x;
     const dz = c.z - z;
