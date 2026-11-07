@@ -7,7 +7,7 @@ import { clock } from '../../utils/format.js';
 import { rand } from '../../utils/math.js';
 import { NavGrid } from './navGrid.js';
 import { Zombie } from './Zombie.js';
-import { DOORS, DROP, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
+import { BARRICADE, BOX_PRICE, rollBox, DOORS, DROP, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
 const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
 const VIEW_AVOID = Math.PI / 3; // en oleadas altas se prefieren entradas fuera de la vista (±60°)
@@ -51,6 +51,7 @@ export class ZombieRun extends Phase {
     this.dmgMul = 1;
     this.regenDelay = PLAYER.regenDelay;
     this.regenRate = PLAYER.regenRate;
+    this.repairPoints = 0;
     this.timers = { double: 0, instakill: 0 };
     this.sinceDrop = DROP.cooldown;
     this.drops = []; // { id, mesh, t }
@@ -90,6 +91,7 @@ export class ZombieRun extends Phase {
     this.roster = waveRoster(this.cfg);
     this.spawnTimer = 0.8;
     this.waveKills = 0;
+    this.repairPoints = 0; // tope de puntos por reparar barricadas en cada oleada
     this.state = 'wave';
     this.emit('waveStart', { wave: n, count: this.cfg.count, runnerNight: this.cfg.runnerNight });
   }
@@ -153,8 +155,28 @@ export class ZombieRun extends Phase {
     pos.x += rand(-1.2, 1.2);
     pos.z += rand(-1.2, 1.2);
     const z = new Zombie(this, zombieStats(type, this.cfg), pos);
+    z.entry = entry; // para arrancar los tablones de su barricada
+    if (entry.rise) z.rise(); // las ventanas del vestíbulo: salen de la tierra
     this.bots.push(z);
     return z;
+  }
+
+  // Un zombi arranca un tablón de su barricada (crujido de madera, ubicado en estéreo).
+  onTearBoard(z, b) {
+    if (!this.world.removeBoard?.(b)) return;
+    const g = this.game;
+    g.sfx.propHit?.('wood', g.panFor(b.mouth), 0.9);
+    this.emit('tear', { barricade: b });
+  }
+
+  /** Repara un tablón (el jugador mantiene la tecla de usar). Devuelve true si se clavó uno. */
+  repairBoard(b) {
+    if (!this.world.addBoard?.(b)) return false;
+    if (this.repairPoints < BARRICADE.repairCapPerWave) {
+      this.repairPoints += BARRICADE.repairPoints;
+      this.addCash(BARRICADE.repairPoints);
+    }
+    return true;
   }
 
   // --- Daño a los zombis ------------------------------------------------------------------------
@@ -313,6 +335,7 @@ export class ZombieRun extends Phase {
       if (this.perks.has(it.id)) return { price: 0, label: `${p.name} · ya la tomaste`, done: true };
       return { price: p.price, label: `Beber ${p.name} · ${p.desc}` };
     }
+    if (it.kind === 'box') return { price: BOX_PRICE, label: 'Caja misteriosa · un arma al azar' };
     const name = WEAPONS[it.id]?.name ?? it.id;
     if (this.owned.has(it.id)) return { price: wallAmmoPrice(it.id), label: `Munición · ${name}`, ammo: true };
     return { price: WALL_BUYS[it.id], label: `Comprar ${name}` };
@@ -325,8 +348,16 @@ export class ZombieRun extends Phase {
     if (o.done) return 'Ya la tienes';
     if (o.ammo && this.reserveFullFor(it.id)) return 'Munición llena';
     if (this.cash < o.price) return 'Faltan puntos';
-    this.cash -= o.price;
     const g = this.game;
+    if (it.kind === 'box') {
+      const id = rollBox(this.owned);
+      if (!id) return 'Ya tienes todas las armas';
+      this.cash -= o.price;
+      this.giveWeapon(id);
+      this.emit('box', { id });
+      return null;
+    }
+    this.cash -= o.price;
     if (it.kind === 'door') {
       this.world.openDoor(it.id);
       this.nav.setColliders(this.world.colliders);
@@ -344,13 +375,19 @@ export class ZombieRun extends Phase {
       g.weapon.ammoBy[it.id] = WEAPONS[it.id].magazine;
       this.emit('ammo', { id: it.id });
     } else {
-      this.owned.add(it.id);
-      g.weapon.reserveBy[it.id] = RESERVE[it.id];
-      g.weapon.setWeapon(it.id, { force: true });
-      g.weapon.ammo = g.weapon.stats.magazine;
+      this.giveWeapon(it.id);
       this.emit('weapon', { id: it.id });
     }
     return null;
+  }
+
+  // Arma nueva con su cargador lleno y su reserva; queda en la mano.
+  giveWeapon(id) {
+    const w = this.game.weapon;
+    this.owned.add(id);
+    w.reserveBy[id] = RESERVE[id];
+    w.setWeapon(id, { force: true });
+    w.ammo = w.stats.magazine;
   }
 
   reserveFullFor(id) {
