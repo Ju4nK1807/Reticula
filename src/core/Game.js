@@ -383,12 +383,14 @@ export class Game {
     this.engine.frozen = this.ui.el.classList.contains('active') && !this.ui.el.querySelector('.title-screen');
   }
 
-  // Resolución dinámica: solo se adapta jugando (los menús no son representativos).
+  // Resolución dinámica: se adapta jugando y en la pantalla de título (la armería se dibuja en vivo);
+  // con otro menú encima la escena no se dibuja y los cuadros no cuentan.
   updateAutoQuality(now) {
     const last = this.lastFrameAt ?? now;
     this.lastFrameAt = now;
     const aq = this.autoQuality;
-    if (!aq || !this.playing) return;
+    const title = !this.mode && !!this.ui.el.querySelector('.title-screen');
+    if (!aq || !(this.playing || title) || this.engine.frozen) return;
     const change = aq.sample(now - last);
     const video = this.settings.video;
     if (change) {
