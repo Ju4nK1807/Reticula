@@ -4,22 +4,36 @@ import { checkbox, field, select, slider } from './controls.js';
 import { crosshairSVG } from './Crosshair.js';
 import { ENEMY_COLORS } from '../config/defaults.js';
 import { FOV_PRESETS, GAMES, cmPer360, convertSens, formatSens, roundTo, valueForCm } from '../config/sensitivity.js';
-import { QUALITY_OPTIONS, QUALITY_PRESETS, RENDER_SCALE, resolveQuality } from '../config/quality.js';
+import { QUALITY_OPTIONS, QUALITY_PRESETS, RENDER_SCALE, SHADOW_OPTIONS, resolveQuality } from '../config/quality.js';
+import { ACTIONS, DEFAULT_KEYS, isReservedCode, keyLabel, rebind } from '../config/keybinds.js';
 
-export const CONTROLS = [
-  ['Mouse', 'Apuntar · clic izquierdo dispara'],
-  ['Clic derecho', 'Apuntar con las miras · mira telescópica (francotirador)'],
-  ['W A S D', 'Moverse'],
-  ['Shift', 'Caminar (más preciso)'],
-  ['C', 'Agacharse'],
-  ['Espacio', 'Saltar'],
-  ['R', 'Recargar'],
-  ['1 – 5', 'Cambiar de arma (no en la evaluación)'],
-  ['B', 'Automático / semiautomático (si el arma lo permite)'],
-  ['[  /  ]', 'Bajar / subir sensibilidad 3 %'],
-  ['Retroceso', 'Reiniciar la fase actual'],
-  ['Esc', 'Pausa'],
-];
+// Teclas en uso (las fija Game.applySettings): las listas de controles muestran las del jugador.
+let activeKeys = DEFAULT_KEYS;
+export const setActiveKeys = (keys) => {
+  activeKeys = keys;
+};
+export const currentKey = (id) => keyLabel(activeKeys, id);
+
+/** Controles de teclado y mouse con las teclas que eligió el jugador. */
+export function keyboardControls() {
+  const k = currentKey;
+  return [
+    ['Mouse', 'Apuntar · clic izquierdo dispara (mantenlo con las automáticas)'],
+    ['Clic derecho', 'Apuntar con las miras · mira telescópica'],
+    ['Rueda · 1 – 9', 'Cambiar de arma (no en la evaluación)'],
+    [`${k('forward')} ${k('left')} ${k('back')} ${k('right')}`, 'Moverse'],
+    [k('walk'), 'Caminar (más preciso)'],
+    [k('crouch'), 'Agacharse'],
+    [k('jump'), 'Saltar'],
+    [k('reload'), 'Recargar'],
+    [k('fireMode'), 'Modo de disparo (si el arma tiene varios)'],
+    [k('melee'), 'Cuchillo (donde se permite)'],
+    [`${k('grenade')} · ${k('grenadeNext')}`, 'Granada · cambiar de tipo (donde hay granadas)'],
+    [`${k('sensDown')}  /  ${k('sensUp')}`, 'Bajar / subir sensibilidad 3 %'],
+    [k('restart'), 'Reiniciar la fase actual'],
+    ['Esc', 'Pausa'],
+  ];
+}
 
 /** Controles en pantalla del modo táctil (teléfonos y tabletas). */
 export const TOUCH_CONTROLS = [
@@ -37,7 +51,82 @@ export const TOUCH_CONTROLS = [
 export const isTouchUI = () => typeof document !== 'undefined' && !!document.querySelector('.touch-mode');
 
 /** Lista de controles que corresponde al dispositivo actual. */
-export const controlList = () => (isTouchUI() ? TOUCH_CONTROLS : CONTROLS);
+export const controlList = () => (isTouchUI() ? TOUCH_CONTROLS : keyboardControls());
+
+// Pestaña de controles: cada acción con su tecla; clic en la tecla y pulsar la nueva. Si la tecla ya
+// la usaba otra acción, se intercambian.
+function keybindsPanel(game) {
+  const s = game.settings;
+  let listening = null; // { id, btn }
+  const buttons = new Map();
+  const refresh = () => {
+    for (const [id, btn] of buttons) btn.textContent = keyLabel(s.keys, id);
+  };
+  const stop = () => {
+    window.removeEventListener('keydown', onCapture, true);
+    listening?.btn.classList.remove('listening');
+    listening = null;
+    refresh();
+  };
+  // Se escucha en window y en captura: va antes que Esc/Retroceso de la interfaz.
+  function onCapture(e) {
+    if (!listening?.btn.isConnected) return stop();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.code === 'Escape') return stop();
+    if (isReservedCode(e.code)) {
+      game.ui.toast('Esa tecla está reservada (Esc es la pausa y 1-9 las armas).');
+      return;
+    }
+    const { id } = listening;
+    const swapped = rebind(s.keys, id, e.code);
+    game.store.persist();
+    game.applySettings();
+    if (swapped) game.ui.toast(`«${ACTIONS.find((a) => a.id === swapped).label}» pasa a ${keyLabel(s.keys, swapped)}.`);
+    if (/^Control/.test(e.code) && location.protocol !== 'reticula:') {
+      game.ui.toast('Ojo: en el navegador, Ctrl + W cierra la pestaña. En la app de escritorio no pasa.', 6000);
+    }
+    stop();
+  }
+  const listen = (id, btn) => {
+    if (listening) stop();
+    listening = { id, btn };
+    btn.textContent = 'Pulsa una tecla…';
+    btn.classList.add('listening');
+    window.addEventListener('keydown', onCapture, true);
+  };
+
+  const groups = [...new Set(ACTIONS.map((a) => a.group))];
+  const reset = button('Restablecer controles', () => {
+    s.keys = { ...DEFAULT_KEYS };
+    game.store.persist();
+    game.applySettings();
+    refresh();
+    game.ui.toast('Controles por defecto.');
+  });
+  const panel = h(
+    'section',
+    { class: 'panel' },
+    h('h3', {}, 'Controles'),
+    h('p', { class: 'muted small' }, 'Haz clic en una tecla y pulsa la nueva (Esc cancela). Disparar y apuntar van en el mouse; Esc (pausa) y 1-9 (armas) son fijas.'),
+    groups.map((g) =>
+      h(
+        'div',
+        { class: 'keybind-group' },
+        h('h4', {}, g),
+        ACTIONS.filter((a) => a.group === g).map((a) => {
+          const btn = h('button', { class: 'keybind', type: 'button', onclick: () => listen(a.id, btn) }, keyLabel(s.keys, a.id));
+          buttons.set(a.id, btn);
+          return h('div', { class: 'keybind-row' }, h('span', {}, a.label), btn);
+        }),
+      ),
+    ),
+    h('div', { class: 'row' }, reset),
+  );
+  panel.dataset.disposable = '';
+  panel._dispose = stop;
+  return panel;
+}
 
 // Bloque de sensibilidad reutilizable (también aparece en la pausa).
 export function sensitivityPanel(game, { compact = false } = {}) {
@@ -289,6 +378,10 @@ export function settingsScreen(game, onBack, opts = {}) {
         field('Calidad', qualitySelect, 'Baja la resolución de render para ganar FPS en equipos modestos.'),
         field('Resolución de render', scaleSlider, 'Porcentaje de la resolución de la pantalla (la interfaz no cambia).'),
         field('Detalle gráfico', detailSelect, 'Alta: texturas 1K, sombras suaves y brillo en luces. Media: texturas 512 y sombras. Baja: sin sombras ni relieve, máximo rendimiento.'),
+        field('Sombras', select(SHADOW_OPTIONS, s.video.shadows ?? 'auto', (v) => {
+          s.video.shadows = v;
+          commit();
+        }), 'Según el detalle: las pone el nivel gráfico. Activadas: siempre, aun en detalle bajo. Desactivadas: más FPS en equipos modestos.'),
         autoInfo,
         integratedGpuHint(game),
         field('Mostrar FPS', checkbox(s.video, 'showFps', commit), 'FPS promedio, ms por cuadro y 1 % low (tirones).')),
@@ -321,9 +414,11 @@ export function settingsScreen(game, onBack, opts = {}) {
         field('Sensibilidad con zoom', slider(s.gameplay, 'zoomSensitivity', { min: 0.5, max: 1.5, step: 0.05, fmt: (v) => `×${v.toFixed(2)}` }, commit), 'Con la mira telescópica la sensibilidad baja en proporción al zoom; ×1 se siente igual que sin zoom.')),
     ]],
     datos: ['Controles y datos', () => [
-      h('section', { class: 'panel' },
-        h('h3', {}, 'Controles'),
-        h('dl', { class: 'controls' }, controlList().map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)]))),
+      game.touchMode
+        ? h('section', { class: 'panel' },
+          h('h3', {}, 'Controles'),
+          h('dl', { class: 'controls' }, controlList().map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])))
+        : keybindsPanel(game),
       h('section', { class: 'panel' },
         h('h3', {}, 'Datos'),
         h('p', { class: 'muted small' }, 'Para guardar una copia de tu progreso usa Progreso → Datos → Exportar.'),
