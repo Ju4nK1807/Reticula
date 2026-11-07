@@ -87,6 +87,12 @@ export class Evaluation extends Mode {
   }
 
   // Durante las instrucciones se puede disparar para calentar (no cuenta).
+  // Entrenamiento: munición infinita y sin recargas (una recarga a destiempo dejaba escapar
+  // enemigos y restaba puntos). Las armas se sienten igual: solo no se vacían.
+  infiniteAmmo() {
+    return true;
+  }
+
   weaponEnabled() {
     return this.wantsLock();
   }

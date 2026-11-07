@@ -98,6 +98,12 @@ export class Campaign extends Mode {
     return this.state === 'brief' || this.state === 'running';
   }
 
+  // Entrenamiento: munición infinita y sin recargas (una recarga a destiempo dejaba escapar
+  // enemigos y restaba puntos). Las armas se sienten igual: solo no se vacían.
+  infiniteAmmo() {
+    return true;
+  }
+
   weaponEnabled() {
     return this.wantsLock();
   }
@@ -147,7 +153,7 @@ export class Campaign extends Mode {
     this.lastBeep = null;
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
-    g.equipLoadout(); // arma elegida en el arsenal (1-5 para cambiar, B para el modo de disparo)
+    g.equipLoadout(); // arma elegida en el arsenal (1-9 o la rueda para cambiar, B para el modo de disparo)
     g.effects.clear();
     g.hud.setVisible(true);
     g.hud.setHealth(1);

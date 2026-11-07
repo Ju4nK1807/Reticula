@@ -76,6 +76,12 @@ export class Coordination extends Mode {
     return this.state === 'brief' || this.state === 'running';
   }
 
+  // Entrenamiento: munición infinita y sin recargas (una recarga a destiempo dejaba escapar
+  // enemigos y restaba puntos). Las armas se sienten igual: solo no se vacían.
+  infiniteAmmo() {
+    return true;
+  }
+
   weaponEnabled() {
     return this.wantsLock();
   }
