@@ -149,6 +149,23 @@ describe('navegación de la horda (campo de flujo)', () => {
     expect(g.direction(3, 10, { x: 0, z: 0 })).toBe(false);
   });
 
+  it('línea despejada: detecta el muro y el camino libre por el hueco', () => {
+    const g = grid();
+    expect(g.clearLine(3, 5, 17, 5)).toBe(false); // cruza el muro
+    expect(g.clearLine(3, 18, 17, 18)).toBe(true); // por el hueco de abajo
+    expect(g.clearLine(2, 2, 6, 14)).toBe(true); // del mismo lado
+  });
+
+  it('abrir una puerta (quitar su colisionador) desbloquea las celdas', () => {
+    const door = box(9, 11, 16, 20);
+    const g = new NavGrid({ minX: 0, maxX: 20, minZ: 0, maxZ: 20, cell: 1, radius: 0.6, colliders: [box(9, 11, 0, 16), door] });
+    g.build(17, 5);
+    expect(g.direction(3, 5, { x: 0, z: 0 })).toBe(false); // cerrado del todo
+    g.setColliders([box(9, 11, 0, 16)]);
+    g.build(17, 5);
+    expect(g.direction(3, 5, { x: 0, z: 0 })).toBe(true);
+  });
+
   it('un jugador encima de un obstáculo usa la celda libre más cercana', () => {
     const g = grid();
     expect(g.build(10, 5)).toBe(true);

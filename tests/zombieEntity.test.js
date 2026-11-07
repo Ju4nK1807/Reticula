@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { Zombie } from '../src/modes/zombies/Zombie.js';
+import { NavGrid } from '../src/modes/zombies/navGrid.js';
 import { waveConfig, zombieStats } from '../src/modes/zombies/zombieData.js';
 
 function setup({ colliders = [], type = 'walker' } = {}) {
@@ -62,6 +63,49 @@ describe('zombi', () => {
     const b = make(0.05, 8.02);
     step(1.5);
     expect(a.position.distanceTo(b.position)).toBeGreaterThan(a.radius + b.radius);
+  });
+
+  it('rodea un muro con el rumbo suave: sin giros bruscos de un cuadro a otro', () => {
+    const wall = new THREE.Box3(new THREE.Vector3(-4, 0, 4), new THREE.Vector3(4, 3, 5));
+    const { run, make, ctx, player } = setup({ colliders: [wall] });
+    run.nav = new NavGrid({ minX: -20, maxX: 20, minZ: -20, maxZ: 20, colliders: [wall] });
+    run.nav.build(player.x, player.z);
+    const z = make(0.3, 12);
+    let prev = null;
+    let maxTurn = 0;
+    for (let i = 0; i < 60 * 14 && z.state === 'chase'; i++) {
+      const x0 = z.position.x;
+      const z0 = z.position.z;
+      z.update(1 / 60, ctx);
+      const ang = Math.atan2(z.position.x - x0, z.position.z - z0);
+      if (prev !== null && Math.hypot(z.position.x - x0, z.position.z - z0) > 1e-4) {
+        maxTurn = Math.max(maxTurn, Math.abs(Math.atan2(Math.sin(ang - prev), Math.cos(ang - prev))));
+      }
+      prev = ang;
+    }
+    expect(z.state).toBe('attack'); // llegó al jugador rodeando el muro
+    // < 20° por cuadro, incluso al deslizar por la esquina (antes daba medias vueltas entre cuadros).
+    expect(maxTurn).toBeLessThan(0.35);
+  });
+
+  it('la animación sigue la velocidad real: frenado contra un muro no camina en el sitio a toda marcha', () => {
+    const wall = new THREE.Box3(new THREE.Vector3(-30, 0, 4), new THREE.Vector3(30, 3, 5));
+    const { make, step } = setup({ colliders: [wall] });
+    const z = make(0, 7);
+    step(4);
+    expect(z.moveSpeed).toBeLessThan(0.3);
+  });
+
+  it('aturdido se mueve más lento', () => {
+    const a = setup();
+    const b = setup();
+    const za = a.make(0, 20);
+    const zb = b.make(0, 20);
+    za.pace = zb.pace = 1;
+    zb.stun(5);
+    a.step(3);
+    b.step(3);
+    expect(20 - zb.position.z).toBeLessThan((20 - za.position.z) * 0.7);
   });
 
   it('un golpe fuerte lo hace tambalear; al bruto no', () => {
