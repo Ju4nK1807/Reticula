@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { NavGrid } from '../src/modes/zombies/navGrid.js';
 import {
   DROP,
+  KNIFE_DAMAGE,
+  roundHp,
   PERKS,
   PLAYER,
   POWERUPS,
@@ -70,9 +72,27 @@ describe('oleadas zombi', () => {
 
   it('las estadísticas escalan con la oleada; el bruto no acelera', () => {
     const w10 = waveConfig(10);
-    expect(zombieStats('walker', w10).hp).toBe(Math.round(ZOMBIE_TYPES.walker.hp * w10.hpMul));
+    expect(zombieStats('walker', w10).hp).toBe(roundHp(10));
+    expect(zombieStats('brute', w10).hp).toBe(Math.round(roundHp(10) * ZOMBIE_TYPES.brute.hpScale));
     expect(zombieStats('walker', w10).speed).toBeCloseTo(ZOMBIE_TYPES.walker.speed * w10.speedMul);
     expect(zombieStats('brute', w10).speed).toBe(ZOMBIE_TYPES.brute.speed);
+  });
+
+  it('vida por ronda como en los clásicos: 150, 250, 350… y ×1.1 desde la ronda 10', () => {
+    expect([1, 2, 3, 9].map(roundHp)).toEqual([150, 250, 350, 950]);
+    expect(roundHp(10)).toBe(Math.round(950 * 1.1));
+    expect(roundHp(12)).toBeGreaterThan(roundHp(11));
+  });
+
+  it('el cuchillo mata de 1 golpe en la ronda 1, de 2 en la 2 y de 3 en la 3', () => {
+    for (const [wave, hits] of [[1, 1], [2, 2], [3, 3]]) {
+      expect(Math.ceil(zombieStats('walker', waveConfig(wave)).hp / KNIFE_DAMAGE), `ronda ${wave}`).toBe(hits);
+    }
+  });
+
+  it('tres golpes de caminante tumban a un jugador sin bebidas; con Coraza aguanta más', () => {
+    expect(Math.ceil(PLAYER.maxHealth / ZOMBIE_TYPES.walker.damage)).toBe(3);
+    expect(Math.ceil(perkStats(new Set(['coraza'])).maxHealth / ZOMBIE_TYPES.walker.damage)).toBeGreaterThanOrEqual(6);
   });
 });
 

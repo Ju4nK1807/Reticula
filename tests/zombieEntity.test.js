@@ -108,6 +108,35 @@ describe('zombi', () => {
     expect(20 - zb.position.z).toBeLessThan((20 - za.position.z) * 0.7);
   });
 
+  it('decapitado: pierde la hitbox de la cabeza, sigue caminando y se desangra hasta caer', () => {
+    const { run, make, step } = setup();
+    const bled = [];
+    run.onBleed = (z, amount) => {
+      bled.push(amount);
+      z.damage(amount, 'head');
+    };
+    const z = make(0, 30);
+    expect(z.decapitate()).toBe(true);
+    expect(z.decapitate()).toBe(false);
+    expect(z.hitMeshes.some((m) => m.userData.part === 'head')).toBe(false);
+    const z0 = z.position.z;
+    step(2);
+    expect(z.alive).toBe(true);
+    expect(z.position.z).toBeLessThan(z0 - 1); // sigue caminando
+    step(8);
+    expect(z.alive).toBe(false); // se desangró
+    expect(bled.length).toBeGreaterThan(0);
+  });
+
+  it('el bruto ruge quieto al aparecer y después avanza', () => {
+    const { make, step } = setup();
+    const b = make(0, 20, 'brute');
+    step(1);
+    expect(b.position.z).toBeCloseTo(20, 1);
+    step(3);
+    expect(b.position.z).toBeLessThan(18);
+  });
+
   it('un golpe fuerte lo hace tambalear; al bruto no', () => {
     const { make } = setup();
     const w = make(0, 10);
