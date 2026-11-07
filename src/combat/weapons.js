@@ -3,7 +3,9 @@
 //
 // rps: disparos por segundo · magazine: balas por cargador · reloadTime: s · drawTime: s al sacarla
 // damage: daño por zona (cabeza/cuerpo/piernas) de cada bala o perdigón; los bots tienen 100 de vida
-// fireModes: modos disponibles ('semi' | 'auto') y el primero es el de por defecto
+// fireModes: modos disponibles ('semi' | 'auto' | 'burst') y el primero es el de por defecto. Las
+//   automáticas arrancan en automático: mantener el clic dispara (sin un clic por bala).
+// burst / burstDelay: balas por ráfaga y pausa tras cada ráfaga (s) — rifle de ráfaga
 // bloomPerShot / maxBloom / bloomRecovery: dispersión que acumula al disparar seguido (grados) y cuánto
 //   recupera por segundo
 // moveSpread: multiplicador de la imprecisión al moverse/saltar (1 = la del rifle)
@@ -12,7 +14,8 @@
 // zoom: aumento al apuntar con clic derecho (null = sin mira telescópica)
 // ads: apuntar con las miras (clic derecho) en las armas sin mira telescópica: aumento, multiplicador de
 //   la dispersión (ráfaga y movimiento) y de la velocidad al caminar apuntando
-// recoil: fuerza del retroceso visual (0-1) · sound: perfil de sonido (audio/Sfx.js)
+// recoil: fuerza del retroceso visual (0-1) · sound: perfil de sonido (audio/Sfx.js) · soundRate:
+//   tono de la grabación (las armas nuevas reutilizan la de su familia, más grave o más aguda)
 
 import { normalizeCrosshair } from '../ui/Crosshair.js';
 
@@ -78,7 +81,7 @@ export const WEAPONS = {
     reloadTime: 2.2,
     drawTime: 0.4,
     damage: { head: 150, body: 40, legs: 34 },
-    fireModes: ['semi', 'auto'],
+    fireModes: ['auto', 'semi'],
     bloomPerShot: 0.3,
     maxBloom: 2.2,
     bloomRecovery: 5,
@@ -142,9 +145,116 @@ export const WEAPONS = {
     sound: 'sniper',
     crosshair: normalizeCrosshair({ shape: 'dot', color: '#ff4d6d', size: 4, thickness: 2, gap: 2, outline: true, opacity: 1, dot: false, dotSize: 3, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
   },
+  magnum: {
+    id: 'magnum',
+    key: '6',
+    name: 'Revólver',
+    category: 'Secundaria',
+    desc: 'Seis balas que pegan como un rifle: un tiro a la cabeza elimina a cualquiera. Lento de disparar y de recargar.',
+    rps: 2.2,
+    magazine: 6,
+    reloadTime: 2.4,
+    drawTime: 0.35,
+    damage: { head: 210, body: 62, legs: 46 },
+    fireModes: ['semi'],
+    bloomPerShot: 0.9,
+    maxBloom: 3,
+    bloomRecovery: 4,
+    moveSpread: 0.9,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 0,
+    zoom: null,
+    ads: { zoom: 1.25, spread: 0.5, speed: 0.85 },
+    recoil: 0.85,
+    sound: 'pistol',
+    soundRate: 0.72,
+    crosshair: normalizeCrosshair({ shape: 'cross-dot', color: '#ffe14d', size: 4, thickness: 2, gap: 3, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
+  },
+  burst: {
+    id: 'burst',
+    key: '7',
+    name: 'Rifle de ráfaga',
+    category: 'Asalto',
+    desc: 'Tres balas por clic, muy juntas. Premia la primera bala a la cabeza; entre ráfagas hay una pausa corta.',
+    rps: 15,
+    magazine: 30,
+    reloadTime: 2.3,
+    drawTime: 0.4,
+    damage: { head: 120, body: 34, legs: 28 },
+    fireModes: ['burst'],
+    burst: 3,
+    burstDelay: 0.28,
+    bloomPerShot: 0.12,
+    maxBloom: 1.6,
+    bloomRecovery: 6,
+    moveSpread: 0.95,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 0,
+    zoom: null,
+    ads: { zoom: 1.35, spread: 0.45, speed: 0.75 },
+    recoil: 0.45,
+    sound: 'rifle',
+    soundRate: 1.12,
+    crosshair: normalizeCrosshair({ shape: 'cross', color: '#c8ff2e', size: 5, thickness: 2, gap: 3, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
+  },
+  lmg: {
+    id: 'lmg',
+    key: '8',
+    name: 'Ametralladora',
+    category: 'Pesada',
+    desc: 'Cargador de 75 balas para no soltar el gatillo. Pesada: se mueve lento, tarda en sacarse y su recarga es larga.',
+    rps: 11,
+    magazine: 75,
+    reloadTime: 4.2,
+    drawTime: 0.8,
+    damage: { head: 105, body: 36, legs: 30 },
+    fireModes: ['auto'],
+    bloomPerShot: 0.17,
+    maxBloom: 3.8,
+    bloomRecovery: 4,
+    moveSpread: 1.5,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 0,
+    zoom: null,
+    ads: { zoom: 1.3, spread: 0.55, speed: 0.6 },
+    recoil: 0.6,
+    sound: 'rifle',
+    soundRate: 0.82,
+    crosshair: normalizeCrosshair({ shape: 'cross', color: '#ff9f43', size: 6, thickness: 2, gap: 5, outline: true, opacity: 1, dot: false, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: true }),
+  },
+  dmr: {
+    id: 'dmr',
+    key: '9',
+    name: 'Fusil de tirador',
+    category: 'Precisión',
+    desc: 'Semiautomático de larga distancia con mira de aumento ×2.5 (clic derecho). Más rápido que el francotirador, con menos daño.',
+    rps: 3.4,
+    magazine: 12,
+    reloadTime: 2.6,
+    drawTime: 0.5,
+    damage: { head: 230, body: 72, legs: 56 },
+    fireModes: ['semi'],
+    bloomPerShot: 0.35,
+    maxBloom: 1.8,
+    bloomRecovery: 5,
+    moveSpread: 1.3,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 2.5,
+    zoom: 2.5,
+    ads: null,
+    recoil: 0.7,
+    sound: 'sniper',
+    soundRate: 1.25,
+    crosshair: normalizeCrosshair({ shape: 'cross-dot', color: '#36d6ff', size: 3, thickness: 1, gap: 2, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
+  },
 };
 
-export const WEAPON_ORDER = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper'];
+// Orden de las teclas (1-9): las cinco de siempre conservan su número.
+export const WEAPON_ORDER = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr'];
 export const DEFAULT_WEAPON = 'rifle';
 export const EVALUATION_WEAPON = 'rifle'; // la evaluación siempre con el rifle: rangos comparables
 
@@ -155,15 +265,18 @@ export function getWeapon(id) {
 // Daño máximo de un disparo a una zona (todos los perdigones).
 export const shotDamage = (w, part) => w.damage[part] * w.pellets;
 
+// Disparos por segundo sostenidos: en ráfaga cuenta la pausa entre ráfagas.
+export const sustainedRps = (w) => (w.burst ? w.burst / (w.burst / w.rps + w.burstDelay) : w.rps);
+
 // Valoraciones 0-1 para comparar armas en el arsenal (normalizadas contra el arsenal).
 export function weaponRatings(w) {
   const all = WEAPON_ORDER.map((id) => WEAPONS[id]);
   const max = (f) => Math.max(...all.map(f));
-  const dps = (x) => shotDamage(x, 'body') * x.rps;
+  const dps = (x) => shotDamage(x, 'body') * sustainedRps(x);
   const precision = (x) => 1 / (1 + x.maxBloom + x.hipSpread * (x.zoom ? 0.2 : 1) + x.pelletSpread);
   return {
     damage: shotDamage(w, 'body') / max((x) => shotDamage(x, 'body')),
-    rate: w.rps / max((x) => x.rps),
+    rate: sustainedRps(w) / max(sustainedRps),
     dps: dps(w) / max(dps),
     precision: precision(w) / max(precision),
     mobility: (1 / w.moveSpread) / max((x) => 1 / x.moveSpread),

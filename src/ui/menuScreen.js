@@ -227,7 +227,7 @@ export function menuScreen(game, { onMode, onArsenal, onCrosshair, onProgress, o
         remember('main', 'arsenal');
         onArsenal();
       },
-      detail: { kind: 'arsenal', eyebrow: 'Equipamiento', title: 'Arsenal', desc: 'Cinco armas con su propio manejo, sonido y mira. La evaluación usa siempre el rifle.', art: weaponIcon(weapon.id) },
+      detail: { kind: 'arsenal', eyebrow: 'Equipamiento', title: 'Arsenal', desc: 'Nueve armas, automáticas y de precisión, con su propio manejo, sonido y mira. La evaluación usa siempre el rifle.', art: weaponIcon(weapon.id) },
     },
     onCrosshair && {
       id: 'crosshair',

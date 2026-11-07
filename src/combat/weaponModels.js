@@ -14,12 +14,19 @@ import * as THREE from 'three';
 const BASE = `${import.meta.env?.BASE_URL ?? './'}models/weapons/`;
 
 // scale: tamaño en pantalla · back: culata (+Z hacia la cámara) · top: altura del lomo · x: lateral.
+// tint: las armas nuevas reutilizan un modelo con otro tamaño y otro acabado (se distinguen a simple vista).
+// grip / fore: dónde van la mano derecha (empuñadura) y la izquierda (guardamanos o corredera), en
+//   coordenadas del arma ya colocada; medidas sobre cada modelo (ver combat/arms.js).
 export const WEAPON_MODELS = {
-  pistol: { file: 'pistol.glb', scale: 1.7, back: 0.06, top: 0.1, x: -0.03 },
-  smg: { file: 'smg.glb', scale: 1.25, back: 0.24, top: 0.11, x: -0.03 },
-  rifle: { file: 'rifle.glb', scale: 1.2, back: 0.32, top: 0.12, x: -0.03 },
-  shotgun: { file: 'shotgun.glb', scale: 1.25, back: 0.34, top: 0.1, x: -0.03 },
-  sniper: { file: 'sniper.glb', scale: 1.15, back: 0.4, top: 0.135, x: -0.03 },
+  pistol: { file: 'pistol.glb', scale: 1.7, back: 0.06, top: 0.1, x: -0.03, grip: [-0.03, -0.07, 0.005], fore: null },
+  smg: { file: 'smg.glb', scale: 1.25, back: 0.24, top: 0.11, x: -0.03, grip: [-0.03, -0.08, -0.05], fore: [-0.03, -0.02, -0.33] },
+  rifle: { file: 'rifle.glb', scale: 1.2, back: 0.32, top: 0.12, x: -0.03, grip: [-0.033, -0.1, -0.02], fore: [-0.033, -0.005, -0.36] },
+  shotgun: { file: 'shotgun.glb', scale: 1.25, back: 0.34, top: 0.1, x: -0.03, grip: [-0.03, -0.035, 0.13], fore: [-0.03, -0.03, -0.24] },
+  sniper: { file: 'sniper.glb', scale: 1.15, back: 0.4, top: 0.135, x: -0.03, grip: [-0.04, -0.06, 0.02], fore: [-0.04, -0.005, -0.27] },
+  magnum: { file: 'pistol.glb', scale: 1.9, back: 0.07, top: 0.105, x: -0.03, tint: '#8a8f98', grip: [-0.03, -0.075, 0.01], fore: null },
+  burst: { file: 'rifle.glb', scale: 1.12, back: 0.3, top: 0.115, x: -0.03, tint: '#55603f', grip: [-0.033, -0.095, -0.02], fore: [-0.033, -0.005, -0.34] },
+  lmg: { file: 'rifle.glb', scale: 1.38, back: 0.36, top: 0.135, x: -0.03, tint: '#30352c', grip: [-0.036, -0.11, -0.01], fore: [-0.036, -0.01, -0.42] },
+  dmr: { file: 'sniper.glb', scale: 1.0, back: 0.34, top: 0.12, x: -0.03, tint: '#7a6548', grip: [-0.04, -0.055, 0.0], fore: [-0.04, -0.005, -0.24] },
 };
 
 // Paleta plana del autor → materiales PBR. Se elige por el nombre del material original.
@@ -33,11 +40,16 @@ const PBR = [
 ];
 const materialCache = new Map();
 
-function pbrFor(original) {
+function pbrFor(original, tint = null) {
   const name = original?.name ?? '';
   const spec = PBR.find(([re]) => re.test(name))?.[1] ?? { color: original?.color ?? '#30343a', roughness: 0.5, metalness: 0.4 };
-  const key = JSON.stringify(spec);
-  if (!materialCache.has(key)) materialCache.set(key, new THREE.MeshStandardMaterial({ ...spec, flatShading: true }));
+  const key = JSON.stringify(spec) + (tint ?? '');
+  if (!materialCache.has(key)) {
+    const m = new THREE.MeshStandardMaterial({ ...spec, flatShading: true });
+    // Acabado de la variante: el metal y el polímero toman el color; el latón y la madera casi no.
+    if (tint) m.color.lerp(new THREE.Color(tint), spec.metalness > 0.6 || spec.metalness === 0 ? 0.25 : 0.5);
+    materialCache.set(key, m);
+  }
   return materialCache.get(key);
 }
 
@@ -53,7 +65,8 @@ const cache = new Map(); // id → Promise<{ object, muzzle }>
 export function fitWeaponModel(root, cfg) {
   root.traverse((o) => {
     if (o.isMesh) {
-      o.material = Array.isArray(o.material) ? o.material.map(pbrFor) : pbrFor(o.material);
+      const tint = cfg.tint ?? null;
+      o.material = Array.isArray(o.material) ? o.material.map((m) => pbrFor(m, tint)) : pbrFor(o.material, tint);
       o.frustumCulled = false;
     }
   });

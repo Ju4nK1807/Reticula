@@ -16,6 +16,10 @@ export const CASINGS = {
   rifle: { length: 0.045, radius: 0.0048, delay: 0, kind: 'brass' },
   sniper: { length: 0.064, radius: 0.0062, delay: 0.62, kind: 'brass' },
   shotgun: { length: 0.07, radius: 0.0105, delay: 0.34, kind: 'shell' },
+  magnum: null, // el revólver no expulsa vainas: quedan en el tambor
+  burst: { length: 0.045, radius: 0.0048, delay: 0, kind: 'brass' },
+  lmg: { length: 0.051, radius: 0.0052, delay: 0, kind: 'brass' },
+  dmr: { length: 0.051, radius: 0.0052, delay: 0, kind: 'brass' },
 };
 
 const MAX = { brass: 64, shell: 16 };

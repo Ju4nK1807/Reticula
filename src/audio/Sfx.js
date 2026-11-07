@@ -116,9 +116,10 @@ export class Sfx {
     src.stop(t + decay + 0.1);
   }
 
-  // Disparo del jugador según el arma (perfil de combat/weapons.js).
-  shot(profile = 'rifle') {
-    if (this.playSample(profile)) {
+  // Disparo del jugador según el arma (perfil de combat/weapons.js). `rate` < 1 = más grave (revólver,
+  // ametralladora), > 1 = más agudo: las armas nuevas reutilizan la grabación de su familia.
+  shot(profile = 'rifle', rate = 1) {
+    if (this.playSample(profile, { rate, gain: (SAMPLES[profile] ?? 0.5) * (rate < 1 ? 1.15 : 1) })) {
       // Detalle mecánico sobre la grabación: corredera de la escopeta y cerrojo del francotirador.
       if (profile === 'shotgun') this.noiseBurst({ f0: 1400, f1: 900, q: 2, peak: 0.12, decay: 0.05, delay: 0.32 });
       if (profile === 'sniper') this.noiseBurst({ f0: 2600, f1: 1600, q: 3, peak: 0.1, decay: 0.04, delay: 0.62 });
