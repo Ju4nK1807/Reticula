@@ -156,6 +156,7 @@ export class Viewmodel {
     this.scene.add(this.throwArm);
     this.throwT = 0;
     this.throwDuration = 0;
+    this.sprint = 0; // 0-1: transición a la pose de correr
 
     const flashMat = new THREE.MeshBasicMaterial({
       color: '#ffd27a',
@@ -351,6 +352,10 @@ export class Viewmodel {
         duck = Math.max(duck, 0.6 * Math.sin(Math.PI * Math.min(1, k * 1.2)));
       }
     }
+    // Sprint: el arma baja y se inclina hacia dentro (no se apunta mientras se corre).
+    this.sprint += ((player.sprinting ? 1 : 0) - this.sprint) * Math.min(1, dt * 9);
+    const run = this.sprint * this.sprint * (3 - 2 * this.sprint);
+    duck = Math.max(duck, run * 0.35);
     this.arms.visible = this.showArms;
     this.knife.children[1].visible = this.showArms; // la mano del cuchillo
     const strike = 0;
@@ -369,8 +374,13 @@ export class Viewmodel {
     );
     this.gun.rotation.set(
       this.recoil * (0.06 + this.kickStrength * 0.1) * (1 - 0.5 * a) - reload * 0.5 - draw * 0.6 - duck * 0.45,
-      this.sway.x * 1.5 * calm - duck * 0.25,
-      reload * 0.7 - duck * 0.35,
+      this.sway.x * 1.5 * calm - duck * 0.25 + run * 0.75,
+      reload * 0.7 - duck * 0.35 + run * 0.3,
     );
+    // Al correr el balanceo es más amplio (zancadas).
+    if (run > 0.01) {
+      this.gun.position.x += Math.sin(this.bobT) * 0.018 * run;
+      this.gun.position.y -= Math.abs(Math.cos(this.bobT)) * 0.02 * run;
+    }
   }
 }
