@@ -7,7 +7,7 @@ describe('controles reasignables', () => {
     const codes = ACTIONS.map((a) => DEFAULT_KEYS[a.id]);
     expect(new Set(codes).size).toBe(codes.length);
     expect(actionFor(DEFAULT_KEYS, 'KeyR')).toBe('reload');
-    expect(actionFor(DEFAULT_KEYS, 'KeyZ')).toBeNull();
+    expect(actionFor(DEFAULT_KEYS, 'KeyP')).toBeNull();
   });
 
   it('asignar una tecla usada intercambia las dos acciones', () => {
@@ -35,6 +35,13 @@ describe('controles reasignables', () => {
     expect(fixed.jump).toBe('Space'); // reservada → por defecto
     expect(fixed.melee).toBe('KeyV');
     expect(new Set(Object.values(fixed)).size).toBe(Object.keys(fixed).length);
+  });
+
+  it('Shift es correr; un guardado viejo con Shift en "caminar" pasa a correr y caminar vuelve a Z', () => {
+    expect(DEFAULT_KEYS.sprint).toBe('ShiftLeft');
+    const fixed = normalizeKeys({ walk: 'ShiftLeft' });
+    expect(fixed.sprint).toBe('ShiftLeft');
+    expect(fixed.walk).toBe('KeyZ');
   });
 
   it('nombres legibles de las teclas', () => {
