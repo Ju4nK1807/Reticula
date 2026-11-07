@@ -404,6 +404,7 @@ export function settingsScreen(game, onBack, opts = {}) {
         field('Balas visibles', checkbox(s.gameplay, 'tracers', commit)),
         field('Casquillos', checkbox(s.gameplay, 'casings', commit), 'Las armas expulsan las vainas, que rebotan en el suelo con su sonido.'),
         field('Arma en pantalla', checkbox(s.gameplay, 'viewmodel', commit)),
+        field('Brazos y manos', checkbox(s.gameplay, 'hands', commit), 'Las manos sujetan el arma, el cuchillo y las granadas.'),
         field('Controles táctiles', select({ auto: 'Automático (sin mouse)', on: 'Activados', off: 'Desactivados' }, s.touch.mode, (v) => {
           s.touch.mode = v;
           commit();

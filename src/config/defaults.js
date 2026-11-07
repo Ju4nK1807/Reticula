@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = {
     tracers: true,
     casings: true, // las armas expulsan vainas que rebotan en el suelo
     viewmodel: true,
+    hands: true, // brazos y manos sujetando el arma
     autoReload: true, // recargar solo al intentar disparar con el cargador vacío
     zoomSensitivity: 1, // multiplicador de sensibilidad con mira telescópica (1 = misma sensación que sin zoom)
   },

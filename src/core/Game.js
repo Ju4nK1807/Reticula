@@ -181,12 +181,11 @@ export class Game {
   // oculta ese instante): sacar un arma por primera vez ya no da un tirón.
   warmWeapons() {
     const vm = this.viewmodel;
-    const extras = [...vm.loaded.values()].map(({ object }) => {
-      const c = object.clone();
+    const extras = [...vm.loaded.values()].map(({ object }) => object.clone()).concat(vm.warmupObjects?.() ?? []);
+    for (const c of extras) {
       c.scale.setScalar(0.002);
       c.position.set(0, 0, -0.5);
-      return c;
-    });
+    }
     if (!extras.length) return;
     const visible = vm.gun.visible;
     vm.gun.visible = false;
@@ -410,9 +409,10 @@ export class Game {
       const spread = this.weapon.enabled ? this.weapon.currentSpread() : 0;
       this.hud.setSpread(spreadToPixels(spread, this.engine.camera.fov, window.innerHeight));
     }
-    this.effects.update(dt);
+    this.effects.update(dt, this.engine.camera);
     this.ambience.update(dt, !this.mode);
     this.showcase.update(dt, !this.mode);
+    this.viewmodel.showArms = this.settings.gameplay.hands !== false;
     this.viewmodel.update(dt, this.player);
     if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress, this.weapon.reserve, this.weapon.infinite);
     // El arma se oculta solo dentro de la mira telescópica (con las miras de hierro se sigue viendo).
