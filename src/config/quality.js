@@ -24,6 +24,10 @@ const AUTO_MAX_PIXEL_RATIO = 1.5;
 
 export const RENDER_SCALE = { min: 0.5, max: 1, step: 0.05 };
 
+// Sombras: "auto" las decide el detalle (baja = sin sombras); "on" las fuerza (1024 en detalle bajo);
+// "off" las quita en cualquier detalle.
+export const SHADOW_OPTIONS = { auto: 'Según el detalle', on: 'Activadas', off: 'Desactivadas' };
+
 // Resolución y detalle efectivos a partir de la configuración de video: { quality, renderScale, detail }.
 // En "Personalizada" el detalle es el elegido (por defecto, medio).
 export function resolveQuality(video, devicePixelRatio = 1) {
