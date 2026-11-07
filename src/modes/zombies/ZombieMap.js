@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SKIES, createSky } from '../../gfx/sky.js';
 import { glow, glowScale, paint, surface } from '../../gfx/surfaces.js';
 import { World } from '../../scenes/World.js';
 import { Props } from '../../physics/Props.js';
@@ -42,6 +43,8 @@ export class ZombieMap extends World {
     const scene = this.scene;
     // Luna fría y relleno muy bajo: la noche se lee por las farolas y el fuego.
     scene.add(new THREE.HemisphereLight('#9fb4d6', '#1d1a17', 0.95));
+    // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
+    scene.add(createSky({ ...SKIES.fire, horizon: '#0a0f15' }));
     const moon = new THREE.DirectionalLight('#c9d8ff', 1.05);
     moon.position.set(-18, 30, 12);
     scene.add(moon);

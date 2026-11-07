@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SKIES, createSky } from '../../gfx/sky.js';
 import { glow, planeWorldUV, surface, tileOf } from '../../gfx/surfaces.js';
 import { World } from '../../scenes/World.js';
 import { Props, autoPropSpawns } from '../../physics/Props.js';
@@ -47,6 +48,8 @@ export class BastionMap extends World {
 
     const scene = this.scene;
     scene.add(new THREE.HemisphereLight('#d9e2ff', '#3b2f26', 1.75));
+    // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
+    scene.add(createSky({ ...SKIES.night, horizon: '#191e2b' }));
     const sun = new THREE.DirectionalLight('#ffd9b0', 1.7);
     sun.position.set(14, 22, 9);
     scene.add(sun);

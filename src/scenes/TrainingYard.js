@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SKIES, createSky } from '../gfx/sky.js';
 import { glow, surface } from '../gfx/surfaces.js';
 import { World } from './World.js';
 
@@ -19,6 +20,8 @@ export class TrainingYard extends World {
 
     const scene = this.scene;
     scene.add(new THREE.HemisphereLight('#dbe7ff', '#3a3226', 1.8));
+    // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
+    scene.add(createSky({ ...SKIES.night, horizon: '#1c2636' }));
     const sun = new THREE.DirectionalLight('#fff4e0', 1.6);
     sun.position.set(-12, 20, 10);
     scene.add(sun);

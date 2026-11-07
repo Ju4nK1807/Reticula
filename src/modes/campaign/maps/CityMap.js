@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SKIES, createSky } from '../../../gfx/sky.js';
 import { glow, paint, surface } from '../../../gfx/surfaces.js';
 import { CampaignWorld } from './CampaignWorld.js';
 
@@ -33,6 +34,8 @@ export class CityMap extends CampaignWorld {
 
     const scene = this.scene;
     scene.add(new THREE.HemisphereLight('#cdd6ff', '#3a3026', 1.6));
+    // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
+    scene.add(createSky({ ...SKIES.city, horizon: '#1d2236' }));
     const sun = new THREE.DirectionalLight('#ffc89a', 1.3);
     sun.position.set(-14, 18, 6);
     scene.add(sun);
