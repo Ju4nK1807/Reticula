@@ -177,10 +177,19 @@ Se desbloquea al hacer cualquier evaluación. Oleadas sin fin en el **Bastión**
 Oleadas de zombis en el **Barrio en ruinas**, al estilo de los modos de supervivencia clásicos: el
 mapa se abre a medida que se gana. No requiere evaluación.
 
-- **Secciones**: se empieza en la plaza. Tres puertas tapiadas se compran con puntos (`E`): el
-  **Mercado** (750), la **Estación** (1000) y la **Iglesia** (1250). Cada sección trae armas y bebidas
-  nuevas, pero también sus propias entradas de zombis; la horda sale de las entradas abiertas más
-  cercanas al jugador.
+- **Vestíbulo y barricadas**: se empieza encerrado en un cuarto con cuatro ventanas tapiadas. Los
+  zombis salen de la tierra, arrancan los tablones uno a uno y recién entonces entran; mantener `E`
+  junto a una ventana la repara (+10 puntos por tablón, hasta 500 por oleada). Todas las entradas del
+  mapa tienen su barricada.
+- **Secciones**: las puertas tapiadas se compran con puntos (`E`): la **Plaza** (750), el **Mercado**
+  (750), la **Estación** (1000) y la **Iglesia** (1250; se llega desde el Vestíbulo). Cada sección
+  trae armas y bebidas nuevas, pero también sus propias entradas; la horda sale de las entradas
+  abiertas más cercanas al jugador.
+- **Caja misteriosa** en la plaza (el haz de luz azul): 950 puntos por un arma al azar.
+- **Dificultad de los clásicos**: la vida sigue la de la ronda (150, 250, 350… y ×1.1 desde la 10);
+  el cuchillo hace 150 (1 golpe en la ronda 1, 2 en la 2…); tres golpes tumban sin Coraza y la vida
+  se regenera tras 5 s. Un tiro a la cabeza la hace volar, y algunos siguen caminando sin ella hasta
+  desangrarse.
 - **Armas en la pared**: se empieza con la pistola (munición infinita). Las demás están colgadas en las
   paredes de cada sección (revólver, subfusil, rifle, escopeta, ráfaga, tirador, ametralladora,
   francotirador); con el arma ya comprada, el mismo puesto vende su munición a mitad de precio.
