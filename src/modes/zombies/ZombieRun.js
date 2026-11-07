@@ -2,14 +2,16 @@ import * as THREE from 'three';
 import { Phase } from '../evaluation/Phase.js';
 import { glow } from '../../gfx/surfaces.js';
 import { explosionDamage } from '../../combat/Grenades.js';
+import { WEAPONS } from '../../combat/weapons.js';
 import { clock, pct } from '../../utils/format.js';
 import { rand } from '../../utils/math.js';
 import { NavGrid } from './navGrid.js';
 import { Zombie } from './Zombie.js';
-import { DROP, PLAYER, POWERUPS, RESERVE, pointsFor, rollDrop, waveConfig, waveRoster, zombieStats } from './zombieData.js';
+import { DOORS, DROP, GRENADE_MAX, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
 const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
 const VIEW_AVOID = Math.PI / 3; // en oleadas altas se prefieren entradas fuera de la vista (±60°)
+const NEAR_ENTRIES = 4; // los zombis salen de las entradas abiertas más cercanas al jugador
 const _v = new THREE.Vector3();
 const _to = new THREE.Vector3();
 const powerGeo = new THREE.OctahedronGeometry(0.32, 0);
@@ -21,6 +23,7 @@ const powerGeo = new THREE.OctahedronGeometry(0.32, 0);
   Avisa al modo con listener(tipo, datos):
     waveStart { wave, count, runnerNight } · waveClear { wave, bonus } · kill { zombie, part, points }
     cash { amount } · powerup { id } · powerupEnd { id } · hurt · groan { zombie, dist } · death
+    door { id } · perk { id } · weapon { id } · ammo { id }   (compras en el mapa)
 */
 export class ZombieRun extends Phase {
   static info = { id: 'zombies', name: 'Zombis', desc: '', auto: true, health: true };
@@ -40,8 +43,10 @@ export class ZombieRun extends Phase {
     this.health = this.maxHealth;
     this.sinceHurt = 99;
     this.owned = new Set(['pistol']);
-    this.upgrades = new Set();
+    this.perks = new Set(); // bebidas tomadas (zombieData.PERKS)
     this.dmgMul = 1;
+    this.regenDelay = PLAYER.regenDelay;
+    this.regenRate = PLAYER.regenRate;
     this.timers = { double: 0, instakill: 0 };
     this.sinceDrop = DROP.cooldown;
     this.drops = []; // { id, mesh, t }
@@ -56,6 +61,7 @@ export class ZombieRun extends Phase {
     this.navCell = -1;
     this.ctx.zombies = this.bots;
     this.ctx.colliders = w.colliders;
+    this.ctx.decoy = null; // señuelo activo: { x, z }
   }
 
   emit(type, data = {}) {
@@ -116,15 +122,21 @@ export class ZombieRun extends Phase {
     this.nav.build(p.x, p.z);
   }
 
-  // Entrada: no repetir la anterior; en oleadas altas, mejor fuera de la vista del jugador.
+  // Entrada: solo de las secciones abiertas y, entre ellas, de las más cercanas al jugador (la horda
+  // llega a donde estás, no al otro lado del mapa). No repetir la anterior; en oleadas altas, mejor
+  // fuera de la vista.
   pickEntry() {
-    const entries = this.world.entries;
-    let options = entries.filter((e) => e !== this.lastEntry);
+    const w = this.world;
+    const p = this.game.player.position;
+    const open = w.entries.filter((e) => w.isOpen?.(e.section ?? 'plaza') ?? true);
+    const byDist = open.map((e) => ({ e, d: Math.hypot(e.center.x - p.x, e.center.z - p.z) })).sort((a, b) => a.d - b.d);
+    let options = byDist.slice(0, NEAR_ENTRIES).map((x) => x.e).filter((e) => e !== this.lastEntry);
+    if (!options.length) options = open;
     if (this.wave >= 4) {
       const hidden = options.filter((e) => Math.abs(this.game.angleTo(e.center)) > VIEW_AVOID);
       if (hidden.length) options = hidden;
     }
-    const e = options[Math.floor(Math.random() * options.length)] ?? entries[0];
+    const e = options[Math.floor(Math.random() * options.length)] ?? w.entries[0];
     this.lastEntry = e;
     return e;
   }
@@ -145,11 +157,13 @@ export class ZombieRun extends Phase {
   }
 
   // Aplica daño a un zombi y reparte puntos (impacto y baja). Devuelve si murió.
-  hitZombie(z, amount, part, { melee = false, grenade = false } = {}) {
+  // tick: daño continuo (fuego): solo da los puntos de la baja, no los de cada impacto.
+  hitZombie(z, amount, part, { melee = false, grenade = false, tick = false } = {}) {
     if (!z.alive) return false;
     const dmg = this.timers.instakill > 0 ? z.hp + 1 : amount * this.dmgMul;
     const { killed } = z.damage(dmg, part);
-    const points = pointsFor({ part, killed, type: z.type, melee }, this.timers.double > 0);
+    let points = pointsFor({ part, killed, type: z.type, melee }, this.timers.double > 0);
+    if (tick) points = killed ? points - pointsFor({ part, killed: false }, this.timers.double > 0) : 0;
     this.addCash(points);
     if (killed) {
       this.stats.kills++;
@@ -189,17 +203,113 @@ export class ZombieRun extends Phase {
   }
 
   // Granada: daño por distancia al pecho, solo con línea de visión.
-  onExplosion(point, radius, los) {
+  onExplosion(point, radius, los, { damageAt = explosionDamage } = {}) {
     let kills = 0;
     for (const z of this.bots) {
       if (!z.alive) continue;
       const chest = z.chestPosition(_to);
       const d = chest.distanceTo(point);
       if (d > radius || !los(chest)) continue;
-      if (this.hitZombie(z, explosionDamage(d), 'body', { grenade: true })) kills++;
+      if (this.hitZombie(z, damageAt(d), 'body', { grenade: true })) kills++;
     }
     if (kills) this.game.hud.hitmarker('kill');
     if (kills >= 3) this.emit('multi', { kills });
+  }
+
+  // Incendiaria: daño continuo a quien pise el fuego (distancia en el plano).
+  onFireTick(point, radius, damage, los) {
+    for (const z of this.bots) {
+      if (!z.alive) continue;
+      const p = z.position;
+      if (Math.hypot(p.x - point.x, p.z - point.z) > radius || !los(z.chestPosition(_to))) continue;
+      z.flashT = 0.05;
+      if (this.hitZombie(z, damage, 'body', { grenade: true, tick: true })) this.game.hud.hitmarker('kill');
+    }
+  }
+
+  // Aturdidora: frena a los que estén cerca y a la vista del estallido.
+  onStun(point, radius, seconds, los) {
+    let n = 0;
+    for (const z of this.bots) {
+      if (!z.alive || z.position.distanceTo(point) > radius || !los(z.chestPosition(_to))) continue;
+      z.stun(seconds);
+      n++;
+    }
+    if (n) this.game.hud.flash(`${n} aturdido${n === 1 ? '' : 's'}`, 'good');
+  }
+
+  // Señuelo: la horda lo persigue mientras pita.
+  setDecoy(point) {
+    this.ctx.decoy = point ? { x: point.x, z: point.z } : null;
+  }
+
+  // --- Compras en el mapa (puertas, armas de la pared, bebidas) -----------------------------------
+  /** Precio y texto de algo comprable del mapa, o null si ya no se puede usar (puerta abierta). */
+  offer(it) {
+    if (it.kind === 'door') {
+      if (this.world.isOpen(it.id)) return null;
+      return { price: DOORS[it.id].price, label: `Abrir · ${DOORS[it.id].name}` };
+    }
+    if (it.kind === 'perk') {
+      const p = PERKS[it.id];
+      if (this.perks.has(it.id)) return { price: 0, label: `${p.name} · ya la tomaste`, done: true };
+      return { price: p.price, label: `Beber ${p.name} · ${p.desc}` };
+    }
+    const name = WEAPONS[it.id]?.name ?? it.id;
+    if (this.owned.has(it.id)) return { price: wallAmmoPrice(it.id), label: `Munición · ${name}`, ammo: true };
+    return { price: WALL_BUYS[it.id], label: `Comprar ${name}` };
+  }
+
+  /** Compra algo del mapa. Devuelve null si se compró o el motivo si no. */
+  buy(it) {
+    const o = this.offer(it);
+    if (!o) return 'Ya está abierta';
+    if (o.done) return 'Ya la tienes';
+    if (o.ammo && this.reserveFullFor(it.id)) return 'Munición llena';
+    if (this.cash < o.price) return 'Faltan puntos';
+    this.cash -= o.price;
+    const g = this.game;
+    if (it.kind === 'door') {
+      this.world.openDoor(it.id);
+      this.nav.setColliders(this.world.colliders);
+      this.navT = 0;
+      this.emit('door', { id: it.id });
+    } else if (it.kind === 'perk') {
+      this.perks.add(it.id);
+      const before = this.maxHealth;
+      this.applyPerks();
+      this.health = Math.min(this.maxHealth, this.health + Math.max(0, this.maxHealth - before));
+      g.hud.setHealth(this.health / this.maxHealth);
+      this.emit('perk', { id: it.id });
+    } else if (o.ammo) {
+      g.weapon.reserveBy[it.id] = RESERVE[it.id];
+      g.weapon.ammoBy[it.id] = WEAPONS[it.id].magazine;
+      this.emit('ammo', { id: it.id });
+    } else {
+      this.owned.add(it.id);
+      g.weapon.reserveBy[it.id] = RESERVE[it.id];
+      g.weapon.setWeapon(it.id, { force: true });
+      g.weapon.ammo = g.weapon.stats.magazine;
+      this.emit('weapon', { id: it.id });
+    }
+    return null;
+  }
+
+  reserveFullFor(id) {
+    const res = this.game.weapon.reserveBy;
+    return !res || RESERVE[id] === null || res[id] >= RESERVE[id];
+  }
+
+  // Efectos de las bebidas en el jugador y el arma.
+  applyPerks() {
+    const s = perkStats(this.perks);
+    this.maxHealth = s.maxHealth;
+    this.dmgMul = s.damage;
+    this.regenDelay = s.regenDelay;
+    this.regenRate = s.regenRate;
+    this.game.weapon.rateMul = s.rate;
+    this.game.weapon.reloadMul = s.reload;
+    this.game.player.perkSpeed = s.speed;
   }
 
   onZombieDeath() {}
@@ -230,8 +340,8 @@ export class ZombieRun extends Phase {
   // Regeneración tras unos segundos sin recibir daño.
   updateHealth(dt) {
     this.sinceHurt += dt;
-    if (this.died || this.health >= this.maxHealth || this.sinceHurt < PLAYER.regenDelay) return;
-    this.health = Math.min(this.maxHealth, this.health + PLAYER.regenRate * dt);
+    if (this.died || this.health >= this.maxHealth || this.sinceHurt < this.regenDelay) return;
+    this.health = Math.min(this.maxHealth, this.health + this.regenRate * dt);
     this.game.hud.setHealth(this.health / this.maxHealth);
   }
 
@@ -283,7 +393,7 @@ export class ZombieRun extends Phase {
       case 'ammo':
         this.refillReserves();
         g.weapon.refill();
-        this.ev.grenades = Math.min(PLAYER.maxGrenades, (this.ev.grenades ?? 0) + 1);
+        if (this.ev.grenadeBag) this.ev.grenadeBag.frag = Math.min(GRENADE_MAX.frag, this.ev.grenadeBag.frag + 1);
         break;
       case 'double':
       case 'instakill':
