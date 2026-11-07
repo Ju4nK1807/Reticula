@@ -1,6 +1,7 @@
 // Íconos de la interfaz: trazo de 1.75 px en una cuadrícula de 24, mismo estilo para todos.
 const PATHS = {
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+  reticle: '<circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/>',
   enemy: '<circle cx="12" cy="7" r="3.2"/><path d="M6 21v-4.5a6 6 0 0 1 12 0V21"/><path d="M9.5 13.5h5"/>',
   map: '<path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/>',
   eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',

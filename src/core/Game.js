@@ -27,6 +27,7 @@ import { settingsScreen } from '../ui/settingsScreen.js';
 import { pauseScreen } from '../ui/pauseScreen.js';
 import { progressScreen } from '../ui/progressScreen.js';
 import { arsenalScreen } from '../ui/arsenalScreen.js';
+import { crosshairScreen } from '../ui/crosshairScreen.js';
 import { getMode } from '../modes/index.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
 import { spreadToPixels } from '../ui/Crosshair.js';
@@ -492,6 +493,7 @@ export class Game {
       menuScreen(this, {
         onMode: (id) => this.startModeById(id),
         onArsenal: () => this.showArsenal(),
+        onCrosshair: () => this.showCrosshair(() => this.showMenu()),
         onProgress: () => this.ui.show(progressScreen(this, { onBack: () => this.showMenu() })),
         onSettings: () => this.showSettings(() => this.showMenu()),
         onHelp: () => this.showSettings(() => this.showMenu(), { tab: 'datos' }),
@@ -501,14 +503,18 @@ export class Game {
 
   showSettings(onBack, opts) {
     this.ui.show(settingsScreen(this, onBack, opts));
-    if (opts?.crosshairWeapon) this.ui.el.querySelector('.xh-preview')?.scrollIntoView({ block: 'center' });
+  }
+
+  // Editor de retícula. `weapon`: abre editando la de esa arma (desde el Arsenal).
+  showCrosshair(onBack, { weapon = null } = {}) {
+    this.ui.show(crosshairScreen(this, { onBack, weapon }));
   }
 
   showArsenal() {
     this.ui.show(
       arsenalScreen(this, {
         onBack: () => this.showMenu(),
-        onCrosshair: (id) => this.showSettings(() => this.showArsenal(), { crosshairWeapon: id }),
+        onCrosshair: (id) => this.showCrosshair(() => this.showArsenal(), { weapon: id }),
       }),
     );
   }

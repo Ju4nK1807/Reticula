@@ -14,6 +14,8 @@
 //   la dispersión (ráfaga y movimiento) y de la velocidad al caminar apuntando
 // recoil: fuerza del retroceso visual (0-1) · sound: perfil de sonido (audio/Sfx.js)
 
+import { normalizeCrosshair } from '../ui/Crosshair.js';
+
 export const WEAPONS = {
   pistol: {
     id: 'pistol',
@@ -38,7 +40,7 @@ export const WEAPONS = {
     ads: { zoom: 1.2, spread: 0.55, speed: 0.85 },
     recoil: 0.5,
     sound: 'pistol',
-    crosshair: { shape: 'cross', color: '#ffffff', size: 4, thickness: 2, gap: 2, outline: true, opacity: 1, dot: false, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false },
+    crosshair: normalizeCrosshair({ shape: 'cross', color: '#ffffff', size: 4, thickness: 2, gap: 2, outline: true, opacity: 1, dot: false, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
   },
   smg: {
     id: 'smg',
@@ -63,7 +65,7 @@ export const WEAPONS = {
     ads: { zoom: 1.25, spread: 0.6, speed: 0.8 },
     recoil: 0.3,
     sound: 'smg',
-    crosshair: { shape: 'cross', color: '#36d6ff', size: 5, thickness: 2, gap: 3, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: true },
+    crosshair: normalizeCrosshair({ shape: 'cross', color: '#36d6ff', size: 5, thickness: 2, gap: 3, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: true }),
   },
   rifle: {
     id: 'rifle',
@@ -88,7 +90,7 @@ export const WEAPONS = {
     ads: { zoom: 1.35, spread: 0.45, speed: 0.75 },
     recoil: 0.55,
     sound: 'rifle',
-    crosshair: { shape: 'cross', color: '#00ffa3', size: 6, thickness: 2, gap: 3, outline: true, opacity: 1, dot: false, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false },
+    crosshair: normalizeCrosshair({ shape: 'cross', color: '#00ffa3', size: 6, thickness: 2, gap: 3, outline: true, opacity: 1, dot: false, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
   },
   shotgun: {
     id: 'shotgun',
@@ -113,7 +115,7 @@ export const WEAPONS = {
     ads: { zoom: 1.15, spread: 0.8, speed: 0.8 },
     recoil: 1,
     sound: 'shotgun',
-    crosshair: { shape: 'circle', color: '#ffb020', size: 10, thickness: 2, gap: 6, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false },
+    crosshair: normalizeCrosshair({ shape: 'circle', color: '#ffb020', size: 10, thickness: 2, gap: 6, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
   },
   sniper: {
     id: 'sniper',
@@ -138,7 +140,7 @@ export const WEAPONS = {
     ads: null,
     recoil: 1,
     sound: 'sniper',
-    crosshair: { shape: 'dot', color: '#ff4d6d', size: 4, thickness: 2, gap: 2, outline: true, opacity: 1, dot: false, dotSize: 3, outlineThickness: 1, outlineColor: '#000000', dynamic: false },
+    crosshair: normalizeCrosshair({ shape: 'dot', color: '#ff4d6d', size: 4, thickness: 2, gap: 2, outline: true, opacity: 1, dot: false, dotSize: 3, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
   },
 };
 
