@@ -174,20 +174,30 @@ Se desbloquea al hacer cualquier evaluación. Oleadas sin fin en el **Bastión**
 
 ## Modo zombi
 
-Oleadas de zombis en el **Barrio en ruinas**: una plaza nocturna rodeada de edificios, con seis
-callejones por donde entra la horda. No requiere evaluación.
+Oleadas de zombis en el **Barrio en ruinas**, al estilo de los modos de supervivencia clásicos: el
+mapa se abre a medida que se gana. No requiere evaluación.
 
+- **Secciones**: se empieza en la plaza. Tres puertas tapiadas se compran con puntos (`E`): el
+  **Mercado** (750), la **Estación** (1000) y la **Iglesia** (1250). Cada sección trae armas y bebidas
+  nuevas, pero también sus propias entradas de zombis; la horda sale de las entradas abiertas más
+  cercanas al jugador.
+- **Armas en la pared**: se empieza con la pistola (munición infinita). Las demás están colgadas en las
+  paredes de cada sección (revólver, subfusil, rifle, escopeta, ráfaga, tirador, ametralladora,
+  francotirador); con el arma ya comprada, el mismo puesto vende su munición a mitad de precio.
+- **Bebidas** (máquinas del mapa, duran hasta caer): Coraza (vida 250), Doble Plomo (+50 % de daño,
+  +25 % de cadencia), Mano Rápida (recarga al doble), Pies Ligeros (+15 % de velocidad) y Segundo Aire
+  (regenera antes y más rápido).
+- **Armería** entre oleadas (`E` o botón táctil): munición, botiquín y cuatro granadas —
+  fragmentación, incendiaria (deja fuego), aturdidora (frena a la horda) y señuelo (atrae a los zombis
+  y explota). `G` lanza y `Q` cambia de tipo.
 - **Tipos**: caminante, corredor (rápido), reptante (bajo, difícil de acertar) y bruto (mucha vida y
   golpe fuerte; desde la oleada 5). Cada 6 oleadas, *noche de corredores*.
-- **Puntos y armería**: cada impacto da puntos y matar da más, sobre todo a la cabeza, cuerpo a cuerpo
-  o con granadas. Entre oleadas se abre la armería (`E` o botón táctil): subfusil, escopeta, rifle,
-  francotirador, munición, granadas, botiquín y mejoras (blindaje, recarga rápida, munición expansiva).
-  Se empieza con la pistola, de munición infinita; el resto de armas tiene munición de reserva.
 - **Potenciadores** que sueltan los zombis: munición máxima, doble puntos, muerte instantánea, bomba y
   botiquín.
-- **IA**: la horda rodea los obstáculos con un campo de flujo compartido (Dijkstra sobre una
-  cuadrícula de 1 m, recalculado al moverse el jugador). Los zombis se separan entre sí y atacan con un
-  gesto previo: retroceder a tiempo esquiva el golpe.
+- **IA**: los zombis van en línea recta si nada se interpone y, si no, siguen un campo de flujo
+  compartido (Dijkstra sobre una cuadrícula de 1 m). El rumbo y la velocidad cambian de forma gradual
+  y la animación sigue la velocidad real: se mueven fluidos, sin zigzag. Se separan entre sí y atacan
+  con un gesto previo: retroceder a tiempo esquiva el golpe.
 - La vida se regenera tras unos segundos sin recibir golpes. Flechas rojas junto a la mira avisan de
   zombis cerca y fuera de la vista.
 - Igual que con los soldados, los modelos son solo la apariencia: los impactos los deciden hitboxes
@@ -195,10 +205,18 @@ callejones por donde entra la horda. No requiere evaluación.
 
 ## Mecánicas
 
+- **Nueve armas** (teclas 1-9 o rueda del mouse): pistola, subfusil, rifle, escopeta, francotirador,
+  revólver, rifle de ráfaga, ametralladora y fusil de tirador. Las automáticas (subfusil, rifle,
+  ametralladora) disparan manteniendo el clic; la ráfaga, tres balas por clic; el resto, una por clic.
+- **Munición infinita al entrenar**: en la evaluación, la coordinación y la campaña no hay que
+  recargar. El modo zombi y el infinito sí administran la munición.
+- **Brazos y manos** en primera persona sujetando cada arma; **cuchillo** (`V`) con su corte y
+  **granadas** (`G`) que se ven en la mano antes de lanzarlas.
 - **Apuntar con las miras** (clic derecho) en todas las armas: aumento propio de cada arma, menos
-  dispersión y caminar más lento. El francotirador conserva su mira telescópica.
-- **Golpe cuerpo a cuerpo** (`V`) y **granadas** (`G`) en los modos que lo permiten (campaña, infinito
-  y zombi; granadas solo en el modo zombi).
+  dispersión y caminar más lento. El francotirador y el fusil de tirador usan mira telescópica.
+- **Controles reasignables** en Configuración → Controles y datos (clic en una tecla y pulsar la
+  nueva; si choca con otra acción, se intercambian). **Sombras** en Video: según el detalle,
+  siempre o nunca.
 - La evaluación no tiene ADS ni golpe: los rangos siguen siendo comparables.
 
 ## Física
