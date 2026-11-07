@@ -22,6 +22,7 @@ export function keyboardControls() {
     ['Clic derecho', 'Apuntar con las miras · mira telescópica'],
     ['Rueda · 1 – 9', 'Cambiar de arma (no en la evaluación)'],
     [`${k('forward')} ${k('left')} ${k('back')} ${k('right')}`, 'Moverse'],
+    [k('sprint'), 'Correr (mantener; se corta al disparar o apuntar)'],
     [k('walk'), 'Caminar (más preciso)'],
     [k('crouch'), 'Agacharse'],
     [k('jump'), 'Saltar'],
