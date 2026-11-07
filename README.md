@@ -66,6 +66,7 @@ src/
   bots/                   Bots humanoides: hitboxes, strafing, peeks, agachadas, saltos y disparo
   modes/                  Mode.js (interfaz base), registry.js (registro), index.js (descubre los modos)
   modes/evaluation/       Evaluación: dos variantes de 5 fases + scoring → rango
+  modes/story/            Historia «ECO»: 8 capítulos con trama, escenas, radio y la prueba de números
   modes/campaign/         Campaña: mapas Bodega/Ciudad/Arena, 12 niveles, misiones, progreso y estrellas
   modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
   modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
@@ -97,6 +98,22 @@ Rangos: Bronce 0+, Plata 30+, Oro 48+, Diamante 64+, Élite 80+ (`src/config/ran
 Cada variante guarda su propio rango. El **rango general** (el del menú, el que desbloquea modos) es el
 mejor rango actual entre las dos variantes. Los tiempos de reacción se miden con el reloj real
 (`performance.now()` y el instante del clic), así que no dependen de los FPS.
+
+## Historia: ECO
+
+Campaña con historia propia (1979–1983). El capitán Andrés «Halcón» Vera despierta atado a una silla:
+una voz le pregunta qué significan los números 7-3-9 que lee una estación de radio. Cada capítulo es un
+recuerdo de cómo llegó ahí, desde el campo de tiro de Base Cóndor hasta la Torre Faro.
+
+- 8 capítulos, cada uno en un mapa del juego: campo de tiro, patio, bodega, ciudad, barrio en ruinas
+  (con las puertas abiertas), la Cúpula y la arena.
+- Escenas entre misiones con texto que se escribe solo (clic o Espacio para avanzar, «Saltar escena»).
+- Radio durante la misión según lo que pasa (bajas, encuentros nuevos) y una voz sintética para la
+  transmisión de números.
+- Tres tipos de capítulo: dianas, misión con soldados (vida que se recupera, granadas, armas del
+  capítulo y recarga real) y la Cúpula (dispara los números en el orden de la transmisión).
+- Sin límite de tiempo; si caes, se reintenta el capítulo. Cada capítulo terminado abre el siguiente
+  (progreso en `records.story`).
 
 ## Campaña
 
