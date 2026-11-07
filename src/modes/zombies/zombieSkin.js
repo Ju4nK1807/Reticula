@@ -145,6 +145,12 @@ export class ZombieSkin {
     return !!this.actions[key];
   }
 
+  // Empieza el ciclo actual en un punto al azar: dos zombis nunca dan el mismo paso a la vez.
+  desync() {
+    const a = this.current;
+    if (a) a.time = Math.random() * a.getClip().duration;
+  }
+
   play(key, fade = FADE) {
     const next = this.actions[key];
     if (!next || this.current === next) return;
