@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { pushCircleOut } from '../physics/obb.js';
 import { degPerCount } from '../config/sensitivity.js';
+import { DEFAULT_KEYS } from '../config/keybinds.js';
 import { DEG, clamp } from '../utils/math.js';
 
 const PITCH_LIMIT = 89 * DEG;
@@ -10,6 +11,7 @@ const EYE_CROUCH = 1.12;
 const HEIGHT_STAND = 1.8;
 const HEIGHT_CROUCH = 1.3;
 const SPEED_RUN = 5.4; // m/s, similar a los shooters tácticos
+const SPEED_SPRINT = 7.6; // manteniendo la tecla de correr (Shift), solo hacia delante
 const SPEED_WALK = 2.6;
 const SPEED_CROUCH = 1.9;
 const JUMP_VELOCITY = 5.0;
@@ -22,7 +24,7 @@ const _right = new THREE.Vector3();
 const _wish = new THREE.Vector3();
 
 // Jugador en primera persona: mirada (yaw/pitch en radianes) + movimiento WASD con colisiones.
-// Controles: WASD mover · Shift caminar · C agacharse · Espacio saltar.
+// Controles (reasignables): WASD mover · Shift correr · Z caminar · C agacharse · Espacio saltar.
 export class PlayerController {
   constructor(camera, input) {
     this.camera = camera;
@@ -33,10 +35,12 @@ export class PlayerController {
     this.pitch = 0;
     this.crouch = 0; // 0 de pie, 1 agachado (suavizado)
     this.onGround = true;
+    this.sprinting = false;
     this.movementEnabled = true;
     this.radPerCount = degPerCount('reticula', 1.25) * DEG;
     this.sensScale = 1; // con mira telescópica la sensibilidad baja en proporción al zoom
     this.speedScale = 1; // multiplicador de velocidad (apuntar)
+    this.perkSpeed = 1; // multiplicador de velocidad de las bebidas del modo zombi ("Pies ligeros")
     this.invertY = false;
     this.world = null;
     // Cuerpos móviles que bloquean al jugador (bots vivos): [{ x, z, r, y0, h }]. Los aporta el modo.
@@ -101,23 +105,31 @@ export class PlayerController {
 
   move(dt, active) {
     const keys = this.input;
-    const crouching = active && keys.isDown('KeyC');
+    // Teclas reasignables (config/keybinds.js); una entrada sin acciones (pruebas) usa las de siempre.
+    const down = (id) => (keys.isAction ? keys.isAction(id) : keys.isDown(DEFAULT_KEYS[id]));
+    const crouching = active && down('crouch');
     this.crouch += ((crouching ? 1 : 0) - this.crouch) * Math.min(1, dt * 12);
 
     _wish.set(0, 0, 0);
+    let f = 0;
     if (active) {
       _fwd.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
       _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
       // Teclado (digital) + joystick táctil (analógico: inclinarlo poco = caminar más lento).
       const axis = keys.axis ?? { x: 0, y: 0 };
-      const f = (keys.isDown('KeyW') ? 1 : 0) - (keys.isDown('KeyS') ? 1 : 0) + axis.y;
-      const r = (keys.isDown('KeyD') ? 1 : 0) - (keys.isDown('KeyA') ? 1 : 0) + axis.x;
+      f = (down('forward') ? 1 : 0) - (down('back') ? 1 : 0) + axis.y;
+      const r = (down('right') ? 1 : 0) - (down('left') ? 1 : 0) + axis.x;
       _wish.addScaledVector(_fwd, f).addScaledVector(_right, r);
       if (_wish.lengthSq() > 1) _wish.normalize();
     }
 
+    // Sprint (mantener Shift): solo avanzando, de pie, sin apuntar ni disparar. Disparar o apuntar lo
+    // corta al instante, como en los shooters. En el aire conserva el impulso que traía.
+    const wantSprint = active && down('sprint') && f > 0.3 && !crouching && this.speedScale >= 1 && !keys.mouseDown;
+    this.sprinting = wantSprint && (this.onGround || this.sprinting);
     // speedScale: apuntar con las miras o con la mira telescópica obliga a caminar más lento.
-    const max = (crouching ? SPEED_CROUCH : active && keys.isDown('ShiftLeft') ? SPEED_WALK : SPEED_RUN) * this.speedScale;
+    const base = crouching ? SPEED_CROUCH : active && down('walk') ? SPEED_WALK : this.sprinting ? SPEED_SPRINT : SPEED_RUN;
+    const max = base * this.speedScale * this.perkSpeed;
     // En el suelo la velocidad responde rápido (frenar es casi instantáneo, como el counter-strafe);
     // en el aire hay poco control.
     const response = this.onGround ? (_wish.lengthSq() > 0 ? 11 : 16) : 1.5;
@@ -125,7 +137,7 @@ export class PlayerController {
     this.velocity.x += (_wish.x * max - this.velocity.x) * k;
     this.velocity.z += (_wish.z * max - this.velocity.z) * k;
 
-    if (active && this.onGround && keys.isDown('Space')) {
+    if (active && this.onGround && down('jump')) {
       this.velocity.y = JUMP_VELOCITY;
       this.onGround = false;
     }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Weapon } from '../src/combat/Weapon.js';
-import { DEFAULT_WEAPON, EVALUATION_WEAPON, WEAPONS, WEAPON_ORDER, shotDamage, weaponRatings } from '../src/combat/weapons.js';
+import { DEFAULT_WEAPON, EVALUATION_WEAPON, WEAPONS, WEAPON_ORDER, shotDamage, sustainedRps, weaponRatings } from '../src/combat/weapons.js';
 import { DEFAULT_SETTINGS } from '../src/config/defaults.js';
 import { normalizeCrosshair } from '../src/ui/Crosshair.js';
 import { Phase } from '../src/modes/evaluation/Phase.js';
@@ -36,9 +36,10 @@ const fireReady = (w) => {
 };
 
 describe('arsenal', () => {
-  it('cinco armas con teclas 1-5 únicas y datos completos', () => {
-    expect(WEAPON_ORDER).toHaveLength(5);
-    expect(WEAPON_ORDER.map((id) => WEAPONS[id].key)).toEqual(['1', '2', '3', '4', '5']);
+  it('nueve armas con teclas 1-9 únicas y datos completos (las cinco de siempre conservan su número)', () => {
+    expect(WEAPON_ORDER).toHaveLength(9);
+    expect(WEAPON_ORDER.map((id) => WEAPONS[id].key)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
+    expect(WEAPON_ORDER.slice(0, 5)).toEqual(['pistol', 'smg', 'rifle', 'shotgun', 'sniper']);
     for (const id of WEAPON_ORDER) {
       const w = WEAPONS[id];
       expect(w.id).toBe(id);
@@ -73,6 +74,7 @@ describe('Weapon', () => {
   it('cada arma conserva su munición al cambiar', () => {
     const { weapon } = fakeGame();
     weapon.setWeapon('rifle', { force: true });
+    weapon.setMode(false);
     fireReady(weapon);
     weapon.trigger();
     expect(weapon.ammo).toBe(24);
@@ -146,6 +148,60 @@ describe('Weapon', () => {
     fireReady(rifle);
     rifle.trigger();
     expect(rifle.bloom).toBe(0);
+  });
+
+  it('las automáticas arrancan en automático: mantener el clic dispara sin un clic por bala', () => {
+    for (const id of ['smg', 'rifle', 'lmg']) {
+      const { weapon, game, calls } = fakeGame();
+      weapon.setWeapon(id, { force: true });
+      expect(weapon.auto, id).toBe(true);
+      weapon.drawLeft = 0;
+      game.input.mouseDown = true;
+      for (let i = 0; i < 60; i++) weapon.update(1 / 60); // 1 s con el clic mantenido
+      expect(calls.shots.length, id).toBeGreaterThan(WEAPONS[id].rps * 0.8);
+    }
+    // Las de precisión siguen siendo de un clic por disparo.
+    for (const id of ['pistol', 'magnum', 'shotgun', 'sniper', 'dmr']) {
+      const { weapon } = fakeGame();
+      weapon.setWeapon(id, { force: true });
+      expect(weapon.auto, id).toBe(false);
+    }
+  });
+
+  it('rifle de ráfaga: tres balas por clic y una pausa antes de la siguiente ráfaga', () => {
+    const { weapon, calls } = fakeGame();
+    weapon.setWeapon('burst', { force: true });
+    expect(weapon.mode).toBe('burst');
+    fireReady(weapon);
+    weapon.trigger();
+    for (let i = 0; i < 20; i++) weapon.update(1 / 120);
+    expect(calls.shots).toHaveLength(3);
+    weapon.trigger(); // durante la pausa no empieza otra
+    expect(calls.shots).toHaveLength(3);
+    weapon.update(WEAPONS.burst.burstDelay + 0.05);
+    weapon.trigger();
+    for (let i = 0; i < 20; i++) weapon.update(1 / 120);
+    expect(calls.shots).toHaveLength(6);
+    expect(weapon.ammo).toBe(WEAPONS.burst.magazine - 6);
+  });
+
+  it('munición infinita (entrenamiento): no gasta balas ni deja recargar', () => {
+    const { weapon, calls } = fakeGame();
+    weapon.setWeapon('pistol', { force: true });
+    weapon.infinite = true;
+    for (let i = 0; i < 40; i++) {
+      fireReady(weapon);
+      weapon.trigger();
+    }
+    expect(calls.shots).toHaveLength(40); // más que un cargador de 12
+    expect(weapon.ammo).toBe(WEAPONS.pistol.magazine);
+    weapon.reload();
+    expect(weapon.reloading).toBe(false);
+  });
+
+  it('la cadencia sostenida de la ráfaga cuenta la pausa entre ráfagas', () => {
+    expect(sustainedRps(WEAPONS.rifle)).toBe(WEAPONS.rifle.rps);
+    expect(sustainedRps(WEAPONS.burst)).toBeLessThan(WEAPONS.burst.rps / 2);
   });
 
   it('moverse afecta a cada arma según su movilidad', () => {

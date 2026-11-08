@@ -1,4 +1,5 @@
 import { Emitter } from './Emitter.js';
+import { DEFAULT_KEYS } from '../config/keybinds.js';
 
 const LOCK_ERROR_THROTTLE = 400; // ms: un fallo de captura dispara varios eventos a la vez
 
@@ -66,6 +67,19 @@ export class Input extends Emitter {
       this.emit('key', e);
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    // Rueda: cambiar de arma (una muesca = un arma; los trackpads mandan muchos eventos pequeños).
+    let wheelAcc = 0;
+    document.addEventListener(
+      'wheel',
+      (e) => {
+        if (!this.locked) return;
+        wheelAcc += e.deltaY;
+        if (Math.abs(wheelAcc) < 40) return;
+        this.emit('wheel', Math.sign(wheelAcc));
+        wheelAcc = 0;
+      },
+      { passive: true },
+    );
     window.addEventListener('blur', () => this.releaseAll());
     lockTarget.addEventListener('contextmenu', (e) => e.preventDefault());
   }
@@ -79,6 +93,16 @@ export class Input extends Emitter {
 
   isDown(code) {
     return this.keys.has(code);
+  }
+
+  // ¿Está pulsada la tecla asignada a la acción? (config/keybinds.js; las asigna Game.applySettings)
+  isAction(id) {
+    return this.keys.has(this.bindings?.[id] ?? DEFAULT_KEYS[id]);
+  }
+
+  /** Tecla asignada a una acción (los controles táctiles la "pulsan" por código). */
+  codeFor(id) {
+    return this.bindings?.[id] ?? DEFAULT_KEYS[id];
   }
 
   // Debe llamarse desde un gesto del usuario (clic). Devuelve true si la petición se aceptó

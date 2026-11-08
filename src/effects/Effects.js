@@ -1,8 +1,13 @@
 import * as THREE from 'three';
 
 const TRACER_POOL = 48;
-const TRACER_SPEED = 280; // m/s: lo bastante lento para ver la bala viajar
-const TRACER_LENGTH = 2.4;
+const TRACER_SPEED = 190; // m/s: lo bastante lento para ver la bala viajar
+const TRACER_LENGTH = 4.2;
+// Grosor (m) a 6 m de la cámara; más lejos crece con la distancia (si no, a 20 m la bala mide menos
+// de un píxel y "desaparece"), hasta TRACER_MAX_WIDTH.
+const TRACER_WIDTH = { player: 0.02, enemy: 0.03 };
+const TRACER_NEAR = 6;
+const TRACER_MAX_WIDTH = 0.11;
 const DECALS = 120;
 const PARTICLES = 240;
 
@@ -22,9 +27,10 @@ export class Effects {
     this.root = new THREE.Group();
 
     const tracerGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
-    const tracerMat = (color) =>
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
-    this.tracerMaterials = { player: tracerMat('#ffe2a0'), enemy: tracerMat('#ff5a4a') };
+    // Color por encima de 1 y sin mapeo de tonos: brilla (y con calidad alta, el bloom lo realza).
+    const tracerMat = (color, boost) =>
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(boost), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
+    this.tracerMaterials = { player: tracerMat('#ffd27a', 2.4), enemy: tracerMat('#ff4a3a', 2.2) };
     this.tracers = [];
     for (let i = 0; i < TRACER_POOL; i++) {
       const mesh = new THREE.Mesh(tracerGeo, this.tracerMaterials.player);
@@ -72,7 +78,7 @@ export class Effects {
     t.dist = dist;
     t.t = 0;
     t.active = true;
-    t.width = kind === 'enemy' ? 0.02 : 0.012;
+    t.width = TRACER_WIDTH[kind] ?? TRACER_WIDTH.player;
     t.mesh.material = this.tracerMaterials[kind];
     t.mesh.quaternion.setFromUnitVectors(UP, t.dir);
     t.mesh.visible = true;
@@ -108,7 +114,8 @@ export class Effects {
     this.particles.instanceColor.needsUpdate = true;
   }
 
-  update(dt) {
+  // camera: para engrosar las trazadoras lejanas (sin cámara, grosor fijo).
+  update(dt, camera = null) {
     for (const t of this.tracers) {
       if (!t.active) continue;
       t.t += dt;
@@ -124,7 +131,9 @@ export class Effects {
         continue;
       }
       t.mesh.position.copy(t.from).addScaledVector(t.dir, (head + tail) / 2);
-      t.mesh.scale.set(t.width, Math.max(0.01, head - tail), t.width);
+      const far = camera ? t.mesh.position.distanceTo(camera.position) / TRACER_NEAR : 1;
+      const w = Math.min(TRACER_MAX_WIDTH, t.width * Math.max(1, far));
+      t.mesh.scale.set(w, Math.max(0.01, head - tail), w);
     }
 
     let dirty = false;

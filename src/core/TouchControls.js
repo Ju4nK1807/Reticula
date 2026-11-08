@@ -105,7 +105,8 @@ export class TouchControls {
     const m = this.game.mode;
     this.el.classList.toggle('can-melee', !!m?.meleeAllowed?.());
     this.el.classList.toggle('can-grenade', !!m?.grenadesAllowed?.() && (m.grenades ?? 0) > 0);
-    this.el.classList.toggle('can-shop', m?.state === 'intermission' && !!m.openShop);
+    // Botón de usar: armería entre oleadas o lo comprable que hay delante (puerta, arma, bebida).
+    this.el.classList.toggle('can-shop', (m?.state === 'intermission' && !!m.openShop) || !!m?.near || !!m?.nearBarricade);
     if (this.weaponKey.textContent !== w.stats.key) this.weaponKey.textContent = w.stats.key;
   }
 
@@ -116,8 +117,8 @@ export class TouchControls {
     this.input.axis.x = this.input.axis.y = 0;
     this.input.mouseDown = false;
     this.input.aimDown = false;
-    this.input.keys.delete('Space');
-    this.input.keys.delete('KeyC');
+    this.input.keys.delete(this.input.codeFor('jump'));
+    this.input.keys.delete(this.input.codeFor('crouch'));
     this.crouched = false;
   }
 
@@ -141,13 +142,13 @@ export class TouchControls {
         if (this.game.weapon.enabled) this.game.weapon.reload();
         return;
       case 'jump':
-        inp.keys.add('Space');
+        inp.keys.add(inp.codeFor('jump'));
         this.lookers.set(e.pointerId, { x: e.clientX, y: e.clientY, jump: true });
         return;
       case 'crouch':
         this.crouched = !this.crouched;
-        if (this.crouched) inp.keys.add('KeyC');
-        else inp.keys.delete('KeyC');
+        if (this.crouched) inp.keys.add(inp.codeFor('crouch'));
+        else inp.keys.delete(inp.codeFor('crouch'));
         return;
       case 'weapon': {
         // Siguiente arma disponible (en el modo zombi, solo las compradas).
@@ -168,7 +169,12 @@ export class TouchControls {
         this.game.grenades.throw();
         return;
       case 'shop':
-        this.game.mode?.openShop?.();
+        // Junto a una barricada, mantener el botón repara (como mantener la tecla de usar).
+        if (this.game.mode?.nearBarricade) {
+          inp.keys.add(inp.codeFor('interact'));
+          this.lookers.set(e.pointerId, { x: e.clientX, y: e.clientY, jump: true, interact: true });
+        } else if (this.game.mode?.near) this.game.mode.buyNear();
+        else this.game.mode?.openShop?.();
         return;
       case 'pause':
         inp.unlock();
@@ -216,7 +222,8 @@ export class TouchControls {
     }
     const look = this.lookers.get(e.pointerId);
     if (look?.fire) this.input.mouseDown = false;
-    if (look?.jump) this.input.keys.delete('Space');
+    if (look?.interact) this.input.keys.delete(this.input.codeFor('interact'));
+    else if (look?.jump) this.input.keys.delete(this.input.codeFor('jump'));
     this.lookers.delete(e.pointerId);
   }
 }

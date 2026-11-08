@@ -116,7 +116,7 @@ export class Endless extends Mode {
     g.world.props?.reset(); // la utilería vuelve a su lugar
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
-    g.equipLoadout(); // arma elegida en el arsenal (1-5 para cambiar, B para el modo de disparo)
+    g.equipLoadout(); // arma elegida en el arsenal (1-9 o la rueda para cambiar, B para el modo de disparo)
     g.effects.clear();
     g.hud.setVisible(true);
     g.hud.setHealth(1);

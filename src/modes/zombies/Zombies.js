@@ -5,8 +5,10 @@ import { Ambience } from '../../effects/Ambience.js';
 import { ZombieRun } from './ZombieRun.js';
 import { ZombieHud } from './ZombieHud.js';
 import { zombieIntroScreen, zombieResultsScreen, zombieShopScreen } from './zombieScreens.js';
-import { DEFENSE, DIFFICULTIES, FIRST_COUNTDOWN, INTERMISSION, PLAYER, POWERUPS, RESERVE, ZOMBIE_TYPES, cannotBuy, emptyRecord, updateRecord } from './zombieData.js';
+import { BARRICADE, DEFENSE, DIFFICULTIES, DOORS, FIRST_COUNTDOWN, GRENADE_MAX, INTERMISSION, PERKS, PLAYER, POWERUPS, RESERVE, ZOMBIE_TYPES, cannotBuy, emptyRecord, updateRecord } from './zombieData.js';
 import { Bar } from './Bar.js';
+import { WEAPONS } from '../../combat/weapons.js';
+import { keyLabel } from '../../config/keybinds.js';
 import { acquireZombieSkin, loadZombieModel, pooledZombieSkins, prefillZombieSkin, releaseZombieSkin } from './zombieSkin.js';
 
 export const MODE_ID = 'zombies';
@@ -48,8 +50,15 @@ export class Zombies extends Mode {
     this.lastBeep = null;
     this.waveBannerT = 0;
     this.shopOpen = false;
-    this.grenades = 0; // lo lee el sistema de granadas (combat/Grenades.js)
+    // Granadas por tipo (las lee combat/Grenades.js).
+    this.grenadeBag = { frag: 0, fire: 0, stun: 0, decoy: 0 };
+    this.near = null; // lo comprable del mapa que tiene delante el jugador
     this.ash = null;
+  }
+
+  // Total de granadas (botón táctil y HUD).
+  get grenades() {
+    return Object.values(this.grenadeBag).reduce((s, n) => s + n, 0);
   }
 
   get record() {
@@ -88,25 +97,37 @@ export class Zombies extends Mode {
 
   // Mientras se lee la pantalla de inicio: carga los modelos, compila sus sombreadores (dibujo real,
   // diminuto, detrás del menú) y deja zombis creados en reserva. El primero ya no traba la partida.
+  // La reserva cubre una oleada llena (hasta 24 vivos): crear un zombi en plena partida (clonar su
+  // esqueleto) costaba varios ms y se notaba como tirones cuando aparecían muchos a la vez. Se crean
+  // de a pocos, cediendo el hilo entre tandas, para no trabar la pantalla de inicio.
   async warmZombies() {
     const g = this.game;
     const kinds = [
-      ['walker', ZOMBIE_TYPES.walker, 6],
-      ['runner', ZOMBIE_TYPES.runner, 4],
-      ['walker', ZOMBIE_TYPES.brute, 1],
+      ['walker', ZOMBIE_TYPES.walker, 18],
+      ['runner', ZOMBIE_TYPES.runner, 10],
+      ['walker', ZOMBIE_TYPES.brute, 2],
     ];
+    const breathe = () => new Promise((r) => setTimeout(r, 30));
     for (const [model, type, n] of kinds) {
       const template = await loadZombieModel(model);
       if (!template || g.mode !== this) return;
-      const skins = Array.from({ length: n }, () => acquireZombieSkin(template, { height: type.height, tint: type.tint ?? null }));
+      const opts = { height: type.height, tint: type.tint ?? null };
+      // Uno se dibuja diminuto delante de la cámara: compila sus sombreadores.
+      const first = acquireZombieSkin(template, opts);
       const cam = g.engine.camera;
-      for (const s of skins) {
-        s.root.position.set(0, 0, -3).applyQuaternion(cam.quaternion).add(cam.position);
-        s.root.scale.setScalar(0.002);
-        s.update(1 / 60, { anim: 'walk', speed: 1 });
+      first.root.position.set(0, 0, -3).applyQuaternion(cam.quaternion).add(cam.position);
+      first.root.scale.setScalar(0.002);
+      first.update(1 / 60, { anim: 'walk', speed: 1 });
+      g.engine.warmup(g.world.scene, cam, [first.root]);
+      const made = [first];
+      for (let i = 1; i < n; i++) {
+        if (i % 3 === 0) {
+          await breathe();
+          if (g.mode !== this) break;
+        }
+        made.push(acquireZombieSkin(template, opts));
       }
-      g.engine.warmup(g.world.scene, cam, skins.map((s) => s.root));
-      for (const s of skins) releaseZombieSkin(s);
+      for (const s of made) releaseZombieSkin(s);
     }
   }
 
@@ -175,8 +196,20 @@ export class Zombies extends Mode {
     return this.state === 'wave';
   }
 
-  onExplosion(point, radius, los) {
-    this.run?.onExplosion(point, radius, los);
+  onExplosion(point, radius, los, opts) {
+    this.run?.onExplosion(point, radius, los, opts);
+  }
+
+  onFireTick(point, radius, damage, los) {
+    this.run?.onFireTick(point, radius, damage, los);
+  }
+
+  onStun(point, radius, seconds, los) {
+    this.run?.onStun(point, radius, seconds, los);
+  }
+
+  setDecoy(point) {
+    this.run?.setDecoy(point);
   }
 
   hitMeshes() {
@@ -211,16 +244,89 @@ export class Zombies extends Mode {
     return true;
   }
 
-  // Teclas propias del modo (las llama Game.onKey).
-  onKey(e) {
-    if (e.code === 'KeyE' && !e.repeat) this.openShop();
+  // Acciones propias del modo (las llama Game.onKey): usar / comprar.
+  onKey(e, action) {
+    if (action !== 'interact' || e.repeat) return;
+    if (this.nearBarricade) return; // reparar se hace manteniendo la tecla (en update)
+    if (this.near) this.buyNear();
+    else this.openShop();
+  }
+
+  // Barricada dañada al alcance, del lado de dentro (desde donde se repara), o null.
+  findBarricade() {
+    const p = this.game.player.position;
+    let best = null;
+    let bestD = Infinity;
+    for (const b of this.game.world.barricades ?? []) {
+      if (b.boards >= b.max) continue;
+      const ox = p.x - b.mouth.x;
+      const oz = p.z - b.mouth.z;
+      const inside = ox * b.inward.x + oz * b.inward.z;
+      const lateral = Math.abs(ox * b.inward.z - oz * b.inward.x);
+      if (inside < 0 || inside > BARRICADE.reach || lateral > b.width / 2 + 0.6) continue;
+      const d = Math.hypot(ox, oz);
+      if (d < bestD) {
+        best = b;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  // Mantener la tecla de usar junto a una barricada dañada: un tablón cada BARRICADE.repairEvery s.
+  updateRepair(dt) {
+    const g = this.game;
+    const b = this.nearBarricade;
+    if (!b || !g.input.isAction('interact')) {
+      this.repairT = 0;
+      return;
+    }
+    this.repairT = (this.repairT ?? 0) - dt;
+    if (this.repairT > 0) return;
+    this.repairT = BARRICADE.repairEvery;
+    if (this.run.repairBoard(b)) {
+      g.sfx.propHit('wood', 0, 0.6);
+      g.sfx.meleeHit();
+    }
+  }
+
+  // Lo comprable del mapa más cercano al alcance (puerta, arma de pared o bebida), o null.
+  findNear() {
+    const run = this.run;
+    const items = this.game.world.interactables ?? [];
+    const p = this.game.player.position;
+    let best = null;
+    let bestD = Infinity;
+    for (const it of items) {
+      const d = Math.hypot(it.pos.x - p.x, it.pos.z - p.z);
+      if (d > it.radius || d >= bestD || !run.offer(it)) continue;
+      best = it;
+      bestD = d;
+    }
+    return best;
+  }
+
+  buyNear() {
+    const g = this.game;
+    const why = this.run.buy(this.near);
+    if (why) {
+      g.hud.flash(why, 'bad');
+      g.sfx.dryFire();
+      return;
+    }
+    g.sfx.purchase();
+    g.onWeaponChange();
   }
 
   // --- Partida ------------------------------------------------------------------------------------
   beginRun() {
     const g = this.game;
     this.run?.dispose();
+    g.world.resetDoors?.(); // todas las secciones cerradas otra vez (antes de crear la navegación)
+    g.world.resetBarricades?.();
     if (this.bar) {
+      // Defensa: la barra está en la plaza, así que su puerta empieza abierta.
+      g.world.openDoor?.('plaza');
       this.bar.restock(this.bar.total); // barra llena en cada partida
       this.bar.acc = 0;
     }
@@ -229,15 +335,17 @@ export class Zombies extends Mode {
     g.world.props?.reset(); // la utilería vuelve a su lugar
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
-    // Equipo inicial: pistola (munición infinita); el resto se compra, con su reserva.
+    // Equipo inicial: pistola (munición infinita); el resto se compra en las paredes, con su reserva.
     g.weapon.reserveBy = Object.fromEntries(Object.entries(RESERVE).map(([id, n]) => [id, n === null ? null : 0]));
-    g.weapon.reloadMul = 1;
+    this.run.applyPerks(); // sin bebidas: valores base (vida, daño, recarga, velocidad)
     g.weapon.setWeapon('pistol', { force: true });
     g.weapon.refill();
     g.onWeaponChange();
     g.effects.clear();
     g.grenades.clear();
-    this.grenades = PLAYER.startGrenades;
+    g.grenades.type = 'frag';
+    this.grenadeBag = { frag: PLAYER.startGrenades, fire: 0, stun: 0, decoy: 0 };
+    this.near = null;
     g.hud.setVisible(true);
     g.hud.setHealth(1);
     g.hud.setLabel(`${this.variant === 'defense' ? 'Defensa de la barra' : 'Modo zombi'} · ${DIFFICULTIES[this.difficulty].name}`);
@@ -300,8 +408,26 @@ export class Zombies extends Mode {
         return;
     }
     if (this.state === 'over') return;
+    // Lo que hay delante: barricada para reparar o algo comprable (puerta, arma, bebida, caja).
+    const active = COMBAT.has(this.state) && !this.shopOpen && !run.died;
+    this.nearBarricade = active ? this.findBarricade() : null;
+    this.near = active && !this.nearBarricade ? this.findNear() : null;
+    this.updateRepair(dt);
+    if (this.nearBarricade) {
+      const key = g.touchMode ? 'Mantén «Usar»' : `Mantén ${keyLabel(g.settings.keys, 'interact')}`;
+      const b = this.nearBarricade;
+      const capped = run.repairPoints >= BARRICADE.repairCapPerWave;
+      this.hud.setPrompt({ key, text: `Reparar barricada (${b.boards}/${b.max})${capped ? '' : ` · +${BARRICADE.repairPoints} por tablón`}`, price: null, ok: true });
+    } else this.hud.setPrompt(this.near ? this.promptFor(this.near) : null);
     g.hud.setStats(run.hudStats());
     this.hud.update(g, run, this);
+  }
+
+  promptFor(it) {
+    const o = this.run.offer(it);
+    const key = this.game.touchMode ? 'Toca «Usar»' : keyLabel(this.game.settings.keys, 'interact');
+    if (o.done) return { key: null, text: o.label, price: null, ok: false };
+    return { key, text: o.label, price: o.price, ok: this.run.cash >= o.price };
   }
 
   beeps() {
@@ -346,7 +472,7 @@ export class Zombies extends Mode {
   // --- Armería ------------------------------------------------------------------------------------
   shopState() {
     const r = this.run;
-    return { cash: r.cash, owned: r.owned, upgrades: r.upgrades, grenades: this.grenades, health: r.health, maxHealth: r.maxHealth, reserveFull: r.reserveFull(), defense: !!this.bar, bottlesMissing: this.bar?.missing ?? 0 };
+    return { cash: r.cash, owned: r.owned, perks: r.perks, bag: this.grenadeBag, health: r.health, maxHealth: r.maxHealth, reserveFull: r.reserveFull(), defense: !!this.bar, bottlesMissing: this.bar?.missing ?? 0 };
   }
 
   openShop() {
@@ -369,32 +495,18 @@ export class Zombies extends Mode {
     if (cannotBuy(item, { ...this.shopState(), points: r.cash })) return;
     r.cash -= item.price;
     switch (item.kind) {
-      case 'weapon':
-        r.owned.add(item.id);
-        g.weapon.reserveBy[item.id] = RESERVE[item.id];
-        g.weapon.ammoBy[item.id] = g.weapon.ammoBy[item.id] ?? 0;
-        g.weapon.setWeapon(item.id, { force: true });
-        g.weapon.ammo = g.weapon.stats.magazine;
-        break;
       case 'ammo':
         r.refillReserves();
         break;
-      case 'grenades':
-        this.grenades = Math.min(PLAYER.maxGrenades, this.grenades + 2);
+      case 'grenade':
+        this.grenadeBag[item.id] = Math.min(GRENADE_MAX[item.id], this.grenadeBag[item.id] + item.amount);
+        g.grenades.type = item.id; // la recién comprada queda elegida
         break;
       case 'heal':
         r.health = r.maxHealth;
         break;
       case 'restock':
         this.bar?.restock(DEFENSE.restock);
-        break;
-      case 'upgrade':
-        r.upgrades.add(item.id);
-        if (item.id === 'armor') {
-          r.maxHealth = PLAYER.armoredHealth;
-          r.health = Math.min(r.maxHealth, r.health + (PLAYER.armoredHealth - PLAYER.maxHealth));
-        } else if (item.id === 'reload') g.weapon.reloadMul = 0.65;
-        else if (item.id === 'damage') r.dmgMul = 1.25;
         break;
     }
     g.hud.setHealth(r.health / r.maxHealth);
@@ -434,6 +546,24 @@ export class Zombies extends Mode {
       case 'death':
         hud.flash('Te alcanzaron', 'bad');
         break;
+      case 'door':
+        hud.flash(`${DOORS[data.id].name} abierto: también entran zombis por ahí`, 'good');
+        sfx.explosion(18, this.game.panFor(this.game.world.doors[data.id].home));
+        break;
+      case 'perk':
+        hud.flash(`${PERKS[data.id].name}: ${PERKS[data.id].desc}`, 'good');
+        sfx.powerup();
+        break;
+      case 'weapon':
+        hud.flash(`${WEAPONS[data.id].name} comprada`, 'good');
+        break;
+      case 'box':
+        hud.flash(`Caja misteriosa: ¡${WEAPONS[data.id].name}!`, 'good');
+        sfx.powerup();
+        break;
+      case 'ammo':
+        hud.flash(`Munición de ${WEAPONS[data.id].name}`, 'good');
+        break;
       case 'barAttacked':
         hud.flash('¡Están atacando la barra!', 'bad');
         break;
@@ -460,7 +590,11 @@ export class Zombies extends Mode {
     g.weapon.onShot = null;
     g.weapon.reserveBy = null;
     g.weapon.reloadMul = 1;
+    g.weapon.rateMul = 1;
+    g.player.perkSpeed = 1;
     g.player.movementEnabled = true;
+    g.world.resetDoors?.();
+    g.world.resetBarricades?.();
     g.effects.clear();
     g.grenades.clear();
     g.hud.setHealth(null);

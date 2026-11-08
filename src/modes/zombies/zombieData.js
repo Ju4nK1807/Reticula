@@ -4,26 +4,102 @@
 */
 
 // --- Tipos de zombi -----------------------------------------------------------------------------
-// model: modelo animado (zombieSkin.js) · height: altura en m · hp: vida en la oleada 1
-// speed: m/s · damage: daño por golpe · attackRange: m · attackEvery: s entre golpes
+// model: modelo animado (zombieSkin.js) · height: altura en m · hpScale: vida respecto a la de la
+// ronda (roundHp) · speed: m/s · damage: daño por golpe · attackRange: m · attackEvery: s entre golpes
 // points: puntos al matarlo · low: se arrastra (hitboxes cerca del suelo)
-// Calibrado para un entrenador de puntería: en la oleada 1 un tiro a la cabeza con la pistola (110)
-// mata a un caminante; al cuerpo hacen falta 4. La vida sube un 10 % por oleada.
+// Inspirado en los modos de supervivencia clásicos: un caminante tiene 150 de vida en la ronda 1 y
+// 100 más por ronda; tres golpes de caminante (45) tumban a un jugador sin bebidas.
 export const ZOMBIE_TYPES = {
-  walker: { name: 'Caminante', model: 'walker', height: 1.78, hp: 110, speed: 1.6, damage: 18, attackRange: 1.3, attackEvery: 1.35, points: 60 },
-  runner: { name: 'Corredor', model: 'runner', height: 1.74, hp: 75, speed: 4.1, damage: 12, attackRange: 1.25, attackEvery: 0.95, points: 80 },
-  crawler: { name: 'Reptante', model: 'walker', height: 1.78, hp: 60, speed: 2.2, damage: 14, attackRange: 1.15, attackEvery: 1.1, points: 90, low: true },
-  brute: { name: 'Bruto', model: 'walker', height: 2.35, hp: 700, speed: 1.15, damage: 40, attackRange: 1.75, attackEvery: 1.8, points: 300, tint: '#6e7f63' },
+  walker: { name: 'Caminante', model: 'walker', height: 1.78, hpScale: 1, speed: 1.6, damage: 45, attackRange: 1.3, attackEvery: 1.35, points: 60 },
+  runner: { name: 'Corredor', model: 'runner', height: 1.74, hpScale: 0.7, speed: 4.1, damage: 34, attackRange: 1.25, attackEvery: 0.95, points: 80 },
+  crawler: { name: 'Reptante', model: 'walker', height: 1.78, hpScale: 0.6, speed: 2.2, damage: 38, attackRange: 1.15, attackEvery: 1.1, points: 90, low: true },
+  brute: { name: 'Bruto', model: 'walker', height: 2.35, hpScale: 3, speed: 1.45, damage: 80, attackRange: 1.75, attackEvery: 1.8, points: 300, tint: '#6e7f63' },
 };
+
+/** Vida de un caminante en la ronda n: 150, 250, 350… hasta la 9; desde la 10, ×1.1 por ronda. */
+export function roundHp(n) {
+  const w = Math.max(1, Math.floor(n));
+  return w < 10 ? 150 + 100 * (w - 1) : Math.round(950 * 1.1 ** (w - 9));
+}
+
+// Cuchillo en este modo: daño fijo de 150 (mata de un golpe en la ronda 1, de dos en la 2…). Las
+// bebidas de daño no lo afectan.
+export const KNIFE_DAMAGE = 150;
 
 export const PLAYER = {
   maxHealth: 100,
-  armoredHealth: 150, // con el blindaje de la armería
-  regenDelay: 4, // s sin recibir daño antes de regenerar
-  regenRate: 15, // vida por segundo
+  regenDelay: 5, // s sin recibir daño antes de regenerar
+  regenRate: 9, // vida por segundo (de casi muerto a entero en ~11 s)
   startPoints: 500,
   startGrenades: 2,
-  maxGrenades: 6,
+  maxGrenades: 6, // de fragmentación
+};
+
+// Máximo de cada tipo de granada que se puede llevar (combat/Grenades.js).
+export const GRENADE_MAX = { frag: PLAYER.maxGrenades, fire: 4, stun: 4, decoy: 2 };
+
+// --- Bebidas (máquinas del mapa) --------------------------------------------------------------------
+// Mejoras permanentes durante la partida (se pierden al morir). Nombres propios del juego.
+export const PERKS = {
+  coraza: { name: 'Coraza', desc: 'Vida máxima 100 → 250: aguantas más del doble de golpes.', price: 2500, color: '#ff5a3d' },
+  plomo: { name: 'Doble Plomo', desc: '+50 % de daño y +25 % de cadencia con todas las armas.', price: 2000, color: '#ffb020' },
+  mano: { name: 'Mano Rápida', desc: 'Recargas el doble de rápido.', price: 3000, color: '#36d6ff' },
+  pies: { name: 'Pies Ligeros', desc: 'Corres un 15 % más rápido.', price: 2000, color: '#8aff5a' },
+  aire: { name: 'Segundo Aire', desc: 'Empiezas a recuperar vida a los 2.5 s (no a los 5) y el doble de rápido.', price: 1500, color: '#c86bff' },
+};
+export const PERK_EFFECTS = {
+  coraza: { maxHealth: 250 },
+  plomo: { damage: 1.5, rate: 1.25 },
+  mano: { reload: 0.5 },
+  pies: { speed: 1.15 },
+  aire: { regenDelay: 2.5, regenRate: 20 },
+};
+
+/** Valores del jugador con las bebidas que tiene (Set de ids). */
+export function perkStats(perks) {
+  const has = (id) => perks.has(id);
+  return {
+    maxHealth: has('coraza') ? PERK_EFFECTS.coraza.maxHealth : PLAYER.maxHealth,
+    damage: has('plomo') ? PERK_EFFECTS.plomo.damage : 1,
+    rate: has('plomo') ? PERK_EFFECTS.plomo.rate : 1,
+    reload: has('mano') ? PERK_EFFECTS.mano.reload : 1,
+    speed: has('pies') ? PERK_EFFECTS.pies.speed : 1,
+    regenDelay: has('aire') ? PERK_EFFECTS.aire.regenDelay : PLAYER.regenDelay,
+    regenRate: has('aire') ? PERK_EFFECTS.aire.regenRate : PLAYER.regenRate,
+  };
+}
+
+// --- Armas de la pared --------------------------------------------------------------------------------
+// Precio del arma; con el arma ya comprada, el mismo puesto vende su munición a mitad de precio.
+export const WALL_BUYS = { magnum: 900, smg: 1000, rifle: 1600, shotgun: 1500, burst: 1800, dmr: 2000, lmg: 2500, sniper: 2500 };
+export const wallAmmoPrice = (id) => Math.round((WALL_BUYS[id] ?? 1000) / 2 / 50) * 50;
+
+// --- Caja misteriosa y barricadas ------------------------------------------------------------------------
+export const BOX_PRICE = 950; // un arma al azar de las que no tienes
+export const BOX_POOL = ['smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr'];
+
+/** Arma de la caja: una al azar entre las que no se tienen (null si ya se tienen todas). */
+export function rollBox(owned, rng = Math.random) {
+  const pool = BOX_POOL.filter((id) => !owned.has(id));
+  return pool.length ? pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))] : null;
+}
+
+// Barricadas en las entradas de zombis: tablones que arrancan para entrar y que el jugador repara.
+export const BARRICADE = {
+  boards: 6,
+  tearEvery: 1.1, // s que tarda un zombi en arrancar un tablón
+  repairEvery: 0.55, // s por tablón al mantener la tecla de usar
+  repairPoints: 10, // puntos por tablón reparado
+  repairCapPerWave: 500, // tope de puntos por reparar en cada oleada
+  reach: 2.2, // m: distancia para reparar (desde dentro)
+};
+
+// --- Puertas entre secciones del mapa ------------------------------------------------------------------
+export const DOORS = {
+  plaza: { name: 'Plaza', price: 750 },
+  mercado: { name: 'Mercado', price: 750 },
+  estacion: { name: 'Estación', price: 1000 },
+  iglesia: { name: 'Iglesia', price: 1250 },
 };
 
 // --- Dificultad ---------------------------------------------------------------------------------
@@ -55,7 +131,8 @@ export function waveConfig(n, difficulty = 'normal') {
     count: Math.max(3, Math.round((6 + 2.6 * w + 0.08 * w * w) * d.count)),
     maxAlive: Math.round(Math.min(24, 8 + 2 * w) * d.alive),
     spawnGap: [Math.max(0.25, (1.8 - 0.12 * w) * d.spawn), Math.max(0.45, (2.6 - 0.15 * w) * d.spawn)],
-    hpMul: (1 + 0.1 * (w - 1)) * d.hp,
+    hp: Math.round(roundHp(w) * d.hp), // vida de un caminante en esta ronda (y dificultad)
+    hpMul: (roundHp(w) / roundHp(1)) * d.hp,
     speedMul: Math.min(1.5, 1 + 0.04 * (w - 1)) * d.speed,
     damageMul: d.damage,
     diffSpeed: d.speed, // el bruto no acelera con las oleadas, solo con la dificultad
@@ -93,7 +170,7 @@ export function zombieStats(type, cfg) {
   return {
     ...t,
     type,
-    hp: Math.round(t.hp * cfg.hpMul),
+    hp: Math.round((cfg.hp ?? roundHp(cfg.wave ?? 1)) * t.hpScale),
     speed: t.speed * (type === 'brute' ? cfg.diffSpeed ?? 1 : cfg.speedMul),
     damage: Math.round(t.damage * (cfg.damageMul ?? 1)),
   };
@@ -113,21 +190,19 @@ export function pointsFor({ part, killed, type, melee = false }, double = false,
   return Math.round((double ? p * 2 : p) * mul);
 }
 
-// --- Armería ------------------------------------------------------------------------------------
+// --- Armería (entre oleadas): suministros y granadas ----------------------------------------------------
+// Las armas ya no se compran aquí: están en las paredes del mapa (WALL_BUYS), como en los modos de
+// supervivencia clásicos; las mejoras son las bebidas de las máquinas (PERKS).
 // Munición de reserva al comprar el arma o rellenarla (la pistola es infinita: nunca te quedas sin nada).
-export const RESERVE = { pistol: null, smg: 180, shotgun: 36, rifle: 150, sniper: 30 };
+export const RESERVE = { pistol: null, smg: 180, shotgun: 36, rifle: 150, sniper: 30, magnum: 42, burst: 210, lmg: 300, dmr: 72 };
 
 export const SHOP = [
-  { id: 'smg', kind: 'weapon', name: 'Subfusil', desc: 'Cadencia altísima: limpia grupos de cerca.', price: 1000 },
-  { id: 'shotgun', kind: 'weapon', name: 'Escopeta', desc: 'Nueve perdigones: detiene a cualquiera de cerca.', price: 1500 },
-  { id: 'rifle', kind: 'weapon', name: 'Rifle', desc: 'Preciso y potente a media distancia.', price: 2000 },
-  { id: 'sniper', kind: 'weapon', name: 'Francotirador', desc: 'Atraviesa la horda desde lejos (y mata brutos).', price: 2500 },
   { id: 'ammo', kind: 'ammo', name: 'Munición', desc: 'Rellena la reserva de todas tus armas.', price: 500 },
-  { id: 'grenades', kind: 'grenades', name: '+2 granadas', desc: `Llevas hasta ${PLAYER.maxGrenades} a la vez.`, price: 300 },
   { id: 'medkit', kind: 'heal', name: 'Botiquín', desc: 'Recupera toda la vida.', price: 400 },
-  { id: 'armor', kind: 'upgrade', name: 'Blindaje', desc: `Vida máxima ${PLAYER.maxHealth} → ${PLAYER.armoredHealth}.`, price: 1500 },
-  { id: 'reload', kind: 'upgrade', name: 'Recarga rápida', desc: 'Recargas un 35 % más rápido.', price: 1800 },
-  { id: 'damage', kind: 'upgrade', name: 'Munición expansiva', desc: '+25 % de daño con todas las armas.', price: 3000 },
+  { id: 'frag', kind: 'grenade', amount: 2, name: '+2 de fragmentación', desc: `Explotan a los 1.6 s. Llevas hasta ${GRENADE_MAX.frag}.`, price: 300 },
+  { id: 'fire', kind: 'grenade', amount: 2, name: '+2 incendiarias', desc: 'Se rompen al caer y dejan fuego unos segundos: cierra un pasillo.', price: 500 },
+  { id: 'stun', kind: 'grenade', amount: 2, name: '+2 aturdidoras', desc: 'Frenan a la horda unos segundos para que escapes o recargues.', price: 400 },
+  { id: 'decoy', kind: 'grenade', amount: 1, name: '+1 señuelo', desc: 'Pita y atrae a los zombis; al final explota en medio de ellos.', price: 700 },
   { id: 'restock', kind: 'restock', name: 'Reponer licor', desc: 'Vuelven a la barra 8 botellas rotas.', price: 700, defenseOnly: true },
 ];
 
@@ -143,12 +218,12 @@ export const DEFENSE = {
 
 /**
  * ¿Se puede comprar? Devuelve null si sí o el motivo si no.
- * state = { points, owned: Set, upgrades: Set, grenades, health, maxHealth, reserveFull }
+ * state = { points, owned: Set, perks: Set, bag: { frag, fire, stun, decoy }, health, maxHealth, reserveFull }
  */
 export function cannotBuy(item, state) {
   if (item.kind === 'weapon' && state.owned.has(item.id)) return 'Ya la tienes';
-  if (item.kind === 'upgrade' && state.upgrades.has(item.id)) return 'Ya la tienes';
-  if (item.kind === 'grenades' && state.grenades >= PLAYER.maxGrenades) return 'Al máximo';
+  if (item.kind === 'perk' && state.perks?.has(item.id)) return 'Ya la tienes';
+  if (item.kind === 'grenade' && (state.bag?.[item.id] ?? 0) >= GRENADE_MAX[item.id]) return 'Al máximo';
   if (item.kind === 'heal' && state.health >= state.maxHealth) return 'Vida completa';
   if (item.kind === 'ammo' && state.reserveFull) return 'Reserva llena';
   if (item.kind === 'restock' && !(state.bottlesMissing > 0)) return 'Barra llena';

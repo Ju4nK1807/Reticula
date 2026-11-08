@@ -87,11 +87,24 @@ export function prepareWorld(world, renderer) {
   return world.gfx;
 }
 
+// Opción "Sombras" de la configuración (config/quality.js: auto | on | off).
+let shadowMode = 'auto';
+export function setShadowMode(mode) {
+  shadowMode = mode === 'on' || mode === 'off' ? mode : 'auto';
+}
+
+/** Tamaño del mapa de sombras para un detalle y la opción de sombras (0 = sin sombras). */
+export function shadowSizeFor(detail, mode = shadowMode) {
+  if (mode === 'off') return 0;
+  const size = SHADOW_SIZE[detail] ?? SHADOW_SIZE.alta;
+  return mode === 'on' && size === 0 ? SHADOW_SIZE.media : size;
+}
+
 /** Aplica la calidad de sombras a un mapa preparado. */
 export function applyShadowQuality(world, detail) {
   const gfx = world.gfx;
   if (!gfx?.sun) return;
-  const size = SHADOW_SIZE[detail] ?? SHADOW_SIZE.alta;
+  const size = shadowSizeFor(detail);
   if (size === gfx.shadowSize) return;
   gfx.shadowSize = size;
   const { sun } = gfx;

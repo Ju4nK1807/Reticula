@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { resolveQuality } from '../config/quality.js';
 import { setGlowBloom, setSurfaceDetail } from '../gfx/surfaces.js';
+import { shadowSizeFor } from '../gfx/lighting.js';
 
 // Renderer, cámara y loop. La escena activa la aporta el mapa cargado.
 // `overlay` ({ scene, camera, resize }) se dibuja encima sin depth del mundo: el arma en primera persona.
@@ -83,7 +84,6 @@ export class Engine {
     if (detail !== this.detail) {
       this.detail = detail;
       setSurfaceDetail(detail, this.renderer.capabilities.getMaxAnisotropy());
-      this.renderer.shadowMap.enabled = detail !== 'baja';
       const bloom = detail === 'alta';
       if (bloom && !this.composer) this.createComposer();
       else if (!bloom) {
@@ -91,6 +91,8 @@ export class Engine {
         if (this.composer) this.disposeComposer();
       }
     }
+    // Sombras: según el detalle o la opción "Sombras" de la configuración.
+    this.renderer.shadowMap.enabled = shadowSizeFor(detail) > 0;
     this.resize();
   }
 

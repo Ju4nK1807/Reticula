@@ -116,9 +116,10 @@ export class Sfx {
     src.stop(t + decay + 0.1);
   }
 
-  // Disparo del jugador según el arma (perfil de combat/weapons.js).
-  shot(profile = 'rifle') {
-    if (this.playSample(profile)) {
+  // Disparo del jugador según el arma (perfil de combat/weapons.js). `rate` < 1 = más grave (revólver,
+  // ametralladora), > 1 = más agudo: las armas nuevas reutilizan la grabación de su familia.
+  shot(profile = 'rifle', rate = 1) {
+    if (this.playSample(profile, { rate, gain: (SAMPLES[profile] ?? 0.5) * (rate < 1 ? 1.15 : 1) })) {
       // Detalle mecánico sobre la grabación: corredera de la escopeta y cerrojo del francotirador.
       if (profile === 'shotgun') this.noiseBurst({ f0: 1400, f1: 900, q: 2, peak: 0.12, decay: 0.05, delay: 0.32 });
       if (profile === 'sniper') this.noiseBurst({ f0: 2600, f1: 1600, q: 3, peak: 0.1, decay: 0.04, delay: 0.62 });
@@ -232,6 +233,26 @@ export class Sfx {
     this.tone('sine', 90, 28, 0.9, 0.85 * k, 0, pan);
     this.noiseBurst({ type: 'lowpass', f0: 2600, f1: 120, q: 0.4, peak: 0.75 * k, decay: 0.85, pan });
     this.noiseBurst({ type: 'bandpass', f0: 900, f1: 300, q: 0.8, peak: 0.25 * k, decay: 1.4, delay: 0.08, pan });
+  }
+
+  // Incendiaria: vidrio que se rompe y la llamarada que prende.
+  ignite(distance = 0, pan = 0) {
+    const k = Math.max(0.25, 1 - distance / 50);
+    this.noiseBurst({ type: 'highpass', f0: 3000, f1: 5000, q: 1.2, peak: 0.22 * k, decay: 0.09, pan });
+    this.noiseBurst({ type: 'lowpass', f0: 500, f1: 1800, q: 0.5, peak: 0.5 * k, decay: 0.7, delay: 0.04, pan });
+    this.noiseBurst({ type: 'bandpass', f0: 700, f1: 400, q: 0.6, peak: 0.18 * k, decay: 1.6, delay: 0.2, pan });
+  }
+
+  // Aturdidora: estallido seco y agudo con zumbido.
+  stunBang(distance = 0, pan = 0) {
+    const k = Math.max(0.25, 1 - distance / 50);
+    this.noiseBurst({ type: 'highpass', f0: 1800, f1: 600, q: 0.6, peak: 0.7 * k, decay: 0.25, pan });
+    this.tone('sine', 3200, 3000, 0.9, 0.06 * k, 0.05, pan);
+  }
+
+  // Señuelo: pitido corto.
+  decoyBeep(pan = 0) {
+    this.tone('square', 1320, 1320, 0.05, 0.05, 0, pan);
   }
 
   // Granada que rebota en el suelo.

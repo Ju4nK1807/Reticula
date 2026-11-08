@@ -35,6 +35,11 @@ export class Mode {
     return false;
   }
 
+  // true en los modos de entrenamiento: el cargador no se vacía y no hay que recargar.
+  infiniteAmmo() {
+    return false;
+  }
+
   // Mallas que pueden recibir balas (hitboxes de bots y dianas).
   hitMeshes() {
     return [];

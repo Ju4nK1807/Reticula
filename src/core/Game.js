@@ -14,7 +14,7 @@ import { Effects } from '../effects/Effects.js';
 import { Ambience } from '../effects/Ambience.js';
 import { MenuShowcase } from '../effects/MenuShowcase.js';
 import { MENU_VFOV, MenuCamera } from '../effects/MenuCamera.js';
-import { applyShadowQuality, environment, prepareWorld } from '../gfx/lighting.js';
+import { applyShadowQuality, environment, prepareWorld, setShadowMode } from '../gfx/lighting.js';
 import { AutoQuality, guessDetail } from '../gfx/AutoQuality.js';
 import { whenSurfacesReady } from '../gfx/surfaces.js';
 import { Melee } from '../combat/Melee.js';
@@ -31,6 +31,8 @@ import { arsenalScreen } from '../ui/arsenalScreen.js';
 import { crosshairScreen } from '../ui/crosshairScreen.js';
 import { getMode } from '../modes/index.js';
 import { GAMES, formatSens, roundTo } from '../config/sensitivity.js';
+import { actionFor, keyLabel, normalizeKeys } from '../config/keybinds.js';
+import { setActiveKeys } from '../ui/settingsScreen.js';
 import { spreadToPixels } from '../ui/Crosshair.js';
 import { WEAPONS, WEAPON_ORDER, getWeapon } from '../combat/weapons.js';
 
@@ -118,6 +120,7 @@ export class Game {
     this.input.on('lock', () => this.onLock());
     this.input.on('unlock', () => this.onUnlock());
     this.input.on('key', (e) => this.onKey(e));
+    this.input.on('wheel', (dir) => this.playing && this.cycleWeapon(dir));
     this.input.on('lockerror', () =>
       this.ui.toast('No se pudo capturar el mouse. Espera un segundo y vuelve a hacer clic.'),
     );
@@ -178,12 +181,11 @@ export class Game {
   // oculta ese instante): sacar un arma por primera vez ya no da un tirón.
   warmWeapons() {
     const vm = this.viewmodel;
-    const extras = [...vm.loaded.values()].map(({ object }) => {
-      const c = object.clone();
+    const extras = [...vm.loaded.values()].map(({ object }) => object.clone()).concat(vm.warmupObjects?.() ?? []);
+    for (const c of extras) {
       c.scale.setScalar(0.002);
       c.position.set(0, 0, -0.5);
-      return c;
-    });
+    }
     if (!extras.length) return;
     const visible = vm.gun.visible;
     vm.gun.visible = false;
@@ -218,10 +220,14 @@ export class Game {
 
   applySettings() {
     const s = this.settings;
+    s.keys = normalizeKeys(s.keys);
+    this.input.bindings = s.keys;
+    setActiveKeys(s.keys);
     this.player.configure(s.sens);
     this.engine.setHorizontalFov(s.fov);
     this.hud.setCrosshair(this.activeCrosshair());
     this.hud.showFps(s.video.showFps);
+    setShadowMode(s.video.shadows);
     this.engine.setQuality(s.video);
     if (this.world) applyShadowQuality(this.world, this.engine.detail);
     // La calidad automática solo existe en el modo "auto"; elegir otro modo la descarta.
@@ -260,7 +266,7 @@ export class Game {
     this.onWeaponChange();
   }
 
-  // Cambio de arma en partida (teclas 1-5) o desde el arsenal. Se recuerda como arma elegida.
+  // Cambio de arma en partida (teclas 1-9 o rueda) o desde el arsenal. Se recuerda como arma elegida.
   selectWeapon(id) {
     if (!WEAPONS[id]) return;
     const locked = this.mode ? this.weaponLock() : null;
@@ -282,33 +288,76 @@ export class Game {
     if (this.weapon.setWeapon(id)) this.hud.flash(WEAPONS[id].name, 'info');
   }
 
+  // Rueda del mouse: la siguiente (o anterior) arma disponible en este modo.
+  cycleWeapon(dir) {
+    if (this.weaponLock() || !this.weapon.enabled) return;
+    const i = WEAPON_ORDER.indexOf(this.weapon.id);
+    for (let k = 1; k < WEAPON_ORDER.length; k++) {
+      const id = WEAPON_ORDER[(i + dir * k + WEAPON_ORDER.length * k) % WEAPON_ORDER.length];
+      if (this.mode?.ownsWeapon?.(id) === false) continue;
+      this.selectWeapon(id);
+      return;
+    }
+  }
+
   onWeaponChange() {
     const w = this.weapon;
     this.hud.setCrosshair(this.activeCrosshair());
     // En táctil no hay teclas: se omiten los atajos (la mira tiene su propio botón).
     const keys = !this.touchMode;
-    const mode = w.stats.fireModes.length > 1 ? ` · ${w.auto ? 'AUTO' : 'SEMI'}${keys ? ' [B]' : ''}` : w.stats.zoom && keys ? ' · clic der. = mira' : '';
+    const modeKey = keys ? ` [${keyLabel(this.settings.keys, 'fireMode')}]` : '';
+    const mode = w.stats.fireModes.length > 1 ? ` · ${w.modeLabel}${modeKey}` : w.stats.fireModes[0] === 'burst' ? ' · RÁFAGA' : w.stats.zoom && keys ? ' · clic der. = mira' : '';
     this.hud.setWeapon(`${w.stats.name}${mode}${this.mode?.weaponHudSuffix?.() ?? ''}`);
     this.hud.setWeaponSlots(SLOT_LIST, w.id, !!this.weaponLock(), (id) => this.mode?.ownsWeapon?.(id) !== false);
   }
 
+  // Teclas en partida: cada código se traduce a su acción según los controles del jugador
+  // (config/keybinds.js). Las armas (1-9) son fijas.
   onKey(e) {
     if (!this.playing) return;
-    if (e.code === 'BracketLeft') this.nudgeSensitivity(0.97);
-    else if (e.code === 'BracketRight') this.nudgeSensitivity(1.03);
-    else if (e.code === 'KeyR' && this.weapon.enabled) this.weapon.reload();
-    else if (WEAPON_KEYS[e.code] && !e.repeat) this.selectWeapon(WEAPON_KEYS[e.code]);
-    else if (e.code === 'KeyB' && !e.repeat && this.weapon.canToggleMode) {
-      if (this.mode?.fireModeLocked?.()) this.hud.flash('El modo de disparo lo fija esta fase', 'info');
-      else this.hud.flash(this.weapon.toggleMode() ? 'Disparo automático' : 'Disparo semiautomático', 'info');
+    if (WEAPON_KEYS[e.code]) {
+      if (!e.repeat) this.selectWeapon(WEAPON_KEYS[e.code]);
+      return;
     }
-    else if (e.code === 'KeyV' && !e.repeat) this.melee.trigger();
-    else if (e.code === 'KeyG' && !e.repeat) this.grenades.throw();
-    else if (e.code === 'Backspace' && !e.repeat) {
-      e.preventDefault();
-      this.mode.restartStage?.();
+    const action = actionFor(this.settings.keys, e.code);
+    if (action && action !== 'restart') e.preventDefault(); // p. ej. Tab o Alt asignados
+    const once = !e.repeat;
+    switch (action) {
+      case 'sensDown':
+        this.nudgeSensitivity(0.97);
+        break;
+      case 'sensUp':
+        this.nudgeSensitivity(1.03);
+        break;
+      case 'reload':
+        if (this.weapon.enabled) this.weapon.reload();
+        break;
+      case 'fireMode':
+        if (!once || !this.weapon.canToggleMode) break;
+        if (this.mode?.fireModeLocked?.()) this.hud.flash('El modo de disparo lo fija esta fase', 'info');
+        else {
+          this.weapon.toggleMode();
+          this.hud.flash({ auto: 'Disparo automático', semi: 'Disparo semiautomático', burst: 'Disparo en ráfaga' }[this.weapon.mode], 'info');
+        }
+        break;
+      case 'melee':
+        if (once) this.melee.trigger();
+        break;
+      case 'grenade':
+        if (once) this.grenades.throw();
+        break;
+      case 'grenadeNext':
+        if (once) this.grenades.cycleType();
+        break;
+      case 'restart':
+        if (once) {
+          e.preventDefault();
+          this.mode.restartStage?.();
+        }
+        break;
+      default:
+        this.mode?.onKey?.(e, action); // acciones propias del modo (zombi: usar / comprar)
     }
-    else this.mode?.onKey?.(e); // teclas propias del modo (zombi: E = armería)
   }
 
   start() {
@@ -341,6 +390,7 @@ export class Game {
     this.engine.camera.updateMatrixWorld();
 
     this.weapon.enabled = playing && !!this.mode?.weaponEnabled();
+    this.weapon.infinite = !!this.mode?.infiniteAmmo?.();
     if (this.touch) {
       this.touch.setVisible(playing);
       if (playing) this.touch.update();
@@ -359,11 +409,12 @@ export class Game {
       const spread = this.weapon.enabled ? this.weapon.currentSpread() : 0;
       this.hud.setSpread(spreadToPixels(spread, this.engine.camera.fov, window.innerHeight));
     }
-    this.effects.update(dt);
+    this.effects.update(dt, this.engine.camera);
     this.ambience.update(dt, !this.mode);
     this.showcase.update(dt, !this.mode);
+    this.viewmodel.showArms = this.settings.gameplay.hands !== false;
     this.viewmodel.update(dt, this.player);
-    if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress, this.weapon.reserve);
+    if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress, this.weapon.reserve, this.weapon.infinite);
     // El arma se oculta solo dentro de la mira telescópica (con las miras de hierro se sigue viendo).
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && !(this.weapon.scoped && this.zoomLevel > 1.15);
     // El detalle puede cambiar en cualquier momento (calidad automática): el mapa ajusta sus luces.
@@ -421,6 +472,8 @@ export class Game {
     this.player.speedScale = w.aiming ? w.stats.ads.speed : w.scoped ? 0.7 : 1;
     this.viewmodel.aimTarget = w.aiming ? 1 : 0;
     this.hud.setScoped(!!w.stats.zoom && this.zoomLevel > w.stats.zoom * 0.85 && w.scoped);
+    // Con el arma ya casi en la cara, la retícula sobra (y se ve la mira del arma).
+    this.hud.setAds(this.viewmodel.aim > 0.55);
   }
 
   adsAllowed() {

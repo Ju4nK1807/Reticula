@@ -2,34 +2,45 @@ import { h } from '../../ui/dom.js';
 import { button } from '../../ui/components.js';
 import { sensSummary } from '../../config/sensitivity.js';
 import { clock, pct } from '../../utils/format.js';
-import { DEFENSE, DIFFICULTIES, DIFFICULTY_ORDER, PLAYER, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
+import { keyLabel } from '../../config/keybinds.js';
+import { BARRICADE, BOX_PRICE, DEFENSE, DIFFICULTIES, DIFFICULTY_ORDER, DOORS, GRENADE_MAX, PERKS, PLAYER, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
 
 const DIFF_COLORS = { facil: '#00f5a0', normal: '#36d6ff', dificil: '#ffb020', locura: '#ff4d5e' };
 
 const fmt = (n) => Math.round(n).toLocaleString('es');
 
 // Reglas de la pantalla de inicio; las teclas solo se nombran con teclado (en táctil hay botones).
-function rules(touch) {
-  const key = (k) => (touch ? '' : ` (${k})`);
+function rules(game) {
+  const touch = game.touchMode;
+  const key = (id) => (touch ? '' : ` (${keyLabel(game.settings.keys, id)})`);
+  const doors = Object.values(DOORS).map((d) => `${d.name} (${fmt(d.price)})`).join(', ');
   return [
     ['Resiste la horda', 'Cada oleada trae más zombis, más resistentes y más rápidos. La partida termina cuando caes. Te recuperas si pasas unos segundos sin recibir golpes.'],
-    ['Gana puntos', `Cada impacto da puntos; matar da más, sobre todo a la cabeza, con el golpe cuerpo a cuerpo${key('V')} o con granadas${key('G')}.`],
-    ['Compra en la armería', `Entre oleadas abre la armería${key('E')}: armas, munición, granadas, botiquín y mejoras. Empiezas con la pistola (munición infinita).`],
+    ['Gana puntos', `Cada impacto da puntos; matar da más, sobre todo a la cabeza, con el cuchillo${key('melee')} o con granadas${key('grenade')}.`],
+    ['Barricadas', `Empiezas encerrado en el Vestíbulo. La horda sale de la tierra y arranca los tablones de las ventanas; mantén${key('interact')} junto a una ventana para repararla (+${BARRICADE.repairPoints} por tablón).`],
+    ['Abre el mapa', `Las puertas tapiadas se compran${key('interact')}: ${doors}. Cada sección tiene más armas y bebidas, pero también más entradas de zombis.`],
+    ['Caja misteriosa', `En la plaza, el haz de luz azul: ${BOX_PRICE} puntos por un arma al azar de las que no tienes.`],
+    ['Armas en la pared', `Empiezas con la pistola (munición infinita). Las demás están colgadas en las paredes: acércate y cómpralas${key('interact')}; con el arma ya comprada, el mismo puesto vende su munición.`],
+    ['Bebidas', `Cinco máquinas repartidas por el mapa: ${Object.values(PERKS).map((p) => p.name).join(', ')}. Duran hasta que caes.`],
+    ['Granadas y armería', `Entre oleadas abre la armería${key('interact')}: munición, botiquín y cuatro tipos de granada (fragmentación, incendiaria, aturdidora y señuelo). Cambia de tipo${key('grenadeNext')}.`],
     ['Potenciadores', `Algunos zombis sueltan un cristal brillante: ${Object.values(POWERUPS).map((p) => p.name.toLowerCase()).join(', ')}. Pasa por encima para tomarlo.`],
     ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte.'],
   ];
 }
 
-const CONTROLS = [
-  ['Clic', 'Disparar'],
-  ['Clic derecho', 'Apuntar'],
-  ['1 – 5', 'Armas compradas'],
-  ['R', 'Recargar'],
-  ['V', 'Golpe cuerpo a cuerpo'],
-  ['G', 'Granada'],
-  ['E', 'Armería (entre oleadas)'],
-  ['Esc', 'Pausa'],
-];
+function controls(keys) {
+  const k = (id) => keyLabel(keys, id);
+  return [
+    ['Clic', 'Disparar (mantenlo con las automáticas)'],
+    ['Clic derecho', 'Apuntar'],
+    ['Rueda · 1 – 9', 'Armas compradas'],
+    [k('reload'), 'Recargar'],
+    [k('melee'), 'Cuchillo'],
+    [`${k('grenade')} · ${k('grenadeNext')}`, 'Granada · cambiar de tipo'],
+    [k('interact'), 'Comprar lo que tienes delante · armería (entre oleadas)'],
+    ['Esc', 'Pausa'],
+  ];
+}
 
 function records(record) {
   if (!record?.totalRuns) return h('p', { class: 'muted' }, 'Aún no tienes récords en este modo.');
@@ -88,13 +99,13 @@ export function zombieIntroScreen(game, { record, variant = 'survival', difficul
         { class: 'muted' },
         defense
           ? 'La fuente de la plaza es ahora una barra con 46 botellas de licor y la horda tiene sed: entra por los callejones directo a la barra. Atájalos antes de que lleguen.'
-          : 'De noche, en una plaza rodeada de edificios. Los zombis entran por los callejones: vigila los flancos, usa las coberturas y gasta bien tus puntos.',
+          : 'De noche, encerrado en el Vestíbulo de un barrio en ruinas. La horda arranca los tablones de las ventanas; detrás de las puertas tapiadas esperan la Plaza, el Mercado, la Estación y la Iglesia. Gasta bien tus puntos.',
       ),
       records(record),
       h('h3', {}, 'Dificultad'),
       onDifficulty && difficultyPicker(record, difficulty, onDifficulty),
-      h('ol', { class: 'stage-list' }, (defense ? defenseRules(game.touchMode) : rules(game.touchMode)).map(([t, x], i) => h('li', {}, h('span', { class: 'num' }, i + 1), h('div', {}, h('strong', {}, t), h('p', {}, x))))),
-      !game.touchMode && h('dl', { class: 'controls compact' }, CONTROLS.map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
+      h('ol', { class: 'stage-list' }, (defense ? defenseRules(game.touchMode) : rules(game)).map(([t, x], i) => h('li', {}, h('span', { class: 'num' }, i + 1), h('div', {}, h('strong', {}, t), h('p', {}, x))))),
+      !game.touchMode && h('dl', { class: 'controls compact' }, controls(game.settings.keys).map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h('div', { class: 'row' }, button('Comenzar', onStart, { variant: 'primary' }), button('Configuración', onSettings), button('Volver', onBack, { variant: 'ghost' })),
       // Los modelos son CC-BY: el crédito va a la vista, donde se usan.
@@ -104,15 +115,17 @@ export function zombieIntroScreen(game, { record, variant = 'survival', difficul
 }
 
 /**
- * Armería: compra entre oleadas. state = { cash, owned, upgrades, grenades, health, maxHealth,
- * reserveFull, timer }. onBuy(item) compra (y vuelve a dibujar); onClose vuelve al combate.
+ * Armería: compra entre oleadas. state = { cash, owned, perks, bag, health, maxHealth, reserveFull }.
+ * onBuy(item) compra (y vuelve a dibujar); onClose vuelve al combate. Las armas están en las paredes
+ * del mapa y las mejoras en las máquinas de bebidas.
  */
 export function zombieShopScreen({ state, onBuy, onClose }) {
   const kinds = [
-    ['Armas', SHOP.filter((i) => i.kind === 'weapon')],
-    ['Suministros', SHOP.filter((i) => ['ammo', 'grenades', 'heal'].includes(i.kind) || (i.kind === 'restock' && state.defense))],
-    ['Mejoras', SHOP.filter((i) => i.kind === 'upgrade')],
+    ['Suministros', SHOP.filter((i) => ['ammo', 'heal'].includes(i.kind) || (i.kind === 'restock' && state.defense))],
+    ['Granadas', SHOP.filter((i) => i.kind === 'grenade')],
   ];
+  const bag = state.bag ?? {};
+  const nades = Object.entries(GRENADE_MAX).map(([t, max]) => `${bag[t] ?? 0}/${max}`).join(' · ');
   // Cabecera fija al desplazarse: los puntos y "Continuar combate" siempre a la vista (en teléfonos la
   // lista no cabe en la pantalla).
   return h(
@@ -126,7 +139,8 @@ export function zombieShopScreen({ state, onBuy, onClose }) {
         {},
         h('div', { class: 'eyebrow' }, 'Entre oleadas'),
         h('h2', {}, 'Armería'),
-        h('p', { class: 'muted small' }, `Vida ${Math.round(state.health)} / ${state.maxHealth} · Granadas ${state.grenades} / ${PLAYER.maxGrenades}`),
+        h('p', { class: 'muted small' }, `Vida ${Math.round(state.health)} / ${state.maxHealth} · Granadas (frag. · incend. · aturd. · señuelo) ${nades}`),
+        h('p', { class: 'muted small' }, 'Las armas están colgadas en las paredes del mapa y las mejoras en las máquinas de bebidas.'),
       ),
       h(
         'div',
@@ -183,9 +197,8 @@ export function zombieResultsScreen({ result, record, isBest, variant = 'surviva
       { class: 'metrics' },
       tile('Puntos', fmt(result.score)),
       tile('Bajas', result.kills, `${result.headKills} a la cabeza`),
-      tile('Precisión', pct(result.accuracy)),
-      tile('Cuerpo a cuerpo', result.meleeKills, 'bajas con V'),
-      tile('Granadas', result.grenadeKills, 'bajas con G'),
+      tile('Cuchillo', result.meleeKills, 'bajas cuerpo a cuerpo'),
+      tile('Granadas', result.grenadeKills, 'bajas con granadas'),
       tile('Tiempo', clock(result.time), `${Math.round(result.damageTaken)} de daño recibido`),
       defense && tile('Botellas', `${result.bottles} / ${result.bottlesTotal}`, 'quedaron en la barra'),
     ),

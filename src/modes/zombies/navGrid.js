@@ -32,18 +32,8 @@ export class NavGrid {
     this.next = new Int32Array(n).fill(-1);
     this.heap = new Int32Array(n * 8 + 8); // cola de prioridad (índices, con repetidos) reutilizada
     this.heapLen = 0;
-    for (let i = 0; i < n; i++) {
-      const { x, z } = this.center(i);
-      for (const b of colliders) {
-        // Solo cuenta lo que bloquea el paso a la altura de un cuerpo.
-        if (b.max.y < 0.3 || b.min.y > 1.6) continue;
-        if (insideBox(b, x, z, radius)) {
-          this.blocked[i] = 1;
-          break;
-        }
-      }
-    }
-    this.target = -1;
+    // Solo cuenta lo que bloquea el paso a la altura de un cuerpo.
+    this.setColliders(colliders, radius);
   }
 
   index(x, z) {
@@ -139,6 +129,39 @@ export class NavGrid {
     out.x = dx / len;
     out.z = dz / len;
     return true;
+  }
+
+  /**
+   * ¿La recta entre (x0, z0) y (x1, z1) cruza solo celdas libres? (las celdas ya incluyen el radio
+   * del zombi). Con línea despejada el zombi va derecho, sin seguir el zigzag de la cuadrícula.
+   */
+  clearLine(x0, z0, x1, z1) {
+    const dx = x1 - x0;
+    const dz = z1 - z0;
+    const steps = Math.ceil(Math.hypot(dx, dz) / (this.cell * 0.5));
+    for (let s = 1; s < steps; s++) {
+      const i = this.index(x0 + (dx * s) / steps, z0 + (dz * s) / steps);
+      if (i < 0 || this.blocked[i]) return false;
+    }
+    return true;
+  }
+
+  /** Recalcula qué celdas bloquean (al abrir o cerrar una puerta del mapa). */
+  setColliders(colliders, radius = this.radius) {
+    this.radius = radius;
+    this.blocked.fill(0);
+    const n = this.w * this.h;
+    for (let i = 0; i < n; i++) {
+      const { x, z } = this.center(i, _c);
+      for (const b of colliders) {
+        if (b.max.y < 0.3 || b.min.y > 1.6) continue;
+        if (insideBox(b, x, z, radius)) {
+          this.blocked[i] = 1;
+          break;
+        }
+      }
+    }
+    this.target = -1;
   }
 
   /** Distancia por el campo (en m) desde (x, z) hasta el jugador, o Infinity. */

@@ -66,6 +66,7 @@ src/
   bots/                   Bots humanoides: hitboxes, strafing, peeks, agachadas, saltos y disparo
   modes/                  Mode.js (interfaz base), registry.js (registro), index.js (descubre los modos)
   modes/evaluation/       Evaluación: dos variantes de 5 fases + scoring → rango
+  modes/story/            Historia «ECO»: 8 capítulos con trama, escenas, radio y la prueba de números
   modes/campaign/         Campaña: mapas Bodega/Ciudad/Arena, 12 niveles, misiones, progreso y estrellas
   modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
   modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
@@ -97,6 +98,22 @@ Rangos: Bronce 0+, Plata 30+, Oro 48+, Diamante 64+, Élite 80+ (`src/config/ran
 Cada variante guarda su propio rango. El **rango general** (el del menú, el que desbloquea modos) es el
 mejor rango actual entre las dos variantes. Los tiempos de reacción se miden con el reloj real
 (`performance.now()` y el instante del clic), así que no dependen de los FPS.
+
+## Historia: ECO
+
+Campaña con historia propia (1979–1983). El capitán Andrés «Halcón» Vera despierta atado a una silla:
+una voz le pregunta qué significan los números 7-3-9 que lee una estación de radio. Cada capítulo es un
+recuerdo de cómo llegó ahí, desde el campo de tiro de Base Cóndor hasta la Torre Faro.
+
+- 8 capítulos, cada uno en un mapa del juego: campo de tiro, patio, bodega, ciudad, barrio en ruinas
+  (con las puertas abiertas), la Cúpula y la arena.
+- Escenas entre misiones con texto que se escribe solo (clic o Espacio para avanzar, «Saltar escena»).
+- Radio durante la misión según lo que pasa (bajas, encuentros nuevos) y una voz sintética para la
+  transmisión de números.
+- Tres tipos de capítulo: dianas, misión con soldados (vida que se recupera, granadas, armas del
+  capítulo y recarga real) y la Cúpula (dispara los números en el orden de la transmisión).
+- Sin límite de tiempo; si caes, se reintenta el capítulo. Cada capítulo terminado abre el siguiente
+  (progreso en `records.story`).
 
 ## Campaña
 
@@ -174,20 +191,39 @@ Se desbloquea al hacer cualquier evaluación. Oleadas sin fin en el **Bastión**
 
 ## Modo zombi
 
-Oleadas de zombis en el **Barrio en ruinas**: una plaza nocturna rodeada de edificios, con seis
-callejones por donde entra la horda. No requiere evaluación.
+Oleadas de zombis en el **Barrio en ruinas**, al estilo de los modos de supervivencia clásicos: el
+mapa se abre a medida que se gana. No requiere evaluación.
 
+- **Vestíbulo y barricadas**: se empieza encerrado en un cuarto con cuatro ventanas tapiadas. Los
+  zombis salen de la tierra, arrancan los tablones uno a uno y recién entonces entran; mantener `E`
+  junto a una ventana la repara (+10 puntos por tablón, hasta 500 por oleada). Todas las entradas del
+  mapa tienen su barricada.
+- **Secciones**: las puertas tapiadas se compran con puntos (`E`): la **Plaza** (750), el **Mercado**
+  (750), la **Estación** (1000) y la **Iglesia** (1250; se llega desde el Vestíbulo). Cada sección
+  trae armas y bebidas nuevas, pero también sus propias entradas; la horda sale de las entradas
+  abiertas más cercanas al jugador.
+- **Caja misteriosa** en la plaza (el haz de luz azul): 950 puntos por un arma al azar.
+- **Dificultad de los clásicos**: la vida sigue la de la ronda (150, 250, 350… y ×1.1 desde la 10);
+  el cuchillo hace 150 (1 golpe en la ronda 1, 2 en la 2…); tres golpes tumban sin Coraza y la vida
+  se regenera tras 5 s. Un tiro a la cabeza la hace volar, y algunos siguen caminando sin ella hasta
+  desangrarse.
+- **Armas en la pared**: se empieza con la pistola (munición infinita). Las demás están colgadas en las
+  paredes de cada sección (revólver, subfusil, rifle, escopeta, ráfaga, tirador, ametralladora,
+  francotirador); con el arma ya comprada, el mismo puesto vende su munición a mitad de precio.
+- **Bebidas** (máquinas del mapa, duran hasta caer): Coraza (vida 250), Doble Plomo (+50 % de daño,
+  +25 % de cadencia), Mano Rápida (recarga al doble), Pies Ligeros (+15 % de velocidad) y Segundo Aire
+  (regenera antes y más rápido).
+- **Armería** entre oleadas (`E` o botón táctil): munición, botiquín y cuatro granadas —
+  fragmentación, incendiaria (deja fuego), aturdidora (frena a la horda) y señuelo (atrae a los zombis
+  y explota). `G` lanza y `Q` cambia de tipo.
 - **Tipos**: caminante, corredor (rápido), reptante (bajo, difícil de acertar) y bruto (mucha vida y
   golpe fuerte; desde la oleada 5). Cada 6 oleadas, *noche de corredores*.
-- **Puntos y armería**: cada impacto da puntos y matar da más, sobre todo a la cabeza, cuerpo a cuerpo
-  o con granadas. Entre oleadas se abre la armería (`E` o botón táctil): subfusil, escopeta, rifle,
-  francotirador, munición, granadas, botiquín y mejoras (blindaje, recarga rápida, munición expansiva).
-  Se empieza con la pistola, de munición infinita; el resto de armas tiene munición de reserva.
 - **Potenciadores** que sueltan los zombis: munición máxima, doble puntos, muerte instantánea, bomba y
   botiquín.
-- **IA**: la horda rodea los obstáculos con un campo de flujo compartido (Dijkstra sobre una
-  cuadrícula de 1 m, recalculado al moverse el jugador). Los zombis se separan entre sí y atacan con un
-  gesto previo: retroceder a tiempo esquiva el golpe.
+- **IA**: los zombis van en línea recta si nada se interpone y, si no, siguen un campo de flujo
+  compartido (Dijkstra sobre una cuadrícula de 1 m). El rumbo y la velocidad cambian de forma gradual
+  y la animación sigue la velocidad real: se mueven fluidos, sin zigzag. Se separan entre sí y atacan
+  con un gesto previo: retroceder a tiempo esquiva el golpe.
 - La vida se regenera tras unos segundos sin recibir golpes. Flechas rojas junto a la mira avisan de
   zombis cerca y fuera de la vista.
 - Igual que con los soldados, los modelos son solo la apariencia: los impactos los deciden hitboxes
@@ -221,10 +257,18 @@ whisky, vodka, ron, ginebra y tequila) bajo una guirnalda de bombillas y un letr
 
 ## Mecánicas
 
+- **Nueve armas** (teclas 1-9 o rueda del mouse): pistola, subfusil, rifle, escopeta, francotirador,
+  revólver, rifle de ráfaga, ametralladora y fusil de tirador. Las automáticas (subfusil, rifle,
+  ametralladora) disparan manteniendo el clic; la ráfaga, tres balas por clic; el resto, una por clic.
+- **Munición infinita al entrenar**: en la evaluación, la coordinación y la campaña no hay que
+  recargar. El modo zombi y el infinito sí administran la munición.
+- **Brazos y manos** en primera persona sujetando cada arma; **cuchillo** (`V`) con su corte y
+  **granadas** (`G`) que se ven en la mano antes de lanzarlas.
 - **Apuntar con las miras** (clic derecho) en todas las armas: aumento propio de cada arma, menos
-  dispersión y caminar más lento. El francotirador conserva su mira telescópica.
-- **Golpe cuerpo a cuerpo** (`V`) y **granadas** (`G`) en los modos que lo permiten (campaña, infinito
-  y zombi; granadas solo en el modo zombi).
+  dispersión y caminar más lento. El francotirador y el fusil de tirador usan mira telescópica.
+- **Controles reasignables** en Configuración → Controles y datos (clic en una tecla y pulsar la
+  nueva; si choca con otra acción, se intercambian). **Sombras** en Video: según el detalle,
+  siempre o nunca.
 - La evaluación no tiene ADS ni golpe: los rangos siguen siendo comparables.
 
 ## Física

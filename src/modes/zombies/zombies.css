@@ -65,6 +65,26 @@
   color: var(--c); padding: 4px 10px; border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.75); border: 1px solid var(--c);
 }
 
+/* Bebidas tomadas (iconos de color). */
+.zh-perks { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.zh-perk {
+  font: 700 11px var(--font-display); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--c); padding: 3px 8px; border-radius: 999px; background: rgba(9, 13, 19, 0.75);
+  border: 1px solid var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 35%, transparent);
+}
+
+/* Aviso de compra (bajo la mira): tecla, qué se compra y su precio. */
+.zh-prompt {
+  position: absolute; left: 50%; top: 62%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+  max-width: min(620px, 90vw); padding: 8px 14px; border-radius: var(--r-md);
+  background: rgba(9, 13, 19, 0.82); border: 1px solid rgba(255, 209, 102, 0.45); font-size: 14px;
+}
+.zh-prompt kbd { font: 700 14px var(--mono); padding: 2px 8px; border-radius: var(--r-sm); background: #ffd166; color: #14110a; }
+.zh-prompt .zh-p-text { color: var(--text); }
+.zh-prompt .zh-p-price { font: 700 14px var(--mono); color: #ffd166; white-space: nowrap; }
+.zh-prompt.poor { border-color: rgba(255, 77, 77, 0.45); }
+.zh-prompt.poor .zh-p-price { color: #ff6b6b; }
+
 /* Cartel central. */
 .zh-banner {
   position: absolute; left: 50%; top: 24%; transform: translateX(-50%); text-align: center;

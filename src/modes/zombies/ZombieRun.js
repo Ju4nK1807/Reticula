@@ -2,19 +2,25 @@ import * as THREE from 'three';
 import { Phase } from '../evaluation/Phase.js';
 import { glow } from '../../gfx/surfaces.js';
 import { explosionDamage } from '../../combat/Grenades.js';
-import { clock, pct } from '../../utils/format.js';
+import { WEAPONS } from '../../combat/weapons.js';
+import { clock } from '../../utils/format.js';
 import { rand } from '../../utils/math.js';
 import { NavGrid } from './navGrid.js';
 import { Zombie } from './Zombie.js';
-import { DROP, PLAYER, POWERUPS, RESERVE, pointsFor, rollDrop, waveConfig, waveRoster, zombieStats } from './zombieData.js';
+import { BARRICADE, BOX_PRICE, rollBox, DOORS, DROP, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
 const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
 const PLAYER_RADIUS = 0.38; // los zombis no se meten dentro del jugador (ni de la cámara)
 const CROWD_PASSES = 2; // pasadas de separación firme entre zombis por cuadro
 const VIEW_AVOID = Math.PI / 3; // en oleadas altas se prefieren entradas fuera de la vista (±60°)
+const NEAR_ENTRIES = 4; // los zombis salen de las entradas abiertas más cercanas al jugador
 const _v = new THREE.Vector3();
 const _to = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);
 const powerGeo = new THREE.OctahedronGeometry(0.32, 0);
+// Cabeza que sale volando (low-poly, piel gris verdosa).
+const headGeo = new THREE.DodecahedronGeometry(0.13, 0);
+const headMat = new THREE.MeshStandardMaterial({ color: '#5f6b55', roughness: 0.85, flatShading: true });
 
 /*
   Una partida del modo zombi. Extiende Phase para reutilizar disparos, vida, daño direccional,
@@ -23,6 +29,7 @@ const powerGeo = new THREE.OctahedronGeometry(0.32, 0);
   Avisa al modo con listener(tipo, datos):
     waveStart { wave, count, runnerNight } · waveClear { wave, bonus } · kill { zombie, part, points }
     cash { amount } · powerup { id } · powerupEnd { id } · hurt · groan { zombie, dist } · death
+    door { id } · perk { id } · weapon { id } · ammo { id }   (compras en el mapa)
 */
 export class ZombieRun extends Phase {
   static info = { id: 'zombies', name: 'Zombis', desc: '', auto: true, health: true };
@@ -44,11 +51,15 @@ export class ZombieRun extends Phase {
     this.health = this.maxHealth;
     this.sinceHurt = 99;
     this.owned = new Set(['pistol']);
-    this.upgrades = new Set();
+    this.perks = new Set(); // bebidas tomadas (zombieData.PERKS)
     this.dmgMul = 1;
+    this.regenDelay = PLAYER.regenDelay;
+    this.regenRate = PLAYER.regenRate;
+    this.repairPoints = 0;
     this.timers = { double: 0, instakill: 0 };
     this.sinceDrop = DROP.cooldown;
     this.drops = []; // { id, mesh, t }
+    this.heads = []; // cabezas que salieron volando { mesh, vel, spin, t }
     this.waveKills = 0;
     this.stats.headKills = 0;
     this.stats.meleeKills = 0;
@@ -60,6 +71,7 @@ export class ZombieRun extends Phase {
     this.navCell = -1;
     this.ctx.zombies = this.bots;
     this.ctx.colliders = w.colliders;
+    this.ctx.decoy = null; // señuelo activo: { x, z }
     // Defensa: los zombis van por la barra con su propio campo de flujo (fijo: la barra no se mueve).
     this.bar = mode.bar ?? null;
     this.ctx.objective = null;
@@ -92,12 +104,14 @@ export class ZombieRun extends Phase {
     this.roster = waveRoster(this.cfg);
     this.spawnTimer = 0.8;
     this.waveKills = 0;
+    this.repairPoints = 0; // tope de puntos por reparar barricadas en cada oleada
     this.state = 'wave';
     this.emit('waveStart', { wave: n, count: this.cfg.count, runnerNight: this.cfg.runnerNight });
   }
 
   update(dt) {
     super.update(dt); // zombis y retirada de los muertos
+    this.updateHeads(dt);
     this.resolveCrowd();
     this.barHitT -= dt;
     this.updateNav(dt);
@@ -195,15 +209,21 @@ export class ZombieRun extends Phase {
     this.nav.build(p.x, p.z);
   }
 
-  // Entrada: no repetir la anterior; en oleadas altas, mejor fuera de la vista del jugador.
+  // Entrada: solo de las secciones abiertas y, entre ellas, de las más cercanas al jugador (la horda
+  // llega a donde estás, no al otro lado del mapa). No repetir la anterior; en oleadas altas, mejor
+  // fuera de la vista.
   pickEntry() {
-    const entries = this.world.entries;
-    let options = entries.filter((e) => e !== this.lastEntry);
+    const w = this.world;
+    const p = this.game.player.position;
+    const open = w.entries.filter((e) => w.isOpen?.(e.section ?? 'plaza') ?? true);
+    const byDist = open.map((e) => ({ e, d: Math.hypot(e.center.x - p.x, e.center.z - p.z) })).sort((a, b) => a.d - b.d);
+    let options = byDist.slice(0, NEAR_ENTRIES).map((x) => x.e).filter((e) => e !== this.lastEntry);
+    if (!options.length) options = open;
     if (this.wave >= 4) {
       const hidden = options.filter((e) => Math.abs(this.game.angleTo(e.center)) > VIEW_AVOID);
       if (hidden.length) options = hidden;
     }
-    const e = options[Math.floor(Math.random() * options.length)] ?? entries[0];
+    const e = options[Math.floor(Math.random() * options.length)] ?? w.entries[0];
     this.lastEntry = e;
     return e;
   }
@@ -214,8 +234,28 @@ export class ZombieRun extends Phase {
     pos.x += rand(-1.2, 1.2);
     pos.z += rand(-1.2, 1.2);
     const z = new Zombie(this, zombieStats(type, this.cfg), pos);
+    z.entry = entry; // para arrancar los tablones de su barricada
+    if (entry.rise) z.rise(); // las ventanas del vestíbulo: salen de la tierra
     this.bots.push(z);
     return z;
+  }
+
+  // Un zombi arranca un tablón de su barricada (crujido de madera, ubicado en estéreo).
+  onTearBoard(z, b) {
+    if (!this.world.removeBoard?.(b)) return;
+    const g = this.game;
+    g.sfx.propHit?.('wood', g.panFor(b.mouth), 0.9);
+    this.emit('tear', { barricade: b });
+  }
+
+  /** Repara un tablón (el jugador mantiene la tecla de usar). Devuelve true si se clavó uno. */
+  repairBoard(b) {
+    if (!this.world.addBoard?.(b)) return false;
+    if (this.repairPoints < BARRICADE.repairCapPerWave) {
+      this.repairPoints += BARRICADE.repairPoints;
+      this.addCash(BARRICADE.repairPoints);
+    }
+    return true;
   }
 
   // --- Daño a los zombis ------------------------------------------------------------------------
@@ -224,11 +264,15 @@ export class ZombieRun extends Phase {
   }
 
   // Aplica daño a un zombi y reparte puntos (impacto y baja). Devuelve si murió.
-  hitZombie(z, amount, part, { melee = false, grenade = false } = {}) {
+  // tick: daño continuo (fuego): solo da los puntos de la baja, no los de cada impacto.
+  hitZombie(z, amount, part, { melee = false, grenade = false, tick = false } = {}) {
     if (!z.alive) return false;
-    const dmg = this.timers.instakill > 0 ? z.hp + 1 : amount * this.dmgMul;
+    // El cuchillo tiene daño fijo (las bebidas de daño solo afectan a las armas).
+    const dmg = this.timers.instakill > 0 ? z.hp + 1 : amount * (melee ? 1 : this.dmgMul);
     const { killed } = z.damage(dmg, part);
-    const points = pointsFor({ part, killed, type: z.type, melee }, this.timers.double > 0, this.cfg?.pointsMul ?? 1);
+    const mul = this.cfg?.pointsMul ?? 1;
+    let points = pointsFor({ part, killed, type: z.type, melee }, this.timers.double > 0, mul);
+    if (tick) points = killed ? points - pointsFor({ part, killed: false }, this.timers.double > 0, mul) : 0;
     this.addCash(points);
     if (killed) {
       this.stats.kills++;
@@ -266,32 +310,200 @@ export class ZombieRun extends Phase {
     s.hits++;
     s[part]++;
     const base = this.game.weapon.stats.damage[part] * (hit.pelletHits ?? 1);
+    const before = bot.hp;
     const killed = this.hitZombie(bot, base, part);
+    // Tiro a la cabeza: si lo mata, la cabeza sale volando; si no, a veces también (un golpe fuerte) y
+    // el zombi sigue caminando sin ella hasta desangrarse, como en los clásicos.
+    if (part === 'head' && bot.type !== 'brute') {
+      const strong = (before - Math.max(0, bot.hp)) >= bot.maxHp * 0.25;
+      if (killed || (strong && Math.random() < 0.45)) this.decapitate(bot, hit);
+    }
     hud.hitmarker(killed ? 'kill' : part === 'head' ? 'head' : 'hit');
     if (part === 'head') sfx.headshot();
     else sfx.hit();
     if (killed) sfx.kill();
   }
 
-  handleMelee(hit, damage) {
+  // Cuchillo: daño fijo KNIFE_DAMAGE (1 golpe en la ronda 1, 2 en la 2, 3 en la 3…).
+  // La cabeza sale volando: salpicadura y la cabeza que cae rodando (y la hitbox desaparece).
+  decapitate(z, hit) {
+    if (!z.decapitate()) return;
+    const g = this.game;
+    const head = z.headPosition(new THREE.Vector3());
+    g.effects.burst(head, _up, '#6b0d0d', 22, 4.5);
+    g.effects.burst(head, _up, '#a8261f', 12, 2.5);
+    const dir = hit?.point ? head.clone().sub(g.player.eye).setY(0).normalize() : new THREE.Vector3(0, 0, 1);
+    const mesh = new THREE.Mesh(headGeo, headMat);
+    mesh.position.copy(head);
+    mesh.scale.setScalar(z.scale);
+    this.root.add(mesh);
+    this.heads.push({ mesh, vel: dir.multiplyScalar(2.5).setY(3.2), spin: new THREE.Vector3(Math.random() * 9, Math.random() * 9, 0), t: 0 });
+    g.sfx.meleeHit?.();
+  }
+
+  // Sin cabeza se desangra: daño continuo que solo da los puntos de la baja (a la cabeza).
+  onBleed(z, amount) {
+    if (this.hitZombie(z, amount, 'head', { tick: true })) this.game.hud.hitmarker('kill');
+  }
+
+  updateHeads(dt) {
+    for (let i = this.heads.length - 1; i >= 0; i--) {
+      const h = this.heads[i];
+      h.t += dt;
+      h.vel.y -= 14 * dt;
+      h.mesh.position.addScaledVector(h.vel, dt);
+      const floor = 0.12 * h.mesh.scale.x;
+      if (h.mesh.position.y < floor) {
+        h.mesh.position.y = floor;
+        h.vel.y = Math.abs(h.vel.y) * 0.3;
+        h.vel.x *= 0.6;
+        h.vel.z *= 0.6;
+      }
+      h.mesh.rotation.x += h.spin.x * dt * Math.min(1, h.vel.length());
+      h.mesh.rotation.y += h.spin.y * dt * Math.min(1, h.vel.length());
+      if (h.t > 6) {
+        h.mesh.removeFromParent();
+        this.heads.splice(i, 1);
+      }
+    }
+  }
+
+  handleMelee(hit) {
     if (!hit.bot?.alive) return;
-    const killed = this.hitZombie(hit.bot, damage, hit.part, { melee: true });
+    const killed = this.hitZombie(hit.bot, KNIFE_DAMAGE, hit.part, { melee: true });
     this.game.hud.hitmarker(killed ? 'kill' : 'hit');
     if (killed) this.game.sfx.kill();
   }
 
   // Granada: daño por distancia al pecho, solo con línea de visión.
-  onExplosion(point, radius, los) {
+  onExplosion(point, radius, los, { damageAt = explosionDamage } = {}) {
     let kills = 0;
     for (const z of this.bots) {
       if (!z.alive) continue;
       const chest = z.chestPosition(_to);
       const d = chest.distanceTo(point);
       if (d > radius || !los(chest)) continue;
-      if (this.hitZombie(z, explosionDamage(d), 'body', { grenade: true })) kills++;
+      if (this.hitZombie(z, damageAt(d), 'body', { grenade: true })) kills++;
     }
     if (kills) this.game.hud.hitmarker('kill');
     if (kills >= 3) this.emit('multi', { kills });
+  }
+
+  // Incendiaria: daño continuo a quien pise el fuego (distancia en el plano).
+  onFireTick(point, radius, damage, los) {
+    for (const z of this.bots) {
+      if (!z.alive) continue;
+      const p = z.position;
+      if (Math.hypot(p.x - point.x, p.z - point.z) > radius || !los(z.chestPosition(_to))) continue;
+      z.flashT = 0.05;
+      if (this.hitZombie(z, damage, 'body', { grenade: true, tick: true })) this.game.hud.hitmarker('kill');
+    }
+  }
+
+  // Aturdidora: frena a los que estén cerca y a la vista del estallido.
+  onStun(point, radius, seconds, los) {
+    let n = 0;
+    for (const z of this.bots) {
+      if (!z.alive || z.position.distanceTo(point) > radius || !los(z.chestPosition(_to))) continue;
+      z.stun(seconds);
+      n++;
+    }
+    if (n) this.game.hud.flash(`${n} aturdido${n === 1 ? '' : 's'}`, 'good');
+  }
+
+  // Señuelo: la horda lo persigue mientras pita.
+  setDecoy(point) {
+    this.ctx.decoy = point ? { x: point.x, z: point.z } : null;
+  }
+
+  // --- Compras en el mapa (puertas, armas de la pared, bebidas) -----------------------------------
+  /** Precio y texto de algo comprable del mapa, o null si ya no se puede usar (puerta abierta). */
+  offer(it) {
+    if (it.kind === 'door') {
+      if (this.world.isOpen(it.id)) return null;
+      return { price: DOORS[it.id].price, label: `Abrir · ${DOORS[it.id].name}` };
+    }
+    if (it.kind === 'perk') {
+      const p = PERKS[it.id];
+      if (this.perks.has(it.id)) return { price: 0, label: `${p.name} · ya la tomaste`, done: true };
+      return { price: p.price, label: `Beber ${p.name} · ${p.desc}` };
+    }
+    if (it.kind === 'box') return { price: BOX_PRICE, label: 'Caja misteriosa · un arma al azar' };
+    const name = WEAPONS[it.id]?.name ?? it.id;
+    if (this.owned.has(it.id)) return { price: wallAmmoPrice(it.id), label: `Munición · ${name}`, ammo: true };
+    return { price: WALL_BUYS[it.id], label: `Comprar ${name}` };
+  }
+
+  /** Compra algo del mapa. Devuelve null si se compró o el motivo si no. */
+  buy(it) {
+    const o = this.offer(it);
+    if (!o) return 'Ya está abierta';
+    if (o.done) return 'Ya la tienes';
+    if (o.ammo && this.reserveFullFor(it.id)) return 'Munición llena';
+    if (this.cash < o.price) return 'Faltan puntos';
+    const g = this.game;
+    if (it.kind === 'box') {
+      const id = rollBox(this.owned);
+      if (!id) return 'Ya tienes todas las armas';
+      this.cash -= o.price;
+      this.giveWeapon(id);
+      this.emit('box', { id });
+      return null;
+    }
+    this.cash -= o.price;
+    if (it.kind === 'door') {
+      this.world.openDoor(it.id);
+      this.nav.setColliders(this.world.colliders);
+      this.navT = 0;
+      // En la defensa, el camino hacia la barra también cambia al abrir una puerta.
+      const obj = this.ctx.objective;
+      if (obj) {
+        obj.nav.setColliders(this.world.colliders);
+        obj.nav.buildToMany(this.bar.attackPoints);
+      }
+      this.emit('door', { id: it.id });
+    } else if (it.kind === 'perk') {
+      this.perks.add(it.id);
+      const before = this.maxHealth;
+      this.applyPerks();
+      this.health = Math.min(this.maxHealth, this.health + Math.max(0, this.maxHealth - before));
+      g.hud.setHealth(this.health / this.maxHealth);
+      this.emit('perk', { id: it.id });
+    } else if (o.ammo) {
+      g.weapon.reserveBy[it.id] = RESERVE[it.id];
+      g.weapon.ammoBy[it.id] = WEAPONS[it.id].magazine;
+      this.emit('ammo', { id: it.id });
+    } else {
+      this.giveWeapon(it.id);
+      this.emit('weapon', { id: it.id });
+    }
+    return null;
+  }
+
+  // Arma nueva con su cargador lleno y su reserva; queda en la mano.
+  giveWeapon(id) {
+    const w = this.game.weapon;
+    this.owned.add(id);
+    w.reserveBy[id] = RESERVE[id];
+    w.setWeapon(id, { force: true });
+    w.ammo = w.stats.magazine;
+  }
+
+  reserveFullFor(id) {
+    const res = this.game.weapon.reserveBy;
+    return !res || RESERVE[id] === null || res[id] >= RESERVE[id];
+  }
+
+  // Efectos de las bebidas en el jugador y el arma.
+  applyPerks() {
+    const s = perkStats(this.perks);
+    this.maxHealth = s.maxHealth;
+    this.dmgMul = s.damage;
+    this.regenDelay = s.regenDelay;
+    this.regenRate = s.regenRate;
+    this.game.weapon.rateMul = s.rate;
+    this.game.weapon.reloadMul = s.reload;
+    this.game.player.perkSpeed = s.speed;
   }
 
   onZombieDeath() {}
@@ -322,8 +534,8 @@ export class ZombieRun extends Phase {
   // Regeneración tras unos segundos sin recibir daño.
   updateHealth(dt) {
     this.sinceHurt += dt;
-    if (this.died || this.health >= this.maxHealth || this.sinceHurt < PLAYER.regenDelay) return;
-    this.health = Math.min(this.maxHealth, this.health + PLAYER.regenRate * (this.cfg?.regenMul ?? 1) * dt);
+    if (this.died || this.health >= this.maxHealth || this.sinceHurt < this.regenDelay) return;
+    this.health = Math.min(this.maxHealth, this.health + this.regenRate * (this.cfg?.regenMul ?? 1) * dt);
     this.game.hud.setHealth(this.health / this.maxHealth);
   }
 
@@ -375,7 +587,7 @@ export class ZombieRun extends Phase {
       case 'ammo':
         this.refillReserves();
         g.weapon.refill();
-        this.ev.grenades = Math.min(PLAYER.maxGrenades, (this.ev.grenades ?? 0) + 1);
+        if (this.ev.grenadeBag) this.ev.grenadeBag.frag = Math.min(GRENADE_MAX.frag, this.ev.grenadeBag.frag + 1);
         break;
       case 'double':
       case 'instakill':
@@ -409,7 +621,8 @@ export class ZombieRun extends Phase {
   // --- Interfaz / resultados ----------------------------------------------------------------------
   hudStats() {
     // Los puntos para gastar van en su propio panel (dorado); arriba, las bajas.
-    return { score: this.stats.kills, scoreLabel: 'Bajas', accLabel: 'Precisión', accText: pct(this.accuracy), time: clock(this.elapsed) };
+    // Sin precisión: aquí no se puntúa la puntería, se sobrevive (accLabel null oculta ese dato).
+    return { score: this.stats.kills, scoreLabel: 'Bajas', accLabel: null, accText: '', time: clock(this.elapsed) };
   }
 
   results() {
@@ -439,6 +652,8 @@ export class ZombieRun extends Phase {
       d.mesh.material.dispose();
     }
     this.drops.length = 0;
+    for (const h of this.heads) h.mesh.removeFromParent();
+    this.heads.length = 0;
     super.dispose();
   }
 }

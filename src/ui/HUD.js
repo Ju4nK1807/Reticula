@@ -8,6 +8,7 @@ export class HUD {
       <div class="hud-play">
         <div class="hud-scope" data-ref="scope" hidden><i></i><b></b></div>
         <div class="hud-vignette" data-ref="vignette"></div>
+        <div class="hud-whiteout" data-ref="whiteout"></div>
         <div class="hud-dmgdir" data-ref="dmgdir"><i></i></div>
         <div class="hud-crosshair" data-ref="crosshair"></div>
         <div class="hud-hitmarker" data-ref="hitmarker"></div>
@@ -68,10 +69,22 @@ export class HUD {
     if (this.scoped === on) return;
     this.scoped = on;
     this.refs.scope.hidden = !on;
-    this.refs.crosshair.style.visibility = on ? 'hidden' : '';
+    this.updateCrosshairVisibility();
   }
 
-  // Barra de armas (teclas 1-5). weapons: [{ id, key, name }]; locked: no se puede cambiar.
+  // Apuntando con las miras de hierro: la retícula desaparece (se apunta con el arma, como en los
+  // shooters); vuelve al dejar el clic derecho.
+  setAds(on) {
+    if (this.ads === on) return;
+    this.ads = on;
+    this.updateCrosshairVisibility();
+  }
+
+  updateCrosshairVisibility() {
+    this.refs.crosshair.style.visibility = this.scoped || this.ads ? 'hidden' : '';
+  }
+
+  // Barra de armas (teclas 1-9). weapons: [{ id, key, name }]; locked: no se puede cambiar.
   // owned(id): false = no se tiene (modo zombi: se compra); se dibuja atenuada.
   setWeaponSlots(weapons, activeId, locked = false, owned = () => true) {
     const key = `${activeId}|${locked}|${weapons.map((w) => (owned(w.id) ? 1 : 0)).join('')}`;
@@ -103,21 +116,27 @@ export class HUD {
 
   // reloadProgress: 0-1 mientras recarga, null si no. reserve: balas de reserva (Infinity = sin
   // límite: se muestra el tamaño del cargador, como siempre).
-  setAmmo(ammo, magazine, reloadProgress, reserve = Infinity) {
-    this.text('ammo', ammo);
-    this.text('mag', Number.isFinite(reserve) ? `/ ${reserve}` : `/ ${magazine}`);
-    this.refs.ammoBox.classList.toggle('low', ammo <= Math.ceil(magazine * 0.2));
-    this.refs.ammoBox.classList.toggle('empty', ammo === 0);
+  // infinite: modos de entrenamiento (sin contar balas ni recargar).
+  setAmmo(ammo, magazine, reloadProgress, reserve = Infinity, infinite = false) {
+    this.text('ammo', infinite ? '∞' : ammo);
+    this.text('mag', infinite ? 'sin recarga' : Number.isFinite(reserve) ? `/ ${reserve}` : `/ ${magazine}`);
+    this.refs.ammoBox.classList.toggle('low', !infinite && ammo <= Math.ceil(magazine * 0.2));
+    this.refs.ammoBox.classList.toggle('empty', !infinite && ammo === 0);
     const reloading = reloadProgress !== null;
     this.refs.reload.hidden = !reloading;
     if (reloading) this.refs.reloadFill.style.width = `${Math.round(reloadProgress * 100)}%`;
   }
 
+  // accLabel null: el modo no muestra ese dato (el modo zombi no puntúa la precisión).
   setStats({ score, scoreLabel = 'Puntos', accLabel, accText, time }) {
     this.text('scoreLabel', scoreLabel);
     this.text('score', score);
-    this.text('accLabel', accLabel);
-    this.text('acc', accText);
+    const showAcc = accLabel !== null;
+    if (this.refs.acc.parentElement.hidden === showAcc) this.refs.acc.parentElement.hidden = !showAcc;
+    if (showAcc) {
+      this.text('accLabel', accLabel);
+      this.text('acc', accText);
+    }
     this.text('time', time);
   }
 
@@ -154,6 +173,13 @@ export class HUD {
   }
 
   // angle: radianes del atacante respecto a la mira (positivo = a la izquierda).
+  // Destello blanco de la granada aturdidora (k 0-1: cuanto más cerca, más fuerte).
+  whiteout(k) {
+    const el = this.refs.whiteout;
+    el.style.setProperty('--k', String(Math.min(1, Math.max(0, k))));
+    this.restartAnimation(el, 'show');
+  }
+
   damage(angle) {
     this.restartAnimation(this.refs.vignette, 'show');
     const dir = this.refs.dmgdir;

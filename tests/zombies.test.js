@@ -2,9 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { NavGrid } from '../src/modes/zombies/navGrid.js';
 import {
   DROP,
+  KNIFE_DAMAGE,
+  roundHp,
+  PERKS,
   PLAYER,
   POWERUPS,
+  RESERVE,
   SHOP,
+  WALL_BUYS,
+  perkStats,
+  wallAmmoPrice,
   ZOMBIE_TYPES,
   cannotBuy,
   emptyRecord,
@@ -65,9 +72,27 @@ describe('oleadas zombi', () => {
 
   it('las estadísticas escalan con la oleada; el bruto no acelera', () => {
     const w10 = waveConfig(10);
-    expect(zombieStats('walker', w10).hp).toBe(Math.round(ZOMBIE_TYPES.walker.hp * w10.hpMul));
+    expect(zombieStats('walker', w10).hp).toBe(roundHp(10));
+    expect(zombieStats('brute', w10).hp).toBe(Math.round(roundHp(10) * ZOMBIE_TYPES.brute.hpScale));
     expect(zombieStats('walker', w10).speed).toBeCloseTo(ZOMBIE_TYPES.walker.speed * w10.speedMul);
     expect(zombieStats('brute', w10).speed).toBe(ZOMBIE_TYPES.brute.speed);
+  });
+
+  it('vida por ronda como en los clásicos: 150, 250, 350… y ×1.1 desde la ronda 10', () => {
+    expect([1, 2, 3, 9].map(roundHp)).toEqual([150, 250, 350, 950]);
+    expect(roundHp(10)).toBe(Math.round(950 * 1.1));
+    expect(roundHp(12)).toBeGreaterThan(roundHp(11));
+  });
+
+  it('el cuchillo mata de 1 golpe en la ronda 1, de 2 en la 2 y de 3 en la 3', () => {
+    for (const [wave, hits] of [[1, 1], [2, 2], [3, 3]]) {
+      expect(Math.ceil(zombieStats('walker', waveConfig(wave)).hp / KNIFE_DAMAGE), `ronda ${wave}`).toBe(hits);
+    }
+  });
+
+  it('tres golpes de caminante tumban a un jugador sin bebidas; con Coraza aguanta más', () => {
+    expect(Math.ceil(PLAYER.maxHealth / ZOMBIE_TYPES.walker.damage)).toBe(3);
+    expect(Math.ceil(perkStats(new Set(['coraza'])).maxHealth / ZOMBIE_TYPES.walker.damage)).toBeGreaterThanOrEqual(6);
   });
 });
 
@@ -81,15 +106,36 @@ describe('economía zombi', () => {
   });
 
   it('la armería explica por qué no se puede comprar algo', () => {
-    const state = { points: 5000, owned: new Set(['pistol', 'smg']), upgrades: new Set(['armor']), grenades: PLAYER.maxGrenades, health: 100, maxHealth: 100, reserveFull: true };
+    const state = { points: 5000, owned: new Set(['pistol']), perks: new Set(['coraza']), bag: { frag: PLAYER.maxGrenades, fire: 0, stun: 4, decoy: 0 }, health: 100, maxHealth: 100, reserveFull: true };
     const item = (id) => SHOP.find((s) => s.id === id);
-    expect(cannotBuy(item('smg'), state)).toBe('Ya la tienes');
-    expect(cannotBuy(item('armor'), state)).toBe('Ya la tienes');
-    expect(cannotBuy(item('grenades'), state)).toBe('Al máximo');
+    expect(cannotBuy(item('frag'), state)).toBe('Al máximo');
+    expect(cannotBuy(item('stun'), state)).toBe('Al máximo');
     expect(cannotBuy(item('medkit'), state)).toBe('Vida completa');
     expect(cannotBuy(item('ammo'), state)).toBe('Reserva llena');
-    expect(cannotBuy(item('rifle'), state)).toBeNull();
-    expect(cannotBuy(item('rifle'), { ...state, points: 100 })).toBe('Faltan puntos');
+    expect(cannotBuy(item('fire'), state)).toBeNull();
+    expect(cannotBuy(item('decoy'), { ...state, points: 100 })).toBe('Faltan puntos');
+    expect(cannotBuy({ kind: 'perk', id: 'coraza', price: 2500 }, state)).toBe('Ya la tienes');
+    // Las armas ya no están en la armería (se compran en las paredes del mapa).
+    expect(SHOP.some((s) => s.kind === 'weapon')).toBe(false);
+  });
+
+  it('las bebidas cambian los valores del jugador y se combinan', () => {
+    expect(perkStats(new Set())).toMatchObject({ maxHealth: PLAYER.maxHealth, damage: 1, rate: 1, reload: 1, speed: 1, regenDelay: PLAYER.regenDelay });
+    const all = perkStats(new Set(Object.keys(PERKS)));
+    expect(all.maxHealth).toBe(250);
+    expect(all.damage).toBeGreaterThan(1);
+    expect(all.rate).toBeGreaterThan(1);
+    expect(all.reload).toBeLessThan(1);
+    expect(all.speed).toBeGreaterThan(1);
+    expect(all.regenDelay).toBeLessThan(PLAYER.regenDelay);
+  });
+
+  it('cada arma de la pared tiene precio, munición a mitad de precio y reserva', () => {
+    for (const [id, price] of Object.entries(WALL_BUYS)) {
+      expect(RESERVE[id], id).toBeGreaterThan(0);
+      expect(wallAmmoPrice(id)).toBeLessThan(price);
+      expect(wallAmmoPrice(id) % 50).toBe(0);
+    }
   });
 
   it('los potenciadores respetan la probabilidad y el tiempo entre uno y otro', () => {
@@ -147,6 +193,23 @@ describe('navegación de la horda (campo de flujo)', () => {
     const g = new NavGrid({ minX: 0, maxX: 20, minZ: 0, maxZ: 20, colliders: [box(9, 11, -1, 21)] });
     g.build(17, 10);
     expect(g.direction(3, 10, { x: 0, z: 0 })).toBe(false);
+  });
+
+  it('línea despejada: detecta el muro y el camino libre por el hueco', () => {
+    const g = grid();
+    expect(g.clearLine(3, 5, 17, 5)).toBe(false); // cruza el muro
+    expect(g.clearLine(3, 18, 17, 18)).toBe(true); // por el hueco de abajo
+    expect(g.clearLine(2, 2, 6, 14)).toBe(true); // del mismo lado
+  });
+
+  it('abrir una puerta (quitar su colisionador) desbloquea las celdas', () => {
+    const door = box(9, 11, 16, 20);
+    const g = new NavGrid({ minX: 0, maxX: 20, minZ: 0, maxZ: 20, cell: 1, radius: 0.6, colliders: [box(9, 11, 0, 16), door] });
+    g.build(17, 5);
+    expect(g.direction(3, 5, { x: 0, z: 0 })).toBe(false); // cerrado del todo
+    g.setColliders([box(9, 11, 0, 16)]);
+    g.build(17, 5);
+    expect(g.direction(3, 5, { x: 0, z: 0 })).toBe(true);
   });
 
   it('un jugador encima de un obstáculo usa la celda libre más cercana', () => {

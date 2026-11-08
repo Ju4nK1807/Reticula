@@ -310,7 +310,7 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
             const c = normalizeCrosshair(xh);
             for (const id of WEAPON_ORDER) Object.assign(s.weaponCrosshairs[id], structuredClone(c));
             persist();
-            game.ui.toast('La retícula se copió a las cinco armas.');
+            game.ui.toast('La retícula se copió a todas las armas.');
             rerender();
           }),
         s.crosshairPerWeapon && button(`Original de ${WEAPONS[weaponId].name}`, () => apply(WEAPONS[weaponId].crosshair, 'Se restauró la retícula original del arma.'), { variant: 'ghost' }),
