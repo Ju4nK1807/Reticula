@@ -414,7 +414,7 @@ export class Game {
     this.showcase.update(dt, !this.mode);
     this.viewmodel.showArms = this.settings.gameplay.hands !== false;
     this.viewmodel.update(dt, this.player);
-    if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.stats.magazine, this.weapon.reloadProgress, this.weapon.reserve, this.weapon.infinite);
+    if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.magazine, this.weapon.reloadProgress, this.weapon.reserve, this.weapon.infinite);
     // El arma se oculta solo dentro de la mira telescópica (con las miras de hierro se sigue viendo).
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && !(this.weapon.scoped && this.zoomLevel > 1.15);
     // El detalle puede cambiar en cualquier momento (calidad automática): el mapa ajusta sus luces.

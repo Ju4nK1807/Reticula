@@ -54,6 +54,7 @@ export class Weapon {
     this.reserveBy = null;
     this.reloadMul = 1; // multiplicador del tiempo de recarga (bebida "Mano rápida" del modo zombi)
     this.rateMul = 1; // multiplicador de la cadencia (bebida "Doble plomo" del modo zombi)
+    this.magazineBy = null; // { [arma]: multiplicador del cargador } (armas forjadas del modo zombi)
     // Munición infinita: los modos de entrenamiento no cuentan balas ni obligan a recargar (una
     // recarga a destiempo dejaba escapar enemigos y restaba puntos). La decide Game cada cuadro.
     this.infinite = false;
@@ -151,7 +152,7 @@ export class Weapon {
 
   // Todas las armas con el cargador lleno (al empezar una fase o partida).
   refill() {
-    for (const id of WEAPON_ORDER) this.ammoBy[id] = WEAPONS[id].magazine;
+    for (const id of WEAPON_ORDER) this.ammoBy[id] = this.magazineOf(id);
     this.reloadLeft = 0;
     this.cooldown = 0;
     this.drawLeft = 0;
@@ -174,8 +175,17 @@ export class Weapon {
     if (this.reserveBy) this.reserveBy[this.stats.id] = v;
   }
 
+  // Tamaño del cargador del arma (el de sus datos o agrandado por el modo).
+  magazineOf(id) {
+    return Math.round(WEAPONS[id].magazine * (this.magazineBy?.[id] ?? 1));
+  }
+
+  get magazine() {
+    return this.magazineOf(this.stats.id);
+  }
+
   reload() {
-    if (this.infinite || this.reloading || this.drawing || this.ammo >= this.stats.magazine) return;
+    if (this.infinite || this.reloading || this.drawing || this.ammo >= this.magazine) return;
     if (this.reserve <= 0) {
       this.game.hud.flash('Sin munición de reserva', 'bad');
       return;
@@ -221,7 +231,7 @@ export class Weapon {
       if (this.reloadLeft <= 0) {
         this.reloadLeft = 0;
         // Se llena con lo que haya en la reserva (si es limitada).
-        const take = Math.min(this.stats.magazine - this.ammo, this.reserve);
+        const take = Math.min(this.magazine - this.ammo, this.reserve);
         this.ammo += take;
         if (Number.isFinite(this.reserve)) this.reserve -= take;
         this.game.sfx.reloadEnd();
@@ -235,7 +245,7 @@ export class Weapon {
     if (this.cooldown > 0 || this.reloading || this.drawing || this.game.melee?.busy || this.game.grenades?.busy) return false;
     if (this.infinite) {
       // Entrenamiento: el cargador nunca se vacía (si quedó a medias al entrar, se llena).
-      this.ammo = this.stats.magazine;
+      this.ammo = this.magazine;
     } else if (this.ammo <= 0) {
       // Cargador vacío: "clic" en seco y, si está activada, recarga automática.
       this.cooldown = DRY_FIRE_COOLDOWN;
