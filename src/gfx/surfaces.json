@@ -11,5 +11,14 @@
   "gravel": { "asset": "gravel_concrete", "tile": 3, "gray": true },
   "rock": { "asset": "dark_rock", "tile": 2.5, "gray": true },
   "wood": { "asset": "brown_planks_04", "tile": 1.4 },
-  "brick": { "asset": "red_brick_03", "tile": 2.5 }
+  "brick": { "asset": "red_brick_03", "tile": 2.5 },
+  "cobble": { "asset": "patterned_cobblestone", "tile": 3, "gray": true },
+  "road": { "asset": "road_damaged", "tile": 6, "gray": true },
+  "tiles_dirty": { "asset": "dirty_tiles", "tile": 2.4, "gray": true },
+  "plaster_damaged": { "asset": "damaged_plaster", "tile": 3 },
+  "wall_peeling": { "asset": "peeling_painted_wall", "tile": 3, "gray": true },
+  "rust": { "asset": "rusty_metal_02", "tile": 2 },
+  "rust_corrugated": { "asset": "rusty_corrugated_iron", "tile": 2.5 },
+  "mud": { "asset": "brown_mud_leaves_01", "tile": 4 },
+  "stone_wall": { "asset": "broken_wall", "tile": 3 }
 }
