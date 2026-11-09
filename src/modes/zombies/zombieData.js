@@ -4,16 +4,17 @@
 */
 
 // --- Tipos de zombi -----------------------------------------------------------------------------
-// model: modelo animado (zombieSkin.js) · height: altura en m · hpScale: vida respecto a la de la
-// ronda (roundHp) · speed: m/s · damage: daño por golpe · attackRange: m · attackEvery: s entre golpes
-// points: puntos al matarlo · low: se arrastra (hitboxes cerca del suelo)
+// height: altura en m · hpScale: vida respecto a la de la ronda (roundHp) · speed: m/s · damage: daño
+// por golpe · attackRange: m · attackEvery: s entre golpes · points: puntos al matarlo · low: se
+// arrastra (hitboxes cerca del suelo) · look: aspecto (zombieLook.js: ojos y tonos) · bulk: corpulencia
+// Todos usan el mismo modelo realista (zombieSkin.js); cambian su tamaño, su aspecto y su animación.
 // Inspirado en los modos de supervivencia clásicos: un caminante tiene 150 de vida en la ronda 1 y
 // 100 más por ronda; tres golpes de caminante (45) tumban a un jugador sin bebidas.
 export const ZOMBIE_TYPES = {
-  walker: { name: 'Caminante', model: 'walker', height: 1.78, hpScale: 1, speed: 1.6, damage: 45, attackRange: 1.3, attackEvery: 1.35, points: 60 },
-  runner: { name: 'Corredor', model: 'runner', height: 1.74, hpScale: 0.7, speed: 4.1, damage: 34, attackRange: 1.25, attackEvery: 0.95, points: 80 },
-  crawler: { name: 'Reptante', model: 'walker', height: 1.78, hpScale: 0.6, speed: 2.2, damage: 38, attackRange: 1.15, attackEvery: 1.1, points: 90, low: true },
-  brute: { name: 'Bruto', model: 'walker', height: 2.35, hpScale: 3, speed: 1.45, damage: 80, attackRange: 1.75, attackEvery: 1.8, points: 300, tint: '#6e7f63' },
+  walker: { name: 'Caminante', height: 1.78, hpScale: 1, speed: 1.6, damage: 45, attackRange: 1.3, attackEvery: 1.35, points: 60, look: 'normal', bulk: 1 },
+  runner: { name: 'Corredor', height: 1.74, hpScale: 0.7, speed: 4.1, damage: 34, attackRange: 1.25, attackEvery: 0.95, points: 80, look: 'runner', bulk: 0.94 },
+  crawler: { name: 'Reptante', height: 1.78, hpScale: 0.6, speed: 2.2, damage: 38, attackRange: 1.15, attackEvery: 1.1, points: 90, low: true, look: 'normal', bulk: 0.96 },
+  brute: { name: 'Bruto', height: 2.35, hpScale: 3, speed: 1.45, damage: 80, attackRange: 1.75, attackEvery: 1.8, points: 300, look: 'brute', bulk: 1.18 },
 };
 
 /** Vida de un caminante en la ronda n: 150, 250, 350… hasta la 9; desde la 10, ×1.1 por ronda. */
@@ -40,12 +41,14 @@ export const GRENADE_MAX = { frag: PLAYER.maxGrenades, fire: 4, stun: 4, decoy: 
 
 // --- Bebidas (máquinas del mapa) --------------------------------------------------------------------
 // Mejoras permanentes durante la partida (se pierden al morir). Nombres propios del juego.
+// Las máquinas necesitan la electricidad del generador (Subestación), salvo las de power: false.
 export const PERKS = {
   coraza: { name: 'Coraza', desc: 'Vida máxima 100 → 250: aguantas más del doble de golpes.', price: 2500, color: '#ff5a3d' },
   plomo: { name: 'Doble Plomo', desc: '+50 % de daño y +25 % de cadencia con todas las armas.', price: 2000, color: '#ffb020' },
   mano: { name: 'Mano Rápida', desc: 'Recargas el doble de rápido.', price: 3000, color: '#36d6ff' },
   pies: { name: 'Pies Ligeros', desc: 'Corres un 15 % más rápido.', price: 2000, color: '#8aff5a' },
-  aire: { name: 'Segundo Aire', desc: 'Empiezas a recuperar vida a los 2.5 s (no a los 5) y el doble de rápido.', price: 1500, color: '#c86bff' },
+  aire: { name: 'Segundo Aire', desc: 'Empiezas a recuperar vida a los 2.5 s (no a los 5) y el doble de rápido.', price: 1500, color: '#c86bff', power: false },
+  aliento: { name: 'Último Aliento', desc: 'Si caes, te levantas una vez con toda la vida (luego hay que volver a beberla).', price: 1500, color: '#ffe14d' },
 };
 export const PERK_EFFECTS = {
   coraza: { maxHealth: 250 },
@@ -76,6 +79,8 @@ export const wallAmmoPrice = (id) => Math.round((WALL_BUYS[id] ?? 1000) / 2 / 50
 
 // --- Caja misteriosa y barricadas ------------------------------------------------------------------------
 export const BOX_PRICE = 950; // un arma al azar de las que no tienes
+// Cada tantas tiradas (entre min y max, al azar) la caja se muda a otro lugar del mapa.
+export const BOX_MOVE = { min: 4, max: 7 };
 export const BOX_POOL = ['smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr'];
 
 /** Arma de la caja: una al azar entre las que no se tienen (null si ya se tienen todas). */
@@ -95,12 +100,23 @@ export const BARRICADE = {
 };
 
 // --- Puertas entre secciones del mapa ------------------------------------------------------------------
+// section: la sección que abre (por defecto, la de su mismo id). El Hospital tiene dos puertas: desde
+// la Subestación y desde el Mercado (el mapa forma un circuito).
 export const DOORS = {
   plaza: { name: 'Plaza', price: 750 },
   mercado: { name: 'Mercado', price: 750 },
   estacion: { name: 'Estación', price: 1000 },
   iglesia: { name: 'Iglesia', price: 1250 },
+  subestacion: { name: 'Subestación', price: 1000 },
+  hospital: { name: 'Hospital', price: 1250 },
+  'hospital-mercado': { name: 'Hospital', price: 1250, section: 'hospital' },
 };
+export const doorSection = (id) => DOORS[id]?.section ?? id;
+
+// --- Forja (mejora de armas) ------------------------------------------------------------------------------
+// En el quirófano del Hospital; necesita la electricidad. Forja el arma que tienes en la mano: doble
+// de daño, cargador y reserva más grandes y un brillo propio. Cada arma se forja una vez.
+export const FORGE = { price: 5000, damage: 2, reserve: 1.5, magazine: 1.5, suffix: 'forjada' };
 
 // --- Dificultad ---------------------------------------------------------------------------------
 // Multiplicadores sobre la oleada: vida, velocidad y daño de los zombis, cuántos son, cuántos a la vez,

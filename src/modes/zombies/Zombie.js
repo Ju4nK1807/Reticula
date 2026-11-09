@@ -35,12 +35,14 @@ const DEATH_TIME = 2.2; // s tendido antes de hundirse
 const SINK_TIME = 0.7;
 const ATTACK_HIT_AT = 0.45; // fracción del ciclo de ataque en que golpea
 const STAGGER_TIME = 0.32;
+const LEGLESS_SPEED = 0.85; // m/s arrastrándose sin piernas
 
 const hitboxGeo = new THREE.BoxGeometry(1, 1, 1);
 const hitboxMat = new THREE.MeshBasicMaterial({ visible: false });
 const _dir = { x: 0, z: 0 };
 const _near = { x: 0, z: 0 };
 const _v = new THREE.Vector3();
+const _head = new THREE.Vector3();
 
 // Hitboxes [parte, ancho, alto, fondo, y, z] en metros para una altura de 1.78 (se escalan).
 const UPRIGHT = [
@@ -93,13 +95,38 @@ export class Zombie {
     this.scale = stats.height / 1.78;
     this.radius = RADIUS * this.scale;
     this.dieAnim = Math.random() < 0.5 ? 'die' : 'die2';
+    this.attackAnim = 'attack';
     this.groanT = 1 + Math.random() * 4;
+    this.legless = false; // una explosión le arrancó las piernas: se arrastra con los brazos
+    this.bleedT = 0;
 
     this.group = new THREE.Group();
     this.group.position.copy(position);
     this.hitMeshes = [];
-    this.layout = stats.low ? CRAWLING : stats.type === 'runner' ? RUNNING : UPRIGHT;
-    for (const [part, w, h, d, y, z] of this.layout) {
+    this.buildHitboxes(stats.low ? CRAWLING : stats.type === 'runner' ? RUNNING : UPRIGHT);
+    run.root.add(this.group);
+    this.group.updateMatrixWorld(true);
+
+    this.skin = null;
+    loadZombieModel().then((template) => {
+      if (!template || this.disposed) return;
+      this.skin = acquireZombieSkin(template, { height: stats.height, kind: stats.look ?? 'normal', bulk: stats.bulk ?? 1 });
+      run.root.add(this.skin.root);
+      this.syncSkin();
+      if (this.headless) this.skin.decapitate(); // perdió la cabeza antes de que llegara el modelo
+      if (this.legless) this.skin.amputateLegs();
+      this.skin.desync(); // cada uno en otro punto del ciclo: la horda no marcha al unísono
+    });
+  }
+
+  // Cajas invisibles de impacto según la postura (de pie, encorvado o en el suelo).
+  buildHitboxes(layout) {
+    for (const m of this.hitMeshes) m.removeFromParent();
+    this.hitMeshes = [];
+    this.layout = layout;
+    this.headBox = null;
+    for (const [part, w, h, d, y, z] of layout) {
+      if (part === 'head' && this.headless) continue;
       const m = new THREE.Mesh(hitboxGeo, hitboxMat);
       m.scale.set(w * this.scale, h * this.scale, d * this.scale);
       m.position.set(0, y * this.scale, z * this.scale);
@@ -107,19 +134,8 @@ export class Zombie {
       m.userData.part = part;
       this.group.add(m);
       this.hitMeshes.push(m);
+      if (part === 'head') this.headBox = m;
     }
-    run.root.add(this.group);
-    this.group.updateMatrixWorld(true);
-
-    this.skin = null;
-    loadZombieModel(stats.model).then((template) => {
-      if (!template || this.disposed) return;
-      this.skin = acquireZombieSkin(template, { height: stats.height, tint: stats.tint ?? null });
-      run.root.add(this.skin.root);
-      this.syncSkin();
-      if (this.headless) this.skin.decapitate?.(); // perdió la cabeza antes de que llegara el modelo
-      this.skin.desync?.(); // cada uno en otro punto del ciclo: la horda no marcha al unísono
-    });
   }
 
   get alive() {
@@ -140,6 +156,8 @@ export class Zombie {
   }
 
   headPosition(out = _v) {
+    // La caja de la cabeza sigue al hueso cuando el modelo ya llegó (ver followHead).
+    if (this.headBox) return this.headBox.getWorldPosition(out);
     const p = this.group.position;
     return out.set(p.x, p.y + this.layout[0][4] * this.scale, p.z);
   }
@@ -183,10 +201,14 @@ export class Zombie {
     if (this.state === 'dying') return this.updateDeath(dt);
     if (this.state === 'gone') return;
 
-    // Sin cabeza se desangra: la baja se acredita al jugador (la decide el modo).
+    // Sin cabeza se desangra: la baja se acredita al jugador (la decide el modo). Del cuello brota sangre.
     if (this.headless) {
       this.run.onBleed?.(this, this.maxHp * BLEED * dt);
       if (!this.alive) return this.updateDeath(dt);
+      if ((this.bleedT -= dt) <= 0) {
+        this.bleedT = 0.18 + Math.random() * 0.12;
+        this.run.onNeckSpurt?.(this);
+      }
     }
 
     const p = this.group.position;
@@ -283,6 +305,7 @@ export class Zombie {
         this.attackOn = chasePlayer ? 'player' : 'bar';
         this.attackT = 0;
         this.hitDone = false;
+        this.attackAnim = Math.random() < 0.5 ? 'attack' : 'attack2'; // dos zarpazos distintos
       }
     }
     if (this.state !== 'chase') this.separate(dt, ctx, 0.5);
@@ -423,9 +446,31 @@ export class Zombie {
   decapitate() {
     if (this.headless) return false;
     this.headless = true;
+    this.headBox?.removeFromParent();
+    this.headBox = null;
     this.hitMeshes = this.hitMeshes.filter((m) => m.userData.part !== 'head');
-    this.skin?.decapitate?.();
+    this.skin?.decapitate();
     return true;
+  }
+
+  /**
+   * Una explosión le arranca las piernas: sigue vivo, arrastrándose con los brazos (más lento y con
+   * las cajas de impacto a ras del suelo). El bruto y los que ya se arrastran no las pierden.
+   */
+  loseLegs() {
+    if (this.legless || this.stats.low || this.type === 'brute' || !this.alive) return false;
+    this.legless = true;
+    this.stats = { ...this.stats, low: true, speed: Math.min(this.stats.speed, LEGLESS_SPEED), attackRange: Math.min(this.stats.attackRange, 1.15) };
+    this.buildHitboxes(CRAWLING);
+    this.group.updateMatrixWorld(true);
+    this.skin?.amputateLegs();
+    if (this.state === 'stagger' || this.state === 'attack') this.state = 'chase';
+    return true;
+  }
+
+  /** Marca de bala en el cuerpo (donde pegó). */
+  wound(point, part) {
+    this.skin?.wound(point, part === 'head' ? 5 : 7);
   }
 
   /** Aturdido por una granada: se mueve a media velocidad durante `t` segundos. */
@@ -439,16 +484,16 @@ export class Zombie {
   }
 
   animKey() {
-    if (this.state === 'attack') return this.type === 'brute' ? 'heavy' : 'attack';
-    if (this.state === 'tear') return 'attack'; // arrancando tablones
-    if (this.state === 'stagger') return 'hit';
+    if (this.state === 'attack') return this.type === 'brute' ? 'heavy' : this.legless ? 'attack2' : this.attackAnim;
+    if (this.state === 'tear') return 'attack2'; // arrancando tablones
+    if (this.state === 'stagger') return this.stats.low ? (this.legless ? 'drag' : 'crawl') : 'hit';
+    if (this.legless) return 'drag';
     if (this.stats.low) return 'crawl';
     if (this.type === 'runner') return 'run';
-    // El bruto ruge quieto al aparecer y luego camina con el ciclo normal (el "Walk" lento del modelo es
-    // una cojera de 4 s: acelerada se veía trabado), a un ritmo acorde a su tamaño.
+    // El bruto ruge quieto al aparecer y luego camina con el ciclo rápido a un ritmo acorde a su tamaño.
     if (this.type === 'brute') return this.t < ROAR_TIME ? 'scream' : 'fast';
-    // El ciclo lento solo para los que van despacio: acelerarlo a casi el doble parecía cámara rápida.
-    return this.stats.speed * this.pace > 1.25 ? 'fast' : 'walk';
+    // El ciclo lento (arrastrando los pies) solo para los que van despacio: acelerado parecía cámara rápida.
+    return this.stats.speed * this.pace > 1.05 ? 'fast' : 'walk';
   }
 
   turnTowards(target, dt) {
@@ -483,14 +528,27 @@ export class Zombie {
     const s = this.skin;
     if (!s) return;
     this.syncSkin();
+    const attacking = anim === 'attack' || anim === 'attack2' || anim === 'heavy';
     s.update(dt, {
       distance: this.distToPlayer ?? 0, // de lejos se anima a 20 Hz y sin sombra (zombieSkin.js)
       anim,
       speed: this.state === 'chase' ? this.moveSpeed : this.speedNow,
-      cycle: this.state === 'tear' ? TEAR_EVERY : anim === 'attack' || anim === 'heavy' ? this.stats.attackEvery : 0,
-      flash: this.flashT > 0 ? 1.4 : 0,
+      cycle: this.state === 'tear' ? TEAR_EVERY : attacking ? this.stats.attackEvery : 0,
+      flash: this.flashT > 0 ? 0.55 : 0,
       falling,
     });
+    if (!falling) this.followHead();
+  }
+
+  // La caja de la cabeza va donde está la cabeza del modelo (al atacar, gritar o encorvarse se mueve
+  // mucho): los tiros a la cabeza se deciden por lo que se ve.
+  followHead() {
+    const box = this.headBox;
+    if (!box || !this.skin?.headCenter(_head)) return;
+    this.group.worldToLocal(_head);
+    box.position.copy(_head);
+    box.updateMatrix();
+    box.updateMatrixWorld(true);
   }
 
   syncSkin() {

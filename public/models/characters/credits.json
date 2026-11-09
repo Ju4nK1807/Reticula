@@ -1,5 +1,5 @@
 {
-  "_info": "Personajes animados. Fuente: Poly Pizza. Optimizado con: npx @gltf-transform/cli optimize <in> <out> --compress false --texture-compress false (zombis: --texture-compress webp --texture-size 512) --simplify false --instance false --palette false",
+  "_info": "Personajes animados. Soldado: Poly Pizza, optimizado con gltf-transform. Zombi: FBX convertido a GLB con los cargadores de three.js (FBXLoader → GLTFExporter), malla indexada, animaciones recortadas y reducidas, texturas en atlas WebP aparte (zombie/1k y zombie/512).",
   "soldier": {
     "file": "soldier.glb",
     "source": "https://poly.pizza/m/Btfn3G5Xv4",
@@ -15,36 +15,20 @@
       "Death"
     ]
   },
-  "zombie-walker": {
-    "file": "zombie-walker.glb",
-    "source": "https://poly.pizza/m/xqEzosAVYX",
-    "author": "bachosoftdesign",
-    "license": "CC-BY 3.0",
-    "usedFor": "caminante, reptante y bruto del modo zombi",
-    "animations": [
-      "Walk",
-      "Walk2",
-      "Running_Crawl",
-      "Attack",
-      "Headbutt",
-      "Hit_reaction",
-      "Die",
-      "Die2",
-      "Scream",
-      "Idle"
-    ]
-  },
-  "zombie-runner": {
-    "file": "zombie-runner.glb",
-    "source": "https://poly.pizza/m/jkrEvQZb8J",
-    "author": "Quaternius",
-    "license": "CC-BY 3.0",
-    "usedFor": "corredor del modo zombi",
-    "animations": [
-      "ZombieRun",
-      "ZombieWalk",
-      "ZombieBite",
-      "ZombieIdle"
-    ]
+  "zombie": {
+    "file": "zombie.glb",
+    "textures": "zombie/",
+    "source": "https://opengameart.org/content/male-city-zombie-ready-for-use-in-game-engines",
+    "author": "medicinestorm (OpenGameArt)",
+    "license": "CC0 1.0",
+    "usedFor": "todos los zombis del modo zombi (caminante, corredor, reptante y bruto)",
+    "animations": ["walk", "idle", "attack", "attack2", "hit", "run", "scream", "die"],
+    "extraAnimations": {
+      "source": "https://poly.pizza/m/xqEzosAVYX",
+      "author": "bachosoftdesign",
+      "license": "CC-BY 3.0",
+      "note": "Animaciones del zombi anterior, adaptadas al esqueleto nuevo (mismo rig).",
+      "animations": ["fast (Walk2)", "crawl (Running_Crawl)", "drag (Crawl)", "heavy (Headbutt)", "die2 (Die2)"]
+    }
   }
 }

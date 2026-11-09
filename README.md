@@ -70,7 +70,7 @@ src/
   modes/campaign/         Campaña: mapas Bodega/Ciudad/Arena, 12 niveles, misiones, progreso y estrellas
   modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
   modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
-  modes/zombies/          Modo zombi: Barrio en ruinas, zombis con campo de flujo, armería y potenciadores
+  modes/zombies/          Modo zombi: Barrio en ruinas, zombis realistas, atmósfera nocturna, campo de flujo y armería
   ui/                     HUD, mira, gráficas y pantallas (menú, editor de retícula, progreso, ajustes, pausa,
                           resultados, compatibilidad)
   stats/                  history.js: series e historial unificado para la pantalla de Progreso
@@ -192,17 +192,39 @@ Se desbloquea al hacer cualquier evaluación. Oleadas sin fin en el **Bastión**
 ## Modo zombi
 
 Oleadas de zombis en el **Barrio en ruinas**, al estilo de los modos de supervivencia clásicos: el
-mapa se abre a medida que se gana. No requiere evaluación.
+mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requiere evaluación.
+
+- **Zombis realistas**: un modelo con anatomía real, texturas PBR y 13 animaciones (arrastrar los pies,
+  caminata rápida, correr, gatear, arrastrarse sin piernas, dos zarpazos, cabezazo, golpe, grito y dos
+  muertes). Cada zombi tiene su tono de piel, su ropa y su cantidad de sangre (sangre seca en la boca, el
+  pecho y las manos), ojos que brillan en la oscuridad y un borde frío de luz de luna. Las balas dejan
+  **heridas** donde entran (pegadas al cuerpo aunque se mueva), sueltan una neblina de sangre y manchan
+  el suelo; los muertos dejan un charco. Una granada cerca puede **arrancarles las piernas**: siguen
+  arrastrándose con los brazos. La caja de la cabeza sigue al hueso de la cabeza: los tiros a la cabeza
+  se deciden por lo que se ve.
+- **Noche con atmósfera**: farolas, fuego y fluorescentes con luz real (un puñado de luces que se
+  reparten entre las fuentes más cercanas a la cámara), conos y charcos de luz, bruma baja pegada al
+  suelo, fuego y humo animados, charcos que reflejan, ventanas con interior y cortinas, fachadas con
+  cornisas, balcones, persianas de tiendas y bajantes, y en calidad alta un etalonaje de color con
+  viñeta y grano. Texturas PBR nuevas (adoquines, calle rota, revoque, pared descascarada, metal y chapa
+  oxidados, barro con hojas, piedra y azulejos sucios).
 
 - **Vestíbulo y barricadas**: se empieza encerrado en un cuarto con cuatro ventanas tapiadas. Los
   zombis salen de la tierra, arrancan los tablones uno a uno y recién entonces entran; mantener `E`
   junto a una ventana la repara (+10 puntos por tablón, hasta 500 por oleada). Todas las entradas del
   mapa tienen su barricada.
-- **Secciones**: las puertas tapiadas se compran con puntos (`E`): la **Plaza** (750), el **Mercado**
-  (750), la **Estación** (1000) y la **Iglesia** (1250; se llega desde el Vestíbulo). Cada sección
-  trae armas y bebidas nuevas, pero también sus propias entradas; la horda sale de las entradas
-  abiertas más cercanas al jugador.
-- **Caja misteriosa** en la plaza (el haz de luz azul): 950 puntos por un arma al azar.
+- **Secciones**: las puertas tapiadas se compran con puntos (`E`, desde cualquiera de sus lados): la
+  **Plaza** (750), el **Mercado** (750), la **Estación** (1000), la **Iglesia** (1250; se llega desde el
+  Vestíbulo), la **Subestación** (1000, al oeste) y el **Hospital** (1250; por la Subestación o por un
+  pasillo desde el Mercado: el mapa forma un circuito). Cada sección trae armas y bebidas nuevas, pero
+  también sus propias entradas; la horda sale de las entradas abiertas más cercanas al jugador.
+- **Electricidad**: el barrio empieza sin luz (farolas apagadas, una baliza roja girando). En la
+  caseta de la Subestación está el **generador**: su palanca enciende las farolas, los focos, los
+  fluorescentes del hospital, las máquinas de bebidas y la Forja. Sin luz solo funciona Segundo Aire.
+- **Forja** (quirófano del Hospital, con electricidad): 5000 puntos forjan el arma que llevas — doble
+  de daño, cargador y reserva ×1.5 y un brillo violeta y cian que recorre el arma.
+- **Caja misteriosa** (el haz de luz azul): 950 puntos por un arma al azar. Empieza en la plaza y cada
+  4 a 7 tiradas se muda a otro de seis lugares del mapa.
 - **Dificultad de los clásicos**: la vida sigue la de la ronda (150, 250, 350… y ×1.1 desde la 10);
   el cuchillo hace 150 (1 golpe en la ronda 1, 2 en la 2…); tres golpes tumban sin Coraza y la vida
   se regenera tras 5 s. Un tiro a la cabeza la hace volar, y algunos siguen caminando sin ella hasta
@@ -211,8 +233,8 @@ mapa se abre a medida que se gana. No requiere evaluación.
   paredes de cada sección (revólver, subfusil, rifle, escopeta, ráfaga, tirador, ametralladora,
   francotirador); con el arma ya comprada, el mismo puesto vende su munición a mitad de precio.
 - **Bebidas** (máquinas del mapa, duran hasta caer): Coraza (vida 250), Doble Plomo (+50 % de daño,
-  +25 % de cadencia), Mano Rápida (recarga al doble), Pies Ligeros (+15 % de velocidad) y Segundo Aire
-  (regenera antes y más rápido).
+  +25 % de cadencia), Mano Rápida (recarga al doble), Pies Ligeros (+15 % de velocidad), Segundo Aire
+  (regenera antes y más rápido) y Último Aliento (si caes, te levantas una vez con toda la vida).
 - **Armería** entre oleadas (`E` o botón táctil): munición, botiquín y cuatro granadas —
   fragmentación, incendiaria (deja fuego), aturdidora (frena a la horda) y señuelo (atrae a los zombis
   y explota). `G` lanza y `Q` cambia de tipo.
@@ -228,6 +250,8 @@ mapa se abre a medida que se gana. No requiere evaluación.
   zombis cerca y fuera de la vista.
 - Igual que con los soldados, los modelos son solo la apariencia: los impactos los deciden hitboxes
   invisibles alineadas al cuerpo (el reptante, a ras del suelo).
+- Créditos: zombi de medicinestorm (OpenGameArt, CC0); animaciones extra de bachosoftdesign (Poly Pizza,
+  CC-BY 3.0); texturas de Poly Haven (CC0). Detalle en `public/models/characters/credits.json`.
 - **Dificultad** (se elige en la pantalla del modo y se recuerda; récords por dificultad):
 
   | Dificultad | Zombis |
@@ -291,9 +315,14 @@ whisky, vodka, ron, ginebra y tequila) bajo una guirnalda de bombillas y un letr
   en la pantalla de título. Solo baja el detalle si sigue lento varias ventanas seguidas en la resolución
   mínima (bajarlo recompila los sombreadores: no se hace por un momento de carga). Parte de un nivel
   según la GPU.
-- Modo zombi: los zombis lejanos se animan a 20 Hz y solo los cercanos proyectan sombra; la reserva de
-  zombis se llena entre oleadas (crear uno en plena oleada daba tirones); la barra de la defensa es una
-  malla instanciada por tipo de botella.
+- Modo zombi: tres niveles de detalle por zombi (24 mil, 7.7 mil y 2.4 mil triángulos sobre el mismo
+  esqueleto; en GPUs integradas el costo de la horda era deformar vértices: con 24 zombis pasó de ~5 ms
+  a menos de 1 ms). Los lejanos se animan a 20 Hz y solo los cercanos proyectan sombra. La sombra de la
+  luna dibuja todo lo estático en una sola malla; los tablones de las barricadas son una malla
+  instanciada; la navegación marca solo las celdas de cada colisionador (de 177 ms a 4 ms al abrir una
+  puerta) y el campo de flujo tarda ~1 ms. Durante la pantalla del modo se dibuja todo el mapa una vez
+  (en Windows, ANGLE termina de compilar cada sombreador en su primer dibujo real). La reserva de zombis
+  se llena entre oleadas; la barra de la defensa es una malla instanciada por tipo de botella.
 - Geometría estática unida por material y zona (pocas llamadas de dibujo), sombreadores precompilados
   y texturas subidas al cargar cada mapa, soldados y zombis reutilizados de una reserva: sin tirones al
   aparecer enemigos.

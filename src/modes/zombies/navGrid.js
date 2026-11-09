@@ -10,10 +10,11 @@ import { insideBox } from '../../physics/obb.js';
   Lógica pura: ver tests/navGrid.test.js.
 */
 
-const DIRS = [
-  [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
-  [1, 1, Math.SQRT2], [1, -1, Math.SQRT2], [-1, 1, Math.SQRT2], [-1, -1, Math.SQRT2],
-];
+// Vecinos (rectos y diagonales) en arreglos planos: el bucle de Dijkstra es lo más caliente de la
+// navegación y así no crea iteradores ni desestructura en cada paso.
+const DX = new Int8Array([1, -1, 0, 0, 1, 1, -1, -1]);
+const DZ = new Int8Array([0, 0, 1, -1, 1, -1, 1, -1]);
+const COST = new Float32Array([1, 1, 1, 1, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2]);
 
 export class NavGrid {
   /**
@@ -30,6 +31,7 @@ export class NavGrid {
     this.blocked = new Uint8Array(n);
     this.dist = new Float32Array(n).fill(Infinity);
     this.next = new Int32Array(n).fill(-1);
+    this.done = new Uint8Array(n); // celdas ya cerradas en el cálculo actual
     this.heap = new Int32Array(n * 8 + 8); // cola de prioridad (índices, con repetidos) reutilizada
     this.heapLen = 0;
     // Solo cuenta lo que bloquea el paso a la altura de un cuerpo.
@@ -75,31 +77,36 @@ export class NavGrid {
 
   buildFrom(seeds) {
     this.target = seeds[0];
-    this.dist.fill(Infinity);
-    this.next.fill(-1);
+    const { w, h, blocked, dist, next, done } = this;
+    dist.fill(Infinity);
+    next.fill(-1);
+    done.fill(0);
     this.heapLen = 0;
     for (const t of seeds) {
-      this.dist[t] = 0;
+      dist[t] = 0;
       this.push(t);
     }
-    const w = this.w;
     while (this.heapLen) {
       const i = this.pop();
+      if (done[i]) continue; // entrada vieja de la cola (la celda ya se cerró con menos distancia)
+      done[i] = 1;
       const ix = i % w;
       const iz = (i - ix) / w;
-      const di = this.dist[i];
-      for (const [dx, dz, cost] of DIRS) {
+      const di = dist[i];
+      for (let k = 0; k < 8; k++) {
+        const dx = DX[k];
+        const dz = DZ[k];
         const nx = ix + dx;
         const nz = iz + dz;
-        if (nx < 0 || nz < 0 || nx >= w || nz >= this.h) continue;
+        if (nx < 0 || nz < 0 || nx >= w || nz >= h) continue;
         const j = nz * w + nx;
-        if (this.blocked[j]) continue;
+        if (blocked[j] || done[j]) continue;
         // Sin cortar esquinas: en diagonal, las dos celdas rectas también deben estar libres.
-        if (dx && dz && (this.blocked[iz * w + nx] || this.blocked[nz * w + ix])) continue;
-        const d = di + cost;
-        if (d < this.dist[j]) {
-          this.dist[j] = d;
-          this.next[j] = i;
+        if (dx && dz && (blocked[iz * w + nx] || blocked[nz * w + ix])) continue;
+        const d = di + COST[k];
+        if (d < dist[j]) {
+          dist[j] = d;
+          next[j] = i;
           this.push(j);
         }
       }
@@ -146,18 +153,26 @@ export class NavGrid {
     return true;
   }
 
-  /** Recalcula qué celdas bloquean (al abrir o cerrar una puerta del mapa). */
+  /**
+   * Recalcula qué celdas bloquean (al abrir o cerrar una puerta del mapa). Cada colisionador solo
+   * revisa las celdas de su caja agrandada por el radio: con cientos de colisionadores en un mapa
+   * grande, recorrer todas las celdas por cada uno costaba cientos de ms (un tirón al abrir puertas).
+   */
   setColliders(colliders, radius = this.radius) {
     this.radius = radius;
     this.blocked.fill(0);
-    const n = this.w * this.h;
-    for (let i = 0; i < n; i++) {
-      const { x, z } = this.center(i, _c);
-      for (const b of colliders) {
-        if (b.max.y < 0.3 || b.min.y > 1.6) continue;
-        if (insideBox(b, x, z, radius)) {
-          this.blocked[i] = 1;
-          break;
+    const { cell, w, h, minX, minZ } = this;
+    for (const b of colliders) {
+      if (b.max.y < 0.3 || b.min.y > 1.6) continue;
+      const x0 = Math.max(0, Math.floor((b.min.x - radius - minX) / cell - 0.5));
+      const x1 = Math.min(w - 1, Math.ceil((b.max.x + radius - minX) / cell - 0.5));
+      const z0 = Math.max(0, Math.floor((b.min.z - radius - minZ) / cell - 0.5));
+      const z1 = Math.min(h - 1, Math.ceil((b.max.z + radius - minZ) / cell - 0.5));
+      for (let cz = z0; cz <= z1; cz++) {
+        const z = minZ + (cz + 0.5) * cell;
+        for (let cx = x0; cx <= x1; cx++) {
+          const i = cz * w + cx;
+          if (!this.blocked[i] && insideBox(b, minX + (cx + 0.5) * cell, z, radius)) this.blocked[i] = 1;
         }
       }
     }
