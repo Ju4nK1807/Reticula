@@ -208,6 +208,10 @@ mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requ
   cornisas, balcones, persianas de tiendas y bajantes, y en calidad alta un etalonaje de color con
   viñeta y grano. Texturas PBR nuevas (adoquines, calle rota, revoque, pared descascarada, metal y chapa
   oxidados, barro con hojas, piedra y azulejos sucios).
+- **Niebla espesa** al estilo de los mapas de zombis clásicos: a 45 m ya casi no se ve, bruma baja que
+  brilla bajo las farolas y bancos de niebla que flotan y se mueven con el viento alrededor del jugador
+  (menos en calidad media y baja). **Más barreras y chatarra**: barreras de concreto, muros de sacos,
+  autos quemados, pilas de neumáticos, palés, escombros y vallas de obra en todas las zonas.
 
 - **Vestíbulo y barricadas**: se empieza encerrado en un cuarto con cuatro ventanas tapiadas. Los
   zombis salen de la tierra, arrancan los tablones uno a uno y recién entonces entran; mantener `E`
