@@ -1,141 +1,136 @@
 import * as THREE from 'three';
-import { castsShadow } from '../../gfx/lighting.js';
+import { createZombieMaterial, zombieDetail } from './zombieLook.js';
 
 /*
-  Apariencia animada de los zombis (modelos CC-BY: ver public/models/characters/credits.json).
-  Igual que los soldados: es SOLO visual; los impactos los deciden las hitboxes de Zombie.js.
+  Apariencia animada de los zombis (modelo realista con texturas PBR; créditos en
+  public/models/characters/credits.json). Igual que los soldados es SOLO visual: los impactos los
+  deciden las hitboxes de Zombie.js (la de la cabeza sigue al hueso de la cabeza).
 
-  - Dos modelos: "walker" (caminante, reptante y bruto) y "runner" (corredor).
-  - Se clonan por zombi (esqueleto propio), con materiales propios para el destello al recibir daño
-    y el tinte del bruto, y se reciclan en una reserva al morir (aparecer no cuesta).
-  - Animaciones con transiciones suaves; la velocidad de los ciclos de caminar o correr sigue la del
-    zombi. Si un modelo no trae muerte, cae hacia atrás por código.
+  - Un solo modelo (52 huesos) con 13 animaciones: caminar arrastrando los pies, caminata rápida,
+    correr, gatear, arrastrarse sin piernas, dos ataques, cabezazo, golpe recibido, grito y dos muertes.
+    Las variantes (piel, ropa, sangre, ojos) las pone su material (zombieLook.js).
+  - Tres niveles de detalle atados al mismo esqueleto (24 mil, 7.7 mil y 2.4 mil triángulos): según la
+    distancia se dibuja uno solo. Con detalle medio o bajo se pasa antes a los simples (en GPUs
+    integradas el costo de la horda es el de deformar los vértices de cada zombi).
+  - Se clona por zombi (esqueleto propio) y se recicla en una reserva al morir: aparecer no cuesta.
+  - Transiciones suaves; el ritmo de caminar, correr y gatear sigue la velocidad real (sin patinar).
+  - Heridas: un impacto se convierte al espacio de reposo del modelo (el del hueso más cercano) y
+    queda pegado al cuerpo aunque se mueva. Sin cabeza o sin piernas, esos huesos se encogen a cero.
 */
 
 const BASE = `${import.meta.env?.BASE_URL ?? './'}models/characters/`;
-const FADE = 0.22;
+const FILE = 'zombie.glb';
+const FADE = 0.25;
 
 const ANIM_FAR = 22; // m: más lejos, animación a 20 Hz
 const ANIM_FAR_STEP = 1 / 20;
 const SHADOW_NEAR = 16; // m: solo los zombis cercanos proyectan sombra
+// m a partir de los que se usa el nivel 1 y el 2, según el detalle gráfico (con 1 m de histéresis).
+const LOD_AT = { alta: [10, 24], media: [6, 16], baja: [4, 11] };
+const LOD_NAMES = ['Zombie', 'Zombie_LOD1', 'Zombie_LOD2'];
 
-export const ZOMBIE_MODELS = {
-  walker: {
-    file: 'zombie-walker.glb',
-    clips: { idle: 'Idle', walk: 'Walk', fast: 'Walk2', crawl: 'Running_Crawl', attack: 'Attack', heavy: 'Headbutt', hit: 'Hit_reaction', die: 'Die', die2: 'Die2', scream: 'Scream' },
-    // m/s a los que cada ciclo se ve natural (la animación se acelera o frena según la velocidad real).
-    pace: { walk: 0.9, fast: 1.9, crawl: 2.1 },
-  },
-  runner: {
-    file: 'zombie-runner.glb',
-    clips: { idle: 'ZombieIdle', walk: 'ZombieWalk', run: 'ZombieRun', attack: 'ZombieBite', crawl: 'ZombieCrawl' },
-    pace: { walk: 0.9, run: 4.2 },
-  },
-};
-
+export const ZOMBIE_CLIPS = ['idle', 'walk', 'fast', 'run', 'crawl', 'drag', 'attack', 'attack2', 'heavy', 'hit', 'scream', 'die', 'die2'];
+// m/s a los que cada ciclo se ve natural (la animación se acelera o frena según la velocidad real).
+const PACE = { walk: 0.55, fast: 1.9, run: 3.3, crawl: 2.1, drag: 0.7 };
 const LOOP_ONCE = new Set(['die', 'die2', 'hit', 'scream']);
-const POOL_MAX = 28;
-const pool = new Map(); // `${modelo}|${tinte}` → ZombieSkin[]
-const templates = new Map(); // modelo → Promise
+const POOL_MAX = 40;
+// Huesos que importan: los de las heridas (los dedos no) y los que se pierden.
+const WOUND_BONES = /^(Hips|Spine|Spine1|Spine2|Neck|Head|(Left|Right)(Shoulder|Arm|ForeArm|Hand|UpLeg|Leg|Foot))$/;
 
-/** Carga (una vez) un modelo de zombi: escena, clips y su altura original (para escalarlo). */
-export function loadZombieModel(model) {
-  if (typeof document === 'undefined' || !ZOMBIE_MODELS[model]) return Promise.resolve(null);
-  if (!templates.has(model)) {
-    templates.set(
-      model,
-      (async () => {
-        const [{ GLTFLoader }, SkeletonUtils] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/utils/SkeletonUtils.js')]);
-        const gltf = await new GLTFLoader().loadAsync(BASE + ZOMBIE_MODELS[model].file);
-        const clips = {};
-        for (const [key, name] of Object.entries(ZOMBIE_MODELS[model].clips)) {
-          const clip = gltf.animations.find((a) => a.name === name || a.name.endsWith(`|${name}`));
-          if (clip) clips[key] = clip;
-        }
-        // Altura en la pose de reposo (con la primera animación aplicada, no en T).
-        const mixer = new THREE.AnimationMixer(gltf.scene);
-        if (clips.idle) mixer.clipAction(clips.idle).play();
-        mixer.update(0);
-        gltf.scene.updateMatrixWorld(true);
-        const height = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3()).y || 1;
-        mixer.stopAllAction();
-        mixer.uncacheRoot(gltf.scene);
-        return { model, scene: gltf.scene, clips, height, clone: SkeletonUtils.clone };
-      })().catch(() => null),
-    );
-  }
-  return templates.get(model);
+const pool = [];
+let template = null;
+
+const _m = new THREE.Matrix4();
+const _v = new THREE.Vector3();
+const _b = new THREE.Vector3();
+
+/** Carga (una vez) el modelo: escena, clips y su altura original (para escalarlo). */
+export function loadZombieModel() {
+  if (typeof document === 'undefined') return Promise.resolve(null);
+  template ??= (async () => {
+    const [{ GLTFLoader }, SkeletonUtils] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/utils/SkeletonUtils.js')]);
+    const gltf = await new GLTFLoader().loadAsync(BASE + FILE);
+    const clips = {};
+    for (const key of ZOMBIE_CLIPS) {
+      const clip = gltf.animations.find((a) => a.name === key);
+      if (clip) clips[key] = clip;
+    }
+    // Altura en la pose de reposo (con la animación de espera aplicada, no en T).
+    const mixer = new THREE.AnimationMixer(gltf.scene);
+    if (clips.idle) mixer.clipAction(clips.idle).play();
+    mixer.update(0);
+    gltf.scene.updateMatrixWorld(true);
+    const height = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3()).y || 1;
+    mixer.stopAllAction();
+    mixer.uncacheRoot(gltf.scene);
+    return { scene: gltf.scene, clips, height, clone: SkeletonUtils.clone };
+  })().catch(() => null);
+  return template;
 }
 
-/** Zombi listo: de la reserva si hay, si no uno nuevo. */
-export function acquireZombieSkin(template, { height, tint = null }) {
-  const key = `${template.model}|${tint ?? ''}`;
-  const skin = pool.get(key)?.pop();
-  if (skin) {
-    skin.reset(height);
-    return skin;
-  }
-  return new ZombieSkin(template, { height, tint, key });
+/** Zombi listo: de la reserva si hay, si no uno nuevo. kind: normal | runner | brute. */
+export function acquireZombieSkin(tpl, { height, kind = 'normal', bulk = 1 }) {
+  const skin = pool.pop() ?? new ZombieSkin(tpl);
+  skin.reset(height, kind, bulk);
+  return skin;
 }
 
 /** Crea un zombi nuevo directamente en la reserva (para llenarla antes de que haga falta). */
-export function prefillZombieSkin(template, { height, tint = null }) {
-  const key = `${template.model}|${tint ?? ''}`;
-  releaseZombieSkin(new ZombieSkin(template, { height, tint, key }));
+export function prefillZombieSkin(tpl) {
+  releaseZombieSkin(new ZombieSkin(tpl));
 }
 
-/** Zombis de ese modelo y tinte ya creados y esperando en la reserva. */
-export function pooledZombieSkins(model, tint = null) {
-  return pool.get(`${model}|${tint ?? ''}`)?.length ?? 0;
+/** Zombis ya creados y esperando en la reserva. */
+export function pooledZombieSkins() {
+  return pool.length;
 }
 
 export function releaseZombieSkin(skin) {
   skin.root.removeFromParent();
-  const list = pool.get(skin.key) ?? [];
-  pool.set(skin.key, list);
-  if (list.length >= POOL_MAX) skin.dispose();
+  if (pool.length >= POOL_MAX) skin.dispose();
   else {
     skin.mixer.stopAllAction();
-    list.push(skin);
+    pool.push(skin);
   }
 }
 
 export class ZombieSkin {
-  constructor(template, { height, tint, key }) {
-    this.key = key;
-    this.model = template.model;
-    this.baseHeight = template.height;
-    this.pace = ZOMBIE_MODELS[template.model].pace;
+  constructor(tpl) {
+    this.baseHeight = tpl.height;
     this.root = new THREE.Group();
-    this.body = template.clone(template.scene);
+    this.body = tpl.clone(tpl.scene);
     this.root.add(this.body);
-    this.mats = [];
-    const tintColor = tint ? new THREE.Color(tint) : null;
+    this.material = createZombieMaterial();
+    this.look = this.material.look;
+    this.lods = [];
     this.body.traverse((o) => {
       if (!o.isMesh) return;
-      // Esfera de recorte fija y holgada (la de la piel no sigue a la animación).
+      o.material = this.material;
       if (o.isSkinnedMesh) {
+        // Esfera de recorte fija y holgada (la de la piel no sigue a la animación).
         o.geometry.computeBoundingSphere();
         o.boundingSphere = o.geometry.boundingSphere.clone();
         o.boundingSphere.radius *= 1.6;
-        o.frustumCulled = true;
       }
-      const m = o.material.clone();
-      if (tintColor) m.color.multiply(tintColor);
-      m.emissive = new THREE.Color('#ff3b2f');
-      m.emissiveIntensity = 0;
-      o.material = m;
-      this.mats.push(m);
+      o.castShadow = true;
     });
-    castsShadow(this.body);
-    // Hueso de la cabeza (Mixamo: "mixamorigHead" / "Head"): al decapitar se encoge a cero.
-    this.headBone = null;
+    for (const name of LOD_NAMES) {
+      const m = this.body.getObjectByName(name);
+      if (m?.isSkinnedMesh) this.lods.push(m);
+    }
+    if (!this.lods.length) this.body.traverse((o) => o.isSkinnedMesh && this.lods.push(o));
+    this.mesh = this.lods[0]; // el detallado: sus matrices sirven para las heridas
+    this.lod = -1;
+    this.setLod(0);
+    this.bones = {};
     this.body.traverse((o) => {
-      if (!this.headBone && o.isBone && /(^|[:_])?head$/i.test(o.name) && !/top/i.test(o.name)) this.headBone = o;
+      if (o.isBone) this.bones[o.name] = o;
     });
+    this.headBone = this.bones.Head ?? null;
+    this.woundBones = Object.values(this.bones).filter((b) => WOUND_BONES.test(b.name));
     this.mixer = new THREE.AnimationMixer(this.body);
     this.actions = {};
-    for (const [k, clip] of Object.entries(template.clips)) {
+    for (const [k, clip] of Object.entries(tpl.clips)) {
       const a = this.mixer.clipAction(clip);
       if (LOOP_ONCE.has(k)) {
         a.setLoop(THREE.LoopOnce, 1);
@@ -143,25 +138,29 @@ export class ZombieSkin {
       }
       this.actions[k] = a;
     }
-    this.reset(height);
+    this.shadow = true;
   }
 
-  reset(height) {
+  reset(height, kind = 'normal', bulk = 1) {
     this.mixer.stopAllAction();
     this.current = null;
     this.currentKey = null;
     this.fall = 0;
+    this.animAcc = 0;
     // Tamaño respecto a un zombi normal: uno más grande da pasos más largos (su ciclo va más lento).
     this.size = height / 1.78;
     this.headless = false;
-    if (this.headBone) this.headBone.scale.setScalar(1);
+    this.legless = false;
+    for (const b of Object.values(this.bones)) b.scale.set(1, 1, 1);
     this.body.rotation.set(0, 0, 0);
     this.body.position.set(0, 0, 0);
-    this.body.scale.setScalar(height / this.baseHeight);
+    const s = height / this.baseHeight;
+    this.body.scale.set(s * bulk, s, s * bulk);
     this.root.position.set(0, 0, 0);
     this.root.rotation.set(0, 0, 0);
     this.root.scale.set(1, 1, 1);
-    for (const m of this.mats) m.emissiveIntensity = 0;
+    this.material.emissiveIntensity = 0;
+    this.look.randomize(kind);
     this.play('idle', 0);
   }
 
@@ -173,6 +172,12 @@ export class ZombieSkin {
   decapitate() {
     this.headless = true;
     this.headBone?.scale.setScalar(0.001);
+  }
+
+  // Una explosión le arranca las piernas: sigue arrastrándose con los brazos.
+  amputateLegs() {
+    this.legless = true;
+    for (const n of ['LeftUpLeg', 'RightUpLeg']) this.bones[n]?.scale.setScalar(0.001);
   }
 
   // Empieza el ciclo actual en un punto al azar: dos zombis nunca dan el mismo paso a la vez.
@@ -190,52 +195,109 @@ export class ZombieSkin {
     this.currentKey = key;
   }
 
+  /** Centro de la cabeza (mundo): entre el hueso de la cabeza y su punta. null si no hay hueso. */
+  headCenter(out) {
+    if (!this.headBone || this.headless) return null;
+    this.headBone.getWorldPosition(out);
+    const top = this.bones.HeadTop_End;
+    if (top) out.lerp(top.getWorldPosition(_b), 0.45);
+    return out;
+  }
+
+  /**
+   * Herida en el punto `world` (donde pegó la bala): se pasa al espacio de reposo del modelo con el
+   * hueso más cercano y se acerca a ese hueso (la hitbox es más grande que el cuerpo).
+   */
+  wound(world, radiusCm = 7) {
+    if (!this.mesh) return;
+    let best = null;
+    let bestD = Infinity;
+    for (const b of this.woundBones) {
+      if (b.scale.x < 0.01) continue;
+      const d = b.getWorldPosition(_b).distanceToSquared(world);
+      if (d < bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    if (!best) return;
+    // Del mundo a la pose de reposo (el espacio del atributo `position`, en cm): inversa de
+    // (hueso · inversa de reposo · bind). Es la misma cuenta del sombreador de piel, con un solo hueso.
+    const skel = this.mesh.skeleton;
+    const i = skel.bones.indexOf(best);
+    if (i < 0) return;
+    _m.multiplyMatrices(best.matrixWorld, skel.boneInverses[i]).multiply(this.mesh.bindMatrix).invert();
+    _v.copy(world).applyMatrix4(_m);
+    // El hueso en esa misma pose: inversa de (inversa de reposo · bind).
+    _b.setScalar(0).applyMatrix4(_m.multiplyMatrices(skel.boneInverses[i], this.mesh.bindMatrix).invert());
+    // Hacia el eje del hueso: la hitbox es más grande que el cuerpo; la piel está a ~12 cm del hueso.
+    const len = _v.distanceTo(_b);
+    if (len > 12) _v.sub(_b).multiplyScalar(12 / len).add(_b);
+    this.look.addWound(_v, radiusCm);
+  }
+
   /**
    * @param {number} dt
-   * @param {{ anim: string, speed?: number, cycle?: number, flash?: number, falling?: boolean }} s
+   * @param {{ anim: string, speed?: number, cycle?: number, flash?: number, falling?: boolean, distance?: number }} s
    *   anim: clave de animación · speed: m/s reales (ajusta el ritmo de caminar/correr) ·
    *   cycle: s que debe durar un ciclo (ataques) · falling: muerte sin animación propia
    */
+  // Muestra solo el nivel de detalle `i` (los demás no se dibujan ni actualizan su esqueleto).
+  setLod(i) {
+    const lod = Math.min(i, this.lods.length - 1);
+    if (lod === this.lod) return;
+    this.lod = lod;
+    this.lods.forEach((m, k) => {
+      m.visible = k === lod;
+      m.castShadow = k === lod && this.shadow !== false;
+    });
+  }
+
+  // Nivel según la distancia y el detalle gráfico, con histéresis (no salta en el límite).
+  pickLod(d) {
+    const [a, b] = LOD_AT[zombieDetail()] ?? LOD_AT.alta;
+    const cur = this.lod;
+    const up = (limit, level) => (cur >= level ? d > limit - 1 : d > limit + 1);
+    return up(b, 2) ? 2 : up(a, 1) ? 1 : 0;
+  }
+
   update(dt, s) {
-    // Nivel de detalle: de lejos la animación se actualiza a 20 Hz y el zombi no proyecta sombra (cada
-    // sombra de un cuerpo animado lo vuelve a dibujar entero). Con muchos zombis es lo que más se nota.
-    const far = (s.distance ?? 0) > ANIM_FAR;
-    const shadow = (s.distance ?? 0) < SHADOW_NEAR;
+    // Nivel de detalle: de lejos la animación se actualiza a 20 Hz, el modelo es más simple y el zombi
+    // no proyecta sombra (cada sombra de un cuerpo animado lo vuelve a dibujar entero).
+    const dist = s.distance ?? 0;
+    const far = dist > ANIM_FAR;
+    const shadow = dist < SHADOW_NEAR;
+    this.setLod(this.pickLod(dist));
     if (shadow !== this.shadow) {
       this.shadow = shadow;
-      this.body.traverse((o) => o.isMesh && (o.castShadow = shadow));
+      this.lods.forEach((m, k) => (m.castShadow = shadow && k === this.lod));
     }
-    this.animAcc = (this.animAcc ?? 0) + dt;
+    this.animAcc += dt;
     if (far && this.animAcc < ANIM_FAR_STEP && !s.falling) return;
     dt = this.animAcc;
     this.animAcc = 0;
     // Si el modelo no tiene la animación pedida, la más parecida que sí tenga.
     let key = s.anim;
-    if (!this.has(key)) key = key === 'run' && this.has('fast') ? 'fast' : key === 'die2' && this.has('die') ? 'die' : this.has('walk') ? 'walk' : 'idle';
+    if (!this.has(key)) key = key === 'attack2' && this.has('attack') ? 'attack' : this.has('walk') ? 'walk' : 'idle';
     this.play(key);
     const a = this.current;
     if (a) {
-      const pace = this.pace[key] ? this.pace[key] * (this.size ?? 1) : 0;
-      if (pace && s.speed) a.timeScale = THREE.MathUtils.clamp(s.speed / pace, 0.5, 2.4);
+      const pace = PACE[key] ? PACE[key] * (this.size ?? 1) : 0;
+      if (pace && s.speed) a.timeScale = THREE.MathUtils.clamp(s.speed / pace, 0.45, 2.4);
       else if (s.cycle) a.timeScale = a.getClip().duration / s.cycle;
-      else a.timeScale = key === 'die' || key === 'die2' ? 1.35 : 1;
-    }
-    // Sin animación de muerte: cae hacia atrás.
-    if (s.falling && !this.has('die')) {
-      this.fall = Math.min(1, this.fall + dt / 0.45);
-      this.body.rotation.x = -this.fall * this.fall * 1.5;
+      else a.timeScale = key === 'die' || key === 'die2' ? 1.25 : 1;
     }
     this.mixer.update(dt);
-    // Sin cabeza: el hueso se mantiene encogido aunque la animación lo mueva.
+    // Sin cabeza o sin piernas: los huesos siguen encogidos aunque la animación los mueva.
     if (this.headless && this.headBone) this.headBone.scale.setScalar(0.001);
-    const flash = s.flash ?? 0;
-    for (const m of this.mats) m.emissiveIntensity = flash;
+    if (this.legless) for (const n of ['LeftUpLeg', 'RightUpLeg']) this.bones[n]?.scale.setScalar(0.001);
+    this.material.emissiveIntensity = s.flash ?? 0;
   }
 
   dispose() {
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.body);
-    for (const m of this.mats) m.dispose();
+    this.material.dispose();
     this.root.removeFromParent();
   }
 }

@@ -3,7 +3,7 @@ import { button } from '../../ui/components.js';
 import { sensSummary } from '../../config/sensitivity.js';
 import { clock, pct } from '../../utils/format.js';
 import { keyLabel } from '../../config/keybinds.js';
-import { BARRICADE, BOX_PRICE, DEFENSE, DIFFICULTIES, DIFFICULTY_ORDER, DOORS, GRENADE_MAX, PERKS, PLAYER, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
+import { BARRICADE, BOX_PRICE, DEFENSE, DIFFICULTIES, DIFFICULTY_ORDER, DOORS, FORGE, GRENADE_MAX, PERKS, PLAYER, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
 
 const DIFF_COLORS = { facil: '#00f5a0', normal: '#36d6ff', dificil: '#ffb020', locura: '#ff4d5e' };
 
@@ -13,18 +13,21 @@ const fmt = (n) => Math.round(n).toLocaleString('es');
 function rules(game) {
   const touch = game.touchMode;
   const key = (id) => (touch ? '' : ` (${keyLabel(game.settings.keys, id)})`);
-  const doors = Object.values(DOORS).map((d) => `${d.name} (${fmt(d.price)})`).join(', ');
+  // Una vez por sección (el Hospital tiene dos puertas con el mismo precio).
+  const doors = [...new Map(Object.values(DOORS).map((d) => [d.name, d])).values()].map((d) => `${d.name} (${fmt(d.price)})`).join(', ');
   return [
     ['Resiste la horda', 'Cada oleada trae más zombis, más resistentes y más rápidos. La partida termina cuando caes. Te recuperas si pasas unos segundos sin recibir golpes.'],
     ['Gana puntos', `Cada impacto da puntos; matar da más, sobre todo a la cabeza, con el cuchillo${key('melee')} o con granadas${key('grenade')}.`],
     ['Barricadas', `Empiezas encerrado en el Vestíbulo. La horda sale de la tierra y arranca los tablones de las ventanas; mantén${key('interact')} junto a una ventana para repararla (+${BARRICADE.repairPoints} por tablón).`],
-    ['Abre el mapa', `Las puertas tapiadas se compran${key('interact')}: ${doors}. Cada sección tiene más armas y bebidas, pero también más entradas de zombis.`],
-    ['Caja misteriosa', `En la plaza, el haz de luz azul: ${BOX_PRICE} puntos por un arma al azar de las que no tienes.`],
+    ['Abre el mapa', `Las puertas tapiadas se compran${key('interact')}: ${doors}. Cada sección tiene más armas y bebidas, pero también más entradas de zombis. Al Hospital se llega por la Subestación o por el Mercado.`],
+    ['Enciende la luz', `El barrio está sin electricidad: las farolas están apagadas y las bebidas y la Forja no funcionan (salvo Segundo Aire). Busca el generador en la Subestación y baja la palanca${key('interact')}.`],
+    ['Caja misteriosa', `Empieza en la plaza (el haz de luz azul): ${BOX_PRICE} puntos por un arma al azar de las que no tienes. Cada tantas tiradas se muda a otro lugar del mapa: sigue el haz.`],
+    ['La Forja', `En el quirófano del Hospital, con electricidad: ${fmt(FORGE.price)} puntos forjan el arma que llevas en la mano (doble daño, cargador y reserva más grandes).`],
     ['Armas en la pared', `Empiezas con la pistola (munición infinita). Las demás están colgadas en las paredes: acércate y cómpralas${key('interact')}; con el arma ya comprada, el mismo puesto vende su munición.`],
-    ['Bebidas', `Cinco máquinas repartidas por el mapa: ${Object.values(PERKS).map((p) => p.name).join(', ')}. Duran hasta que caes.`],
+    ['Bebidas', `${Object.keys(PERKS).length} máquinas repartidas por el mapa: ${Object.values(PERKS).map((p) => p.name).join(', ')}. Duran hasta que caes (Último Aliento te levanta una vez).`],
     ['Granadas y armería', `Entre oleadas abre la armería${key('interact')}: munición, botiquín y cuatro tipos de granada (fragmentación, incendiaria, aturdidora y señuelo). Cambia de tipo${key('grenadeNext')}.`],
     ['Potenciadores', `Algunos zombis sueltan un cristal brillante: ${Object.values(POWERUPS).map((p) => p.name.toLowerCase()).join(', ')}. Pasa por encima para tomarlo.`],
-    ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte.'],
+    ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte. Una explosión cerca puede arrancarles las piernas: siguen arrastrándose.'],
   ];
 }
 
@@ -99,7 +102,7 @@ export function zombieIntroScreen(game, { record, variant = 'survival', difficul
         { class: 'muted' },
         defense
           ? 'La fuente de la plaza es ahora una barra con 46 botellas de licor y la horda tiene sed: entra por los callejones directo a la barra. Atájalos antes de que lleguen.'
-          : 'De noche, encerrado en el Vestíbulo de un barrio en ruinas. La horda arranca los tablones de las ventanas; detrás de las puertas tapiadas esperan la Plaza, el Mercado, la Estación y la Iglesia. Gasta bien tus puntos.',
+          : 'De noche, sin luz y encerrado en el Vestíbulo de un barrio en ruinas. La horda arranca los tablones de las ventanas; detrás de las puertas tapiadas esperan la Plaza, el Mercado, la Estación, la Iglesia, la Subestación con el generador y el Hospital con la Forja. Gasta bien tus puntos.',
       ),
       records(record),
       h('h3', {}, 'Dificultad'),
@@ -108,8 +111,8 @@ export function zombieIntroScreen(game, { record, variant = 'survival', difficul
       !game.touchMode && h('dl', { class: 'controls compact' }, controls(game.settings.keys).map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h('div', { class: 'row' }, button('Comenzar', onStart, { variant: 'primary' }), button('Configuración', onSettings), button('Volver', onBack, { variant: 'ghost' })),
-      // Los modelos son CC-BY: el crédito va a la vista, donde se usan.
-      h('p', { class: 'zh-credit' }, 'Modelos de zombis: bachosoftdesign y Quaternius (Poly Pizza, CC-BY 3.0).'),
+      // Parte de las animaciones son CC-BY: el crédito va a la vista, donde se usan.
+      h('p', { class: 'zh-credit' }, 'Zombi: medicinestorm (OpenGameArt, CC0). Animaciones extra: bachosoftdesign (Poly Pizza, CC-BY 3.0).'),
     ),
   );
 }

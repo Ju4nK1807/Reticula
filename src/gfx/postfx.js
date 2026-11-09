@@ -2,10 +2,11 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GradeOutputPass } from './gradePass.js';
 
 // Postproceso de la calidad alta (se carga bajo demanda: en media y baja no se descarga).
 // Bloom: solo brilla lo que supera 1.0 en HDR (neón y luces de los materiales glow), no las paredes.
+// El pase de salida aplica además el etalonaje del modo (grade.js): neutro salvo que un modo lo fije.
 const BLOOM = { strength: 0.32, radius: 0.22, threshold: 1 };
 
 export function createComposer(renderer, scene, camera) {
@@ -15,6 +16,6 @@ export function createComposer(renderer, scene, camera) {
   const renderPass = new RenderPass(scene, camera);
   composer.addPass(renderPass);
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM.strength, BLOOM.radius, BLOOM.threshold));
-  composer.addPass(new OutputPass());
+  composer.addPass(new GradeOutputPass());
   return { composer, renderPass };
 }

@@ -2,9 +2,9 @@
 // separan las secciones, entradas de zombis con camino hasta el jugador y compras alcanzables.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { ZombieMap } from '../src/modes/zombies/ZombieMap.js';
+import { BOX_SPOTS, ZombieMap } from '../src/modes/zombies/ZombieMap.js';
 import { NavGrid } from '../src/modes/zombies/navGrid.js';
-import { DOORS, PERKS, WALL_BUYS } from '../src/modes/zombies/zombieData.js';
+import { DOORS, PERKS, WALL_BUYS, doorSection } from '../src/modes/zombies/zombieData.js';
 
 const world = new ZombieMap();
 const navFor = () => new NavGrid({ ...world.nav, cell: 1, radius: 0.45, colliders: world.colliders });
@@ -16,14 +16,17 @@ const reachable = (nav, from, to) => {
 const spawn = world.spawn;
 
 // Secciones a las que la horda NO llega con su puerta cerrada (la plaza rodea al vestíbulo: sus zombis
-// entran por las ventanas; lo que la puerta de la plaza encierra es al jugador).
-const WALLED = ['mercado', 'estacion', 'iglesia'];
+// entran por las ventanas; lo que la puerta de la plaza encierra es al jugador). En este orden cada una
+// queda conectada al abrir su puerta (el Hospital, por la Subestación).
+const WALLED = ['mercado', 'estacion', 'iglesia', 'subestacion', 'hospital'];
+const SECTIONS = [...new Set(Object.keys(DOORS).map(doorSection))];
 
 describe('mapa zombi por secciones', () => {
-  it('vestíbulo de inicio con 4 ventanas, la plaza y tres secciones más, cada una con su puerta', () => {
+  it('vestíbulo de inicio con 4 ventanas, la plaza y cinco secciones más, cada una con su puerta', () => {
     expect(Object.keys(world.doors).sort()).toEqual(Object.keys(DOORS).sort());
+    expect(SECTIONS.sort()).toEqual(['estacion', 'hospital', 'iglesia', 'mercado', 'plaza', 'subestacion']);
     expect(world.entries.filter((e) => e.section === 'lobby')).toHaveLength(4);
-    for (const id of Object.keys(DOORS)) {
+    for (const id of SECTIONS) {
       expect(world.entries.filter((e) => e.section === id).length, id).toBeGreaterThanOrEqual(3);
     }
     // Cada entrada tiene su barricada completa.
@@ -47,6 +50,18 @@ describe('mapa zombi por secciones', () => {
     expect(world.colliders.filter((c) => Object.values(world.doors).some((d) => d.collider === c))).toHaveLength(Object.keys(DOORS).length);
   });
 
+  it('al Hospital se llega por la Subestación o por el Mercado (cualquiera de sus dos puertas)', () => {
+    const inside = world.entries.find((e) => e.section === 'hospital').entry;
+    for (const doors of [['plaza', 'subestacion', 'hospital'], ['plaza', 'mercado', 'hospital-mercado']]) {
+      world.resetDoors();
+      for (const id of doors) world.openDoor(id);
+      expect(world.isOpen('hospital'), doors.join('+')).toBe(true);
+      expect(reachable(navFor(), inside, spawn), doors.join('+')).toBe(true);
+    }
+    world.resetDoors();
+    expect(world.isOpen('hospital')).toBe(false);
+  });
+
   it('el jugador queda encerrado en el vestíbulo: las ventanas no se cruzan y la puerta bloquea', () => {
     for (const e of world.entries.filter((x) => x.section === 'lobby')) {
       const m = e.barricade.mouth;
@@ -66,7 +81,7 @@ describe('mapa zombi por secciones', () => {
   });
 
   it('cada compra del mapa (bebidas, armas de la pared, puertas y caja) se usa desde un sitio libre', () => {
-    const kinds = { perk: Object.keys(PERKS), wallbuy: Object.keys(WALL_BUYS), door: Object.keys(DOORS), box: ['box'] };
+    const kinds = { perk: Object.keys(PERKS), wallbuy: Object.keys(WALL_BUYS), door: Object.keys(DOORS), box: ['box'], power: ['generador'], forge: ['forja'] };
     for (const [kind, ids] of Object.entries(kinds)) {
       for (const id of ids) {
         const it = world.interactables.find((x) => x.kind === kind && x.id === id);
@@ -183,5 +198,43 @@ describe('suavidad de la horda en el mapa real', () => {
     world.resetBarricades();
     expect(far).toEqual([]);
     expect(jumps / frames).toBeLessThan(0.01);
+  });
+});
+
+describe('electricidad, caja misteriosa y Forja', () => {
+  it('sin electricidad al empezar; la palanca la enciende (y apaga la baliza de emergencia)', () => {
+    world.setPower(false);
+    expect(world.powered).toBe(false);
+    expect(world.beacon.src.on).toBe(true);
+    world.setPower(true);
+    expect(world.powered).toBe(true);
+    expect(world.beacon.src.on).toBe(false);
+    expect(world.lever.target).toBe(world.lever.on);
+    world.setPower(false);
+  });
+
+  it('cada lugar de la caja misteriosa es alcanzable y se usa desde un sitio libre', () => {
+    for (const id of Object.keys(DOORS)) world.openDoor(id);
+    for (let i = 0; i < BOX_SPOTS.length; i++) {
+      world.moveBox(i);
+      const nav = navFor();
+      const it = world.box.it;
+      expect(world.isFree(it.pos.x, it.pos.z, 0.32), BOX_SPOTS[i].where).toBe(true);
+      expect(reachable(nav, it.pos, spawn), BOX_SPOTS[i].where).toBe(true);
+      // El colisionador viaja con la caja.
+      expect(world.box.collider.containsPoint(new THREE.Vector3(BOX_SPOTS[i].x, 0.4, BOX_SPOTS[i].z))).toBe(true);
+    }
+    world.moveBox(0);
+    world.resetDoors();
+  });
+
+  it('la palanca del generador y la Forja se alcanzan con todo abierto', () => {
+    for (const id of Object.keys(DOORS)) world.openDoor(id);
+    const nav = navFor();
+    for (const kind of ['power', 'forge']) {
+      const it = world.interactables.find((x) => x.kind === kind);
+      expect(reachable(nav, it.pos, spawn), kind).toBe(true);
+    }
+    world.resetDoors();
   });
 });

@@ -10,6 +10,9 @@ import { Bar } from './Bar.js';
 import { WEAPONS } from '../../combat/weapons.js';
 import { keyLabel } from '../../config/keybinds.js';
 import { acquireZombieSkin, loadZombieModel, pooledZombieSkins, prefillZombieSkin, releaseZombieSkin } from './zombieSkin.js';
+import { BloodFx } from './BloodFx.js';
+import { addHeightFog, nightEnvironment } from './atmosphere.js';
+import { setGrade } from '../../gfx/grade.js';
 
 export const MODE_ID = 'zombies';
 export const DEFENSE_ID = 'zombie-defense';
@@ -20,12 +23,28 @@ const DEATH_SLOWMO = 0.3;
 const WAVE_BANNER = 2.2;
 const COMBAT = new Set(['countdown', 'wave', 'intermission']);
 // Zombis que se dejan creados en la reserva entre oleadas (uno por cuadro, sin que se note): crear uno
-// en plena oleada (clonar el esqueleto y armar sus animaciones) era lo que producía tirones.
-const PREFILL = [
-  ['walker', null, 22],
-  ['runner', null, 12],
-  ['walker', ZOMBIE_TYPES.brute.tint, 3],
-];
+// en plena oleada (clonar el esqueleto y armar sus animaciones) era lo que producía tirones. Todos los
+// tipos usan el mismo modelo, así que una sola reserva cubre una oleada llena (hasta 24 vivos) y los
+// que mueren mientras salen otros.
+// Material del brillo de las armas forjadas (aditivo, animado, sin profundidad: va encima del arma).
+const FORGE_GLOW = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform float uTime; varying vec3 vP;
+    void main(){
+      float v = sin(vP.x * 40.0 + vP.z * 55.0 + uTime * 3.0) * 0.5 + 0.5;
+      float w = sin(vP.y * 70.0 - uTime * 4.2 + vP.x * 12.0) * 0.5 + 0.5;
+      vec3 c = mix(vec3(0.55, 0.12, 1.0), vec3(0.1, 0.85, 1.0), v) * (0.25 + 0.55 * pow(w, 3.0));
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+const PREFILL = 30;
+const WARM = 26; // los que se crean mientras se lee la pantalla de inicio
+// Color de la noche (calidad alta): algo desaturado, negros fríos, luces cálidas, viñeta y grano.
+const GRADE = { saturation: 0.86, contrast: 1.06, vignette: 0.55, grain: 0.028, lift: [0.004, 0.007, 0.013], gain: [1.03, 1.0, 0.95] };
 
 /*
   Modo zombi. Estados:
@@ -89,6 +108,16 @@ export class Zombies extends Mode {
     // Ceniza y brasas flotando en la plaza.
     this.ash = new Ambience({ spark: '#ff8a3d', dust: '#8a8f96', count: 200 });
     this.ash.attach(g.world.scene, g.world.spawn);
+    // Sangre: neblina en los impactos y manchas en el suelo.
+    this.blood = new BloodFx();
+    this.blood.attach(g.world.scene);
+    // Noche: reflejos de cielo oscuro y fuego, niebla baja también en la ceniza y la sangre, luces que
+    // se reparten según lo que mira el jugador y el color de la noche (calidad alta: postproceso).
+    g.world.scene.environment = nightEnvironment(g.engine.renderer);
+    g.world.camera = g.engine.camera;
+    addHeightFog(this.ash.points.material);
+    addHeightFog(this.blood.decals.material);
+    setGrade(GRADE);
     // Defensa: la fuente se vuelve una barra llena de botellas.
     if (this.variant === 'defense') this.bar = new Bar(g, this.root);
     this.showIntro();
@@ -102,49 +131,60 @@ export class Zombies extends Mode {
   // de a pocos, cediendo el hilo entre tandas, para no trabar la pantalla de inicio.
   async warmZombies() {
     const g = this.game;
-    const kinds = [
-      ['walker', ZOMBIE_TYPES.walker, 18],
-      ['runner', ZOMBIE_TYPES.runner, 10],
-      ['walker', ZOMBIE_TYPES.brute, 2],
-    ];
     const breathe = () => new Promise((r) => setTimeout(r, 30));
-    for (const [model, type, n] of kinds) {
-      const template = await loadZombieModel(model);
-      if (!template || g.mode !== this) return;
-      const opts = { height: type.height, tint: type.tint ?? null };
-      // Uno se dibuja diminuto delante de la cámara: compila sus sombreadores.
-      const first = acquireZombieSkin(template, opts);
-      const cam = g.engine.camera;
-      first.root.position.set(0, 0, -3).applyQuaternion(cam.quaternion).add(cam.position);
-      first.root.scale.setScalar(0.002);
-      first.update(1 / 60, { anim: 'walk', speed: 1 });
-      g.engine.warmup(g.world.scene, cam, [first.root]);
-      const made = [first];
-      for (let i = 1; i < n; i++) {
-        if (i % 3 === 0) {
-          await breathe();
-          if (g.mode !== this) break;
-        }
-        made.push(acquireZombieSkin(template, opts));
+    const template = await loadZombieModel();
+    if (!template || g.mode !== this) return;
+    const type = ZOMBIE_TYPES.walker;
+    // Uno se dibuja diminuto delante de la cámara: compila sus sombreadores (también el de su sombra).
+    const first = acquireZombieSkin(template, { height: type.height, kind: type.look });
+    const cam = g.engine.camera;
+    first.root.position.set(0, 0, -3).applyQuaternion(cam.quaternion).add(cam.position);
+    first.root.scale.setScalar(0.002);
+    first.update(1 / 60, { anim: 'walk', speed: 1 });
+    g.engine.warmup(g.world.scene, cam, [first.root]);
+    const made = [first];
+    for (let i = 1; i < WARM - pooledZombieSkins(); i++) {
+      if (i % 3 === 0) {
+        await breathe();
+        if (g.mode !== this) break;
       }
-      for (const s of made) releaseZombieSkin(s);
+      made.push(acquireZombieSkin(template, { height: type.height, kind: type.look }));
+    }
+    for (const s of made) releaseZombieSkin(s);
+    this.warmWholeMap();
+  }
+
+  // Dibuja de verdad TODO el mapa una vez (también lo que queda fuera de cámara): en Windows, ANGLE
+  // termina de compilar cada sombreador en su primer dibujo real, y lo que el precalentamiento normal no
+  // veía (secciones lejanas, fuego, conos de luz, la Forja) congelaba el primer cuadro de la partida.
+  warmWholeMap() {
+    const g = this.game;
+    if (g.mode !== this) return;
+    const culled = [];
+    g.world.scene.traverse((o) => {
+      if ((o.isMesh || o.isPoints) && o.frustumCulled) {
+        o.frustumCulled = false;
+        culled.push(o);
+      }
+    });
+    const powered = g.world.powered;
+    g.world.setPower?.(true);
+    try {
+      g.engine.warmup(g.world.scene, g.engine.camera);
+    } finally {
+      for (const o of culled) o.frustumCulled = true;
+      g.world.setPower?.(powered);
     }
   }
 
   // Llena la reserva de zombis de a uno por cuadro (entre oleadas, cuando no hay nadie en pantalla).
   prefillSkins() {
-    if (this.prefilling) return;
-    for (const [model, tint, target] of PREFILL) {
-      if (pooledZombieSkins(model, tint) >= target) continue;
-      this.prefilling = true;
-      loadZombieModel(model).then((template) => {
-        this.prefilling = false;
-        if (!template || this.game.mode !== this) return;
-        const type = tint ? ZOMBIE_TYPES.brute : model === 'runner' ? ZOMBIE_TYPES.runner : ZOMBIE_TYPES.walker;
-        prefillZombieSkin(template, { height: type.height, tint });
-      });
-      return;
-    }
+    if (this.prefilling || pooledZombieSkins() >= PREFILL) return;
+    this.prefilling = true;
+    loadZombieModel().then((template) => {
+      this.prefilling = false;
+      if (template && this.game.mode === this) prefillZombieSkin(template);
+    });
   }
 
   showIntro() {
@@ -324,6 +364,10 @@ export class Zombies extends Mode {
     this.run?.dispose();
     g.world.resetDoors?.(); // todas las secciones cerradas otra vez (antes de crear la navegación)
     g.world.resetBarricades?.();
+    // Sin electricidad al empezar (hay que encender el generador de la Subestación). En la Defensa de la
+    // barra el barrio ya tiene luz. La caja vuelve a la plaza.
+    g.world.setPower?.(this.variant === 'defense');
+    g.world.moveBox?.(0);
     if (this.bar) {
       // Defensa: la barra está en la plaza, así que su puerta empieza abierta.
       g.world.openDoor?.('plaza');
@@ -342,6 +386,7 @@ export class Zombies extends Mode {
     g.weapon.refill();
     g.onWeaponChange();
     g.effects.clear();
+    this.blood?.clear();
     g.grenades.clear();
     g.grenades.type = 'frag';
     this.grenadeBag = { frag: PLAYER.startGrenades, fire: 0, stun: 0, decoy: 0 };
@@ -367,6 +412,7 @@ export class Zombies extends Mode {
     const g = this.game;
     const run = this.run;
     this.ash?.update(dt, true);
+    this.blood?.update(this.state === 'dying' ? dt * DEATH_SLOWMO : dt);
     if (!run) return;
     if (this.state === 'countdown' || this.state === 'intermission') this.prefillSkins();
     switch (this.state) {
@@ -421,6 +467,37 @@ export class Zombies extends Mode {
     } else this.hud.setPrompt(this.near ? this.promptFor(this.near) : null);
     g.hud.setStats(run.hudStats());
     this.hud.update(g, run, this);
+    this.updateForgeGlow(dt);
+  }
+
+  // Sufijo del nombre del arma en el HUD: las forjadas lo dicen.
+  weaponHudSuffix() {
+    return this.run?.upgraded.has(this.game.weapon.stats.id) ? ' · FORJADA' : '';
+  }
+
+  // Brillo de la Forja sobre el arma en primera persona: una copia del modelo con un material aditivo
+  // animado (vetas violeta y cian). Se vuelve a poner si el arma cambia de modelo.
+  updateForgeGlow(dt) {
+    const g = this.game;
+    const vm = g.viewmodel;
+    const id = g.weapon.stats.id;
+    const want = !!this.run?.upgraded.has(id) && vm.loaded?.has(id) && vm.weaponId === id;
+    FORGE_GLOW.uniforms.uTime.value += dt;
+    if (this.forgeGlow && (!want || this.forgeGlow.userData.id !== id || this.forgeGlow.parent !== vm.model)) {
+      this.forgeGlow.removeFromParent();
+      this.forgeGlow = null;
+    }
+    if (!want || this.forgeGlow) return;
+    const glowObj = vm.loaded.get(id).object.clone(true);
+    glowObj.traverse((o) => {
+      if (o.isMesh) {
+        o.material = FORGE_GLOW;
+        o.renderOrder = 3;
+      }
+    });
+    glowObj.userData.id = id;
+    vm.model.add(glowObj);
+    this.forgeGlow = glowObj;
   }
 
   promptFor(it) {
@@ -573,6 +650,24 @@ export class Zombies extends Mode {
       case 'barDestroyed':
         hud.flash('Se rompió la última botella', 'bad');
         break;
+      case 'power':
+        hud.flash('¡Hay luz! Las máquinas de bebidas y la Forja funcionan', 'good');
+        sfx.tone('sawtooth', 45, 130, 1.6, 0.22); // el generador arranca
+        sfx.tone('sine', 90, 260, 1.3, 0.18);
+        this.game.grenades.shake = 0.35;
+        break;
+      case 'forge':
+        hud.flash(`${WEAPONS[data.id].name} forjada: doble daño y cargador más grande`, 'good');
+        sfx.powerup();
+        this.game.onWeaponChange();
+        break;
+      case 'boxMove':
+        hud.flash(`La caja misteriosa se fue a ${data.where}`, 'info');
+        break;
+      case 'lastStand':
+        hud.flash('Último Aliento: ¡te levantaste!', 'good');
+        sfx.powerup();
+        break;
     }
   }
 
@@ -584,11 +679,18 @@ export class Zombies extends Mode {
     this.hud = null;
     this.ash?.dispose();
     this.ash = null;
+    this.blood?.dispose();
+    this.blood = null;
+    setGrade(null);
+    g.world.camera = null;
     this.bar?.dispose();
     this.bar = null;
     this.root.removeFromParent();
     g.weapon.onShot = null;
     g.weapon.reserveBy = null;
+    g.weapon.magazineBy = null;
+    this.forgeGlow?.removeFromParent();
+    this.forgeGlow = null;
     g.weapon.reloadMul = 1;
     g.weapon.rateMul = 1;
     g.player.perkSpeed = 1;

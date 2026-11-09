@@ -31,10 +31,11 @@ export class ZombieHud {
     this.gain = h('span', { class: 'zh-gain' });
     this.cashBox = h('div', { class: 'zh-cash' }, h('small', {}, 'Puntos'), this.cash, this.gain);
 
+    this.powerTag = h('span', { class: 'zh-nopower' }, 'Sin electricidad · enciende el generador (Subestación)');
     this.grenades = h('span', { class: 'zh-nades' });
     this.perks = h('div', { class: 'zh-perks' });
     this.powers = h('div', { class: 'zh-powers' });
-    this.side = h('div', { class: 'zh-side' }, this.grenades, this.perks, this.powers);
+    this.side = h('div', { class: 'zh-side' }, this.powerTag, this.grenades, this.perks, this.powers);
 
     // Aviso de compra (lo que hay delante: puerta, arma de pared o bebida).
     this.pKey = h('kbd', {});
@@ -57,7 +58,10 @@ export class ZombieHud {
     this.barCount = h('strong', {}, '');
     this.barFill = h('i');
     this.barBox = h('div', { class: 'zh-barbox', hidden: true }, h('small', {}, 'Barra'), this.barCount, h('div', { class: 'zh-barmeter' }, this.barFill));
-    this.root = h('div', { class: 'zh-root' }, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.banner, this.prompt);
+    // Viñeta oscura (en calidad alta la pone el postproceso) y bordes rojos al estar herido.
+    this.vignette = h('div', { class: 'zh-vignette', hidden: true });
+    this.hurt = h('div', { class: 'zh-hurt' });
+    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.banner, this.prompt);
     layer.append(this.root);
     this.cache = new Map();
   }
@@ -100,7 +104,19 @@ export class ZombieHud {
   }
 
   update(game, run, mode) {
-    this.set('wave', this.waveNum, String(Math.max(1, run.wave || mode.nextWave)));
+    const wave = String(Math.max(1, run.wave || mode.nextWave));
+    if (this.cache.get('wave') !== wave) {
+      this.set('wave', this.waveNum, wave);
+      // El número de la oleada late al cambiar (como una marca nueva en la pared).
+      this.waveNum.classList.remove('pop');
+      void this.waveNum.offsetWidth;
+      this.waveNum.classList.add('pop');
+    }
+    this.set('power', this.powerTag, game.world.powered !== false, 'hidden');
+    this.set('vignette', this.vignette, game.engine.detail === 'alta', 'hidden');
+    const hurt = Math.max(0, Math.min(1, (0.5 - run.health / run.maxHealth) / 0.4));
+    this.set('hurt', this.hurt, hurt.toFixed(2), '__o');
+    if (this.hurt.style.opacity !== hurt.toFixed(2)) this.hurt.style.opacity = hurt.toFixed(2);
     const left = run.remaining;
     const idle = mode.state === 'countdown' ? 'Preparación' : 'Descanso';
     this.set('left', this.left, run.state === 'wave' ? `${left} ${left === 1 ? 'zombi' : 'zombis'}` : idle);

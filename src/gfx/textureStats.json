@@ -94,5 +94,77 @@
       0.09104,
       0.07432
     ]
+  },
+  "cobble": {
+    "asset": "patterned_cobblestone",
+    "mean": [
+      0.07328,
+      0.07328,
+      0.07328
+    ]
+  },
+  "road": {
+    "asset": "road_damaged",
+    "mean": [
+      0.04553,
+      0.04553,
+      0.04553
+    ]
+  },
+  "tiles_dirty": {
+    "asset": "dirty_tiles",
+    "mean": [
+      0.02372,
+      0.02372,
+      0.02372
+    ]
+  },
+  "plaster_damaged": {
+    "asset": "damaged_plaster",
+    "mean": [
+      0.29829,
+      0.22892,
+      0.17248
+    ]
+  },
+  "wall_peeling": {
+    "asset": "peeling_painted_wall",
+    "mean": [
+      0.18406,
+      0.18406,
+      0.18406
+    ]
+  },
+  "rust": {
+    "asset": "rusty_metal_02",
+    "mean": [
+      0.41172,
+      0.2838,
+      0.12444
+    ]
+  },
+  "rust_corrugated": {
+    "asset": "rusty_corrugated_iron",
+    "mean": [
+      0.09674,
+      0.02248,
+      0.00946
+    ]
+  },
+  "mud": {
+    "asset": "brown_mud_leaves_01",
+    "mean": [
+      0.13087,
+      0.08939,
+      0.03366
+    ]
+  },
+  "stone_wall": {
+    "asset": "broken_wall",
+    "mean": [
+      0.27207,
+      0.23595,
+      0.19946
+    ]
   }
 }
