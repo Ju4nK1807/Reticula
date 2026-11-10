@@ -10,11 +10,38 @@ import { placeWeapons } from '../../scenes/props.js';
 import { WEAPONS } from '../../combat/weapons.js';
 import { BARRICADE, DOORS, PERKS, doorSection } from './zombieData.js';
 import { setZombieDetail } from './zombieLook.js';
-import { LIGHTS_FOR, LightPool, applyHeightFog, fireField, lightShapes } from './atmosphere.js';
+import { HEIGHT_FOG, LIGHTS_FOR, LightPool, applyHeightFog, fireField, fogBanks, lightShapes } from './atmosphere.js';
 import { darkWindow, decalTexture, litWindow } from './facadeTextures.js';
 import { HOSPITAL, SUBESTACION, buildHospital, buildSubestacion, sign } from './sections.js';
 
 const plankGeo = new THREE.BoxGeometry(1, 1, 1);
+// Bancos de niebla según el detalle: son cuadros transparentes grandes (cuestan relleno de píxeles), así
+// que en GPUs modestas van menos y algo más densos.
+const BANKS = { alta: 42, media: 14, baja: 8 };
+const BANK_OPACITY = { alta: 0.36, media: 0.46, baja: 0.5 };
+
+// Franjas rojas y blancas en diagonal (vallas de obra).
+function stripeTexture() {
+  if (typeof document === 'undefined') return new THREE.Texture();
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 16;
+  const g = c.getContext('2d');
+  g.fillStyle = '#d8d2c4';
+  g.fillRect(0, 0, 128, 16);
+  g.fillStyle = '#a3241c';
+  for (let x = -16; x < 128; x += 32) {
+    g.beginPath();
+    g.moveTo(x, 16);
+    g.lineTo(x + 16, 0);
+    g.lineTo(x + 32, 0);
+    g.lineTo(x + 16, 16);
+    g.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
 const _plank = new THREE.Object3D();
 const _scale = new THREE.Vector3();
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -145,9 +172,10 @@ export class ZombieMap extends World {
   constructor() {
     super({
       name: 'Barrio en ruinas',
-      background: '#0b1018',
-      fogNear: 14,
-      fogFar: 78,
+      // Noche con niebla espesa (al estilo de los mapas de zombis clásicos): a 50 m ya casi no se ve.
+      background: '#18202c',
+      fogNear: 4,
+      fogFar: 46,
       spawn: new THREE.Vector3(0, 0, 16), // en el vestíbulo
       // El jugador puede ir a todo el mapa: lo limitan los muros y las puertas cerradas.
       playerZone: { minX: -70, maxX: 66, minZ: -72, maxZ: 64 },
@@ -157,7 +185,7 @@ export class ZombieMap extends World {
     this.hemi = new THREE.HemisphereLight('#8ea6cc', '#262019', 1.05);
     scene.add(this.hemi);
     // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
-    scene.add(createSky({ ...SKIES.fire, horizon: '#0b1018' }));
+    scene.add(createSky({ ...SKIES.fire, horizon: '#18202c' }));
     const moon = new THREE.DirectionalLight('#b9cdf5', 1.45);
     moon.position.set(-18, 30, 12);
     scene.add(moon);
@@ -262,6 +290,9 @@ export class ZombieMap extends World {
       }
       for (const a of ALLEYS.filter((x) => x.side === id)) this.alley(side, a.at, M, id, a.door ?? null);
     }
+
+    // --- Barreras, escombros y chatarra por todo el mapa (clutter, más abajo) ----------------------------
+    this.clutter(M);
 
     // --- Coberturas de la plaza ----------------------------------------------------------------------
     // Fuente central (anillo de concreto) y bancos.
@@ -379,6 +410,12 @@ export class ZombieMap extends World {
     scene.add(this.shapes.group);
     this.fireFx = fireField(this.fires);
     scene.add(this.fireFx.group);
+    // Niebla: bruma baja más espesa y clara (se ve "flotar" a la luz de las farolas) y bancos de niebla
+    // que se mueven alrededor del jugador.
+    HEIGHT_FOG.uHFog.value.set(0.08, 0.38, 0, 1);
+    HEIGHT_FOG.uHFogColor.value.set('#455266');
+    this.fog = fogBanks({ count: BANKS.alta, color: '#6f7c90', opacity: 0.36 });
+    scene.add(this.fog.mesh);
     applyHeightFog(scene);
     this.lights.setCount(LIGHTS_FOR.alta);
     scene.updateMatrixWorld(true);
@@ -624,6 +661,147 @@ export class ZombieMap extends World {
 
 
   // Auto: carrocería, cabina con vidrios y ruedas. Bloquea balas y paso.
+  // --- Barreras y chatarra --------------------------------------------------------------------------
+  // Para que el barrio no se vea vacío: barreras de concreto, muros de sacos, autos quemados, pilas de
+  // neumáticos, palés, montones de escombros y vallas de obra. Bloquean el paso y las balas con su forma
+  // real (OBB); las posiciones dejan libres las entradas de zombis, las puertas y las compras (lo vigila
+  // tests/zombieMap.test.js).
+  clutter(M) {
+    const burnt = paint('#1c1a18', { roughness: 0.85, metalness: 0.3 });
+    const rustCar = paint('#4a2a1c', { roughness: 0.8, metalness: 0.35 });
+    // Barreras de concreto tipo New Jersey: [x, z, giro].
+    for (const [x, z, ry] of [[8.5, -12.5, 0.8], [-12.5, -1.5, 1.45], [13.5, 13.2, 0.3], [-4.5, 7.5, -0.2], [3.5, -41.5, 1.57], [52.5, -1.2, 0.15], [-46.5, -19.5, 0.35], [-24, -46, 0.2]]) this.jersey(x, z, ry, M);
+    // Muros de sacos terreros: [x, z, giro, largo en sacos].
+    for (const [x, z, ry, n] of [[-17.5, -15.5, 0.6, 3], [-13, 9, 0.1, 3], [38, 15.5, 0.3, 4], [-49.5, -26, 0.1, 3], [18.5, -38.5, 0.4, 3], [-48, -44, 1.57, 3]]) this.sandbagWall(x, z, ry, n, M);
+    // Autos quemados u oxidados.
+    this.car(-12.5, -8, 0.15, burnt, M);
+    this.car(47.5, 4, 0, rustCar, M);
+    this.car(-40.5, -8.5, 1.4, burnt, M);
+    // Pilas de neumáticos, palés y escombros.
+    for (const [x, z] of [[17.5, -1], [-19, -9.5], [24.5, -40], [55.5, 12], [-57.2, -21.5], [-18, -48]]) this.tires(x, z, M);
+    for (const [x, z, ry] of [[-17.5, 10.5, 0.4], [7.5, -47.5, 1.1], [49.5, 19.8, 0.2], [-53, -49, 0.3]]) this.pallets(x, z, ry, M);
+    for (const [x, z, sc] of [[-2.5, -14, 1], [11, 10.5, 0.8], [12.5, 49, 1.2], [-5.5, 43.5, 1], [-33, -45, 0.9], [-55, -56, 0.8]]) this.rubble(x, z, sc, M);
+    // Vallas de obra con franjas rojas y blancas.
+    for (const [x, z, ry] of [[12.5, 19.5, 0.25], [-14, -18.5, -0.5], [21, -50, 1.3], [10, 43.5, 0.2]]) this.roadBlock(x, z, ry, M);
+  }
+
+  // Une las cajas de unas piezas ya colocadas (para su colisionador).
+  boundsOf(parts) {
+    const box = new THREE.Box3();
+    for (const m of parts) box.union(new THREE.Box3().setFromObject(m));
+    return box;
+  }
+
+  // Barrera de concreto: base ancha y cuerpo angosto (2 m de largo).
+  jersey(x, z, ry, M) {
+    const g = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(2, 0.35, 0.62), M.concrete);
+    base.position.y = 0.175;
+    const top = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 0.3), M.concrete);
+    top.position.y = 0.6;
+    g.add(base, top);
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    const parts = this.flatten(g);
+    this.solids.push(...parts);
+    this.colliders.push(withObb(this.boundsOf(parts), x, z, 1, 0.31, ry));
+  }
+
+  // Muro de sacos: tres hileras a lo largo de `n` sacos.
+  sandbagWall(x, z, ry, n, M) {
+    const g = new THREE.Group();
+    for (let row = 0; row < 3; row++) {
+      const k = n - (row === 2 ? 1 : 0);
+      for (let i = 0; i < k; i++) {
+        const bag = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.32, 0.6), M.sandbag);
+        bag.position.set((i - (k - 1) / 2) * 0.98, 0.16 + row * 0.3, (row % 2) * 0.04);
+        bag.rotation.y = (((i + row) % 3) - 1) * 0.06;
+        g.add(bag);
+      }
+    }
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    const parts = this.flatten(g);
+    this.solids.push(...parts);
+    this.colliders.push(withObb(this.boundsOf(parts), x, z, (n * 0.98) / 2, 0.32, ry));
+  }
+
+  // Pila de neumáticos (bloquea como una caja de 1 m).
+  tires(x, z, M) {
+    const ring = new THREE.TorusGeometry(0.36, 0.14, 8, 16);
+    const parts = [];
+    for (let i = 0; i < 4; i++) {
+      const t = new THREE.Mesh(ring, M.tire);
+      t.rotation.set(Math.PI / 2, 0, i * 0.4);
+      t.position.set(x + (i === 3 ? 0.25 : 0), 0.14 + i * 0.27, z + (i === 3 ? 0.1 : 0));
+      this.scene.add(t);
+      parts.push(t);
+    }
+    this.solids.push(...parts);
+    this.colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(x, 0.55, z), new THREE.Vector3(1.05, 1.1, 1.05)));
+  }
+
+  // Palés de madera apilados.
+  pallets(x, z, ry, M) {
+    const g = new THREE.Group();
+    for (let i = 0; i < 4; i++) {
+      for (const dz of [-0.45, 0, 0.45]) {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.14), M.wood);
+        slat.position.set((i % 2) * 0.06, 0.12 + i * 0.15, dz);
+        g.add(slat);
+      }
+      const block = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.09, 1.0), M.wood);
+      block.position.set((i % 2) * 0.06, 0.05 + i * 0.15, 0);
+      g.add(block);
+    }
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    const parts = this.flatten(g);
+    this.solids.push(...parts);
+    this.colliders.push(withObb(this.boundsOf(parts), x, z, 0.62, 0.55, ry));
+  }
+
+  // Montón de escombros (bloques de concreto y ladrillo caídos).
+  rubble(x, z, sc, M) {
+    const rock = new THREE.DodecahedronGeometry(0.45, 0);
+    const mats = [M.concrete, M.brickDark, M.concrete, M.plaster];
+    for (let i = 0; i < 7; i++) {
+      const a = i * 2.4;
+      const d = i ? 0.35 + (i % 3) * 0.25 : 0;
+      const m = new THREE.Mesh(rock, mats[i % mats.length]);
+      m.position.set(x + Math.cos(a) * d * sc, (i ? 0.18 : 0.32) * sc, z + Math.sin(a) * d * sc);
+      m.scale.set((0.8 + (i % 3) * 0.3) * sc, (0.5 + (i % 2) * 0.3) * sc, (0.9 + (i % 4) * 0.2) * sc);
+      m.rotation.set(i, i * 1.7, i * 0.5);
+      this.scene.add(m);
+      if (!i) this.solids.push(m);
+    }
+    this.colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(x, 0.35 * sc, z), new THREE.Vector3(1.6 * sc, 0.7 * sc, 1.6 * sc)));
+  }
+
+  // Valla de obra: dos caballetes y tablones con franjas rojas y blancas.
+  roadBlock(x, z, ry, M) {
+    M.stripes ??= new THREE.MeshStandardMaterial({ map: stripeTexture(), roughness: 0.7 });
+    const g = new THREE.Group();
+    for (const sx of [-0.9, 0.9]) {
+      for (const sz of [-0.22, 0.22]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.05, 0.06), M.wood);
+        leg.position.set(sx, 0.5, sz);
+        leg.rotation.x = sz > 0 ? -0.22 : 0.22;
+        g.add(leg);
+      }
+    }
+    for (const y of [0.55, 0.9]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.18, 0.04), M.stripes);
+      bar.position.y = y;
+      g.add(bar);
+    }
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    const parts = this.flatten(g);
+    this.solids.push(...parts.slice(-2));
+    this.colliders.push(withObb(this.boundsOf(parts), x, z, 1.1, 0.3, ry));
+  }
+
   car(x, z, ry, paintMat, M) {
     const g = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.9, 1.9), paintMat);
@@ -1103,6 +1281,8 @@ export class ZombieMap extends World {
   // texturas de los zombis.
   setDetail(detail) {
     this.lights.setCount(LIGHTS_FOR[detail] ?? LIGHTS_FOR.media);
+    this.fog.mesh.geometry.instanceCount = BANKS[detail] ?? BANKS.media;
+    this.fog.setOpacity(BANK_OPACITY[detail] ?? BANK_OPACITY.media);
     setZombieDetail(detail);
     this.buildShadowProxy();
   }
@@ -1153,6 +1333,7 @@ export class ZombieMap extends World {
 
   update(dt) {
     if (this.camera) this.lights.update(dt, this.camera);
+    this.fog.update(dt, this.camera);
     this.shapes.update(dt, this.powered);
     // Palanca del generador (sube o baja suave) y baliza que gira.
     const lv = this.lever;

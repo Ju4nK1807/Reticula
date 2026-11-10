@@ -542,3 +542,118 @@ export function fireField(fires) {
     },
   };
 }
+
+// --- Bancos de niebla -----------------------------------------------------------------------------
+// Jirones de bruma que flotan a ras del suelo alrededor del jugador y se mueven despacio con el viento:
+// cuadros grandes que miran a la cámara con un ruido suave y transparencia baja (una malla instanciada,
+// una llamada de dibujo). Se apagan al acercarse a la cámara (no se ve el borde del cuadro) y se
+// funden con la niebla de distancia. Los que quedan lejos reaparecen del otro lado.
+const BANK_VERT = /* glsl */ `
+attribute vec4 aBank; // posición (xyz) · semilla
+attribute float aSize;
+uniform float uFade; // m: más cerca de la cámara se desvanecen
+varying vec2 vUv;
+varying float vSeed;
+varying float vNear;
+#include <fog_pars_vertex>
+void main() {
+  vUv = uv;
+  vSeed = aBank.w;
+  vec4 mvPosition = viewMatrix * vec4(aBank.xyz, 1.0);
+  vNear = smoothstep(uFade * 0.35, uFade, -mvPosition.z);
+  mvPosition.xy += position.xy * vec2(aSize, aSize * 0.45);
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`;
+const BANK_FRAG = /* glsl */ `
+uniform float uTime;
+uniform vec3 uColor;
+uniform float uOpacity;
+varying vec2 vUv;
+varying float vSeed;
+varying float vNear;
+#include <fog_pars_fragment>
+${NOISE}
+void main() {
+  vec2 p = vUv - 0.5;
+  float r = length(p * vec2(1.0, 1.6)) * 2.0;
+  float n = fFbm(vUv * 2.6 + vec2(uTime * 0.03 + vSeed, vSeed * 1.7 - uTime * 0.012));
+  float a = smoothstep(1.0, 0.15, r) * smoothstep(0.25, 0.75, n) * uOpacity * vNear;
+  if (a < 0.004) discard;
+  vec3 c = uColor;
+  #ifdef USE_FOG
+    float f = smoothstep(fogNear, fogFar, vFogDepth);
+    c = mix(c, fogColor, f);
+    a *= 1.0 - f * 0.6;
+  #endif
+  gl_FragColor = vec4(c, a);
+}`;
+
+/**
+ * Bancos de niebla alrededor de la cámara. opts: { count, radius (m), color, opacity }.
+ * update(dt, camera) los mueve con el viento y recicla los que quedan lejos.
+ */
+export function fogBanks({ count = 42, radius = 34, color = '#5a6678', opacity = 0.22 } = {}) {
+  const geo = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(1, 1));
+  geo.instanceCount = count;
+  const data = new Float32Array(count * 4);
+  const size = new Float32Array(count);
+  const attr = new THREE.InstancedBufferAttribute(data, 4);
+  attr.setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute('aBank', attr);
+  geo.setAttribute('aSize', new THREE.InstancedBufferAttribute(size, 1));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uOpacity: { value: opacity }, uFade: { value: 6 } }]),
+    vertexShader: BANK_VERT,
+    fragmentShader: BANK_FRAG,
+    transparent: true,
+    depthWrite: false,
+    fog: true,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  mesh.userData.noShadow = true;
+  mesh.userData.dynamic = true;
+  mesh.renderOrder = 3;
+  const wind = new THREE.Vector2(0.45, 0.18);
+  const place = (i, cx, cz, anywhere) => {
+    // Anillo alrededor de la cámara (al reciclar, en el borde del lado de donde viene el viento).
+    const a = Math.random() * Math.PI * 2;
+    const d = anywhere ? 4 + Math.random() * radius : radius * (0.75 + Math.random() * 0.25);
+    data[i * 4] = cx + Math.cos(a) * d;
+    data[i * 4 + 1] = 0.5 + Math.random() * 1.6;
+    data[i * 4 + 2] = cz + Math.sin(a) * d;
+    data[i * 4 + 3] = Math.random() * 50;
+    size[i] = 7 + Math.random() * 9;
+  };
+  for (let i = 0; i < count; i++) place(i, 0, 0, true);
+  let started = false;
+  return {
+    mesh,
+    setOpacity(v) {
+      mat.uniforms.uOpacity.value = v;
+    },
+    update(dt, camera) {
+      if (!camera) return;
+      const cx = camera.position.x;
+      const cz = camera.position.z;
+      if (!started) {
+        started = true;
+        for (let i = 0; i < count; i++) place(i, cx, cz, true);
+        geo.attributes.aSize.needsUpdate = true;
+      }
+      mat.uniforms.uTime.value += dt;
+      for (let i = 0; i < count; i++) {
+        data[i * 4] += wind.x * dt;
+        data[i * 4 + 2] += wind.y * dt;
+        const dx = data[i * 4] - cx;
+        const dz = data[i * 4 + 2] - cz;
+        if (dx * dx + dz * dz > radius * radius * 1.3) {
+          place(i, cx, cz, false);
+          geo.attributes.aSize.needsUpdate = true;
+        }
+      }
+      attr.needsUpdate = true;
+    },
+  };
+}
