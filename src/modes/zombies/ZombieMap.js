@@ -17,8 +17,8 @@ import { HOSPITAL, SUBESTACION, buildHospital, buildSubestacion, sign } from './
 const plankGeo = new THREE.BoxGeometry(1, 1, 1);
 // Bancos de niebla según el detalle: son cuadros transparentes grandes (cuestan relleno de píxeles), así
 // que en GPUs modestas van menos y algo más densos.
-const BANKS = { alta: 42, media: 14, baja: 8 };
-const BANK_OPACITY = { alta: 0.36, media: 0.46, baja: 0.5 };
+const BANKS = { alta: 60, media: 22, baja: 12 };
+const BANK_OPACITY = { alta: 0.46, media: 0.58, baja: 0.62 };
 
 // Franjas rojas y blancas en diagonal (vallas de obra).
 function stripeTexture() {
@@ -172,10 +172,10 @@ export class ZombieMap extends World {
   constructor() {
     super({
       name: 'Barrio en ruinas',
-      // Noche con niebla espesa (al estilo de los mapas de zombis clásicos): a 50 m ya casi no se ve.
-      background: '#18202c',
-      fogNear: 4,
-      fogFar: 46,
+      // Noche con niebla espesa (al estilo de los mapas de zombis clásicos): a unos 30 m ya casi no se ve.
+      background: '#1e2734',
+      fogNear: 2,
+      fogFar: 34,
       spawn: new THREE.Vector3(0, 0, 16), // en el vestíbulo
       // El jugador puede ir a todo el mapa: lo limitan los muros y las puertas cerradas.
       playerZone: { minX: -70, maxX: 66, minZ: -72, maxZ: 64 },
@@ -185,7 +185,7 @@ export class ZombieMap extends World {
     this.hemi = new THREE.HemisphereLight('#8ea6cc', '#262019', 1.05);
     scene.add(this.hemi);
     // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
-    scene.add(createSky({ ...SKIES.fire, horizon: '#18202c' }));
+    scene.add(createSky({ ...SKIES.fire, horizon: '#1e2734' }));
     const moon = new THREE.DirectionalLight('#b9cdf5', 1.45);
     moon.position.set(-18, 30, 12);
     scene.add(moon);
@@ -412,9 +412,9 @@ export class ZombieMap extends World {
     scene.add(this.fireFx.group);
     // Niebla: bruma baja más espesa y clara (se ve "flotar" a la luz de las farolas) y bancos de niebla
     // que se mueven alrededor del jugador.
-    HEIGHT_FOG.uHFog.value.set(0.08, 0.38, 0, 1);
-    HEIGHT_FOG.uHFogColor.value.set('#455266');
-    this.fog = fogBanks({ count: BANKS.alta, color: '#6f7c90', opacity: 0.36 });
+    HEIGHT_FOG.uHFog.value.set(0.13, 0.32, 0, 1);
+    HEIGHT_FOG.uHFogColor.value.set('#4b586c');
+    this.fog = fogBanks({ count: BANKS.alta, radius: 26, color: '#76839a', opacity: 0.46 });
     scene.add(this.fog.mesh);
     applyHeightFog(scene);
     this.lights.setCount(LIGHTS_FOR.alta);
