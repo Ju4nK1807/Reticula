@@ -470,7 +470,7 @@ export class Zombie {
 
   /** Marca de bala en el cuerpo (donde pegó). */
   wound(point, part) {
-    this.skin?.wound(point, part === 'head' ? 5 : 7);
+    this.skin?.wound(point, part === 'head' ? 6 : 9);
   }
 
   /** Aturdido por una granada: se mueve a media velocidad durante `t` segundos. */

@@ -69,4 +69,8 @@
 }
 .tc-btn.shop:active { transform: translateX(-50%) scale(0.95); }
 .touch-controls.can-shop .tc-btn.shop { display: grid; }
+/* Linterna (modo zombi): debajo de la vida; amarilla mientras alumbra. */
+.tc-btn.light { display: none; right: 22px; top: 172px; }
+.touch-controls.can-light .tc-btn.light { display: grid; }
+.touch-controls.light-on .tc-btn.light { color: #ffe39a; border-color: rgba(255, 227, 154, 0.7); }
 .tc-label { font: 700 12px var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; }

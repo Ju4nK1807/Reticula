@@ -19,6 +19,11 @@ import * as THREE from 'three';
 export const HEIGHT_FOG = {
   uHFog: { value: new THREE.Vector4(0.016, 0.5, 0, 1) },
   uHFogColor: { value: new THREE.Color('#1c2330') },
+  // Haz de la linterna (sale de la cámara): la niebla dentro del cono se ilumina.
+  // uBeam: dirección (xyz) · fuerza (w; 0 = apagada) · uBeamCone: cosenos del borde y del centro.
+  uBeam: { value: new THREE.Vector4(0, 0, -1, 0) },
+  uBeamCone: { value: new THREE.Vector2(0.9, 0.97) },
+  uBeamColor: { value: new THREE.Color('#fff1d8') },
 };
 
 const FOG_PARS_VERT = /* glsl */ `#include <fog_pars_vertex>
@@ -41,6 +46,9 @@ const FOG_PARS_FRAG = /* glsl */ `#include <fog_pars_fragment>
 varying vec3 vFogWorld;
 uniform vec4 uHFog;
 uniform vec3 uHFogColor;
+uniform vec4 uBeam;
+uniform vec2 uBeamCone;
+uniform vec3 uBeamColor;
 #endif`;
 // Profundidad óptica de una densidad a·e^(−b·(y−h0)) entre la cámara y el punto (fórmula cerrada).
 const FOG_FRAG = /* glsl */ `#ifdef USE_FOG
@@ -57,6 +65,12 @@ const FOG_FRAG = /* glsl */ `#ifdef USE_FOG
   float hfFog = 1.0 - exp( - uHFog.x * exp( - ( cameraPosition.y - uHFog.z ) * hfB ) * hfK );
   gl_FragColor.rgb = mix( gl_FragColor.rgb, uHFogColor, hfFog * uHFog.w );
   gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+  // Linterna: la luz que la niebla dispersa dentro del cono (más cuanto más niebla atraviesa el rayo,
+  // y se apaga con la distancia).
+  if ( uBeam.w > 0.0 ) {
+    float hfCone = smoothstep( uBeamCone.x, uBeamCone.y, dot( hfR / max( hfT, 1e-4 ), uBeam.xyz ) );
+    gl_FragColor.rgb += uBeamColor * ( uBeam.w * hfCone * ( 0.55 * fogFactor + hfFog ) / ( 1.0 + hfT * 0.06 ) );
+  }
 #endif`;
 
 /** Añade la niebla baja al sombreador (para encadenar con otros parches, p. ej. el de los zombis). */
@@ -555,12 +569,17 @@ uniform float uFade; // m: más cerca de la cámara se desvanecen
 varying vec2 vUv;
 varying float vSeed;
 varying float vNear;
+varying vec3 vRay;
 #include <fog_pars_vertex>
 void main() {
   vUv = uv;
   vSeed = aBank.w;
   vec4 mvPosition = viewMatrix * vec4(aBank.xyz, 1.0);
   vNear = smoothstep(uFade * 0.35, uFade, -mvPosition.z);
+  // Del ojo a este vértice en el mundo (para saber si cae dentro del haz de la linterna).
+  vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+  vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+  vRay = aBank.xyz + right * position.x * aSize + up * position.y * aSize * 0.45 - cameraPosition;
   mvPosition.xy += position.xy * vec2(aSize, aSize * 0.45);
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
@@ -569,9 +588,13 @@ const BANK_FRAG = /* glsl */ `
 uniform float uTime;
 uniform vec3 uColor;
 uniform float uOpacity;
+uniform vec4 uBeam;
+uniform vec2 uBeamCone;
+uniform vec3 uBeamColor;
 varying vec2 vUv;
 varying float vSeed;
 varying float vNear;
+varying vec3 vRay;
 #include <fog_pars_fragment>
 ${NOISE}
 void main() {
@@ -581,6 +604,11 @@ void main() {
   float a = smoothstep(1.0, 0.15, r) * smoothstep(0.25, 0.75, n) * uOpacity * vNear;
   if (a < 0.004) discard;
   vec3 c = uColor;
+  // Dentro del haz de la linterna la bruma se enciende (y se ve algo más espesa).
+  float dist = length(vRay);
+  float lit = uBeam.w * smoothstep(uBeamCone.x - 0.03, uBeamCone.y, dot(vRay / max(dist, 1e-3), uBeam.xyz)) / (1.0 + dist * 0.09);
+  c += uBeamColor * lit * 1.4;
+  a = min(1.0, a * (1.0 + lit * 0.8));
   #ifdef USE_FOG
     float f = smoothstep(fogNear, fogFar, vFogDepth);
     c = mix(c, fogColor, f);
@@ -610,6 +638,8 @@ export function fogBanks({ count = 42, radius = 34, color = '#5a6678', opacity =
     depthWrite: false,
     fog: true,
   });
+  // El haz de la linterna es el mismo que el de la niebla baja (uniformes compartidos).
+  for (const k of ['uBeam', 'uBeamCone', 'uBeamColor']) mat.uniforms[k] = HEIGHT_FOG[k];
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
   mesh.userData.noShadow = true;
@@ -632,6 +662,9 @@ export function fogBanks({ count = 42, radius = 34, color = '#5a6678', opacity =
     mesh,
     setOpacity(v) {
       mat.uniforms.uOpacity.value = v;
+    },
+    setColor(c) {
+      mat.uniforms.uColor.value.set(c);
     },
     update(dt, camera) {
       if (!camera) return;

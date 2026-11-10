@@ -19,6 +19,18 @@ const plankGeo = new THREE.BoxGeometry(1, 1, 1);
 // que en GPUs modestas van menos y algo más densos.
 const BANKS = { alta: 60, media: 22, baja: 12 };
 const BANK_OPACITY = { alta: 0.46, media: 0.58, baja: 0.62 };
+// Ambiente del mapa: la noche normal (historia) y la de terror del modo zombi (setDread), casi a oscuras
+// y con más niebla: sin la linterna se ve muy poco.
+const CALM = {
+  hemi: 1.05, moon: 1.45, env: 0.3, background: '#1e2734', fogNear: 2, fogFar: 34,
+  hfog: [0.13, 0.32, 0, 1], hfogColor: '#4b586c', banks: '#76839a', bankMul: 1,
+  sky: { horizon: '#1e2734', glowAmount: SKIES.fire.glowAmount, stars: SKIES.fire.stars, moon: 1 },
+};
+const DREAD = {
+  hemi: 0.1, moon: 0.1, env: 0.06, background: '#07090c', fogNear: 1, fogFar: 26,
+  hfog: [0.2, 0.28, 0, 1], hfogColor: '#11151b', banks: '#232a33', bankMul: 1.2,
+  sky: { horizon: '#07090c', glowAmount: 0.22, stars: 0.12, moon: 0.25 },
+};
 
 // Franjas rojas y blancas en diagonal (vallas de obra).
 function stripeTexture() {
@@ -185,10 +197,13 @@ export class ZombieMap extends World {
     this.hemi = new THREE.HemisphereLight('#8ea6cc', '#262019', 1.05);
     scene.add(this.hemi);
     // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
-    scene.add(createSky({ ...SKIES.fire, horizon: '#1e2734' }));
+    this.sky = createSky({ ...SKIES.fire, horizon: '#1e2734' });
+    scene.add(this.sky);
     const moon = new THREE.DirectionalLight('#b9cdf5', 1.45);
     moon.position.set(-18, 30, 12);
     scene.add(moon);
+    this.moon = moon;
+    this.dread = false;
     this.envIntensity = 0.3;
     this.groundY = 0.02; // el asfalto es una losa de 2 cm
     // Luces del mapa: fuentes que se reparten un puñado de luces reales (atmosphere.js), conos bajo las
@@ -347,7 +362,7 @@ export class ZombieMap extends World {
     this.forge(FORGE_SPOT, M);
     // Charcos (mojados: reflejan las luces) y manchas en la plaza y las calles.
     for (const [x, z, s, ry] of [[-6, 7, 2.6, 0.3], [10.5, -11, 3.2, 1.2], [-12.5, -7, 2.2, 2.2], [3, -17.5, 2.4, 0.7], [16.5, 5, 1.9, 1.9], [-4, -3.5, 2.8, 2.6], [6, 2, 1.6, 0.9], [44, 12, 3, 0.4], [10, -44, 2.5, 1.7]]) this.decal('puddle', x, z, s, ry);
-    for (const [x, z, s, ry] of [[-9, 4.6, 1.4, 0.2], [13, -6, 1.1, 1.9], [-17, -14, 1.3, 2.8], [6.5, 12.2, 1.2, 0.6]]) this.decal('blood', x, z, s, ry);
+    for (const [x, z, s, ry] of [[-9, 4.6, 1.4, 0.2], [13, -6, 1.1, 1.9], [-17, -14, 1.3, 2.8], [6.5, 12.2, 1.2, 0.6], [2, -3, 2.2, 1.1], [-4, -9, 1.6, 2.2], [10, 3, 1.8, 0.4], [-13, 8, 1.5, 1.6], [17, -14, 1.7, 2.9], [-6, 11, 1.2, 0.9], [4, -17, 1.9, 0.2], [-20, -4, 1.4, 2.5]]) this.decal('blood', x, z, s, ry);
     for (const [x, z, s, ry] of [[-3, 12, 1.8, 0.2], [18, -17, 2.2, 1.0], [-19, 9, 2, 2.3], [11, 17.5, 1.6, 0.4], [2, -36, 2.4, 1.6], [40, 4, 2, 2.2], [-8, 40, 2.6, 0.9]]) this.decal('litter', x, z, s, ry);
 
     // Navegación: todo el mapa (plaza, callejones, secciones y sus entradas).
@@ -881,6 +896,33 @@ export class ZombieMap extends World {
     return mat;
   }
 
+  /**
+   * Noche de terror (modo zombi): luna y cielo casi apagados, reflejos mínimos y niebla negra más
+   * espesa. Las farolas, el fuego y la linterna del jugador son lo único que alumbra. false = la noche
+   * normal (la usa la historia).
+   */
+  setDread(on) {
+    this.dread = on;
+    const v = on ? DREAD : CALM;
+    this.hemi.intensity = v.hemi;
+    this.moon.intensity = v.moon;
+    this.envIntensity = v.env;
+    this.scene.environmentIntensity = v.env;
+    this.scene.background.set(v.background);
+    this.scene.fog.color.set(v.background);
+    this.scene.fog.near = v.fogNear;
+    this.scene.fog.far = v.fogFar;
+    HEIGHT_FOG.uHFog.value.set(...v.hfog);
+    HEIGHT_FOG.uHFogColor.value.set(v.hfogColor);
+    this.fog.setColor(v.banks);
+    const u = this.sky.material.uniforms;
+    u.uHorizon.value.set(v.sky.horizon);
+    u.uGlowAmount.value = v.sky.glowAmount;
+    u.uStars.value = v.sky.stars;
+    if (u.uMoon.value > 0) u.uMoon.value = v.sky.moon;
+    this.setDetail(this.detail ?? 'alta');
+  }
+
   /** Enciende o apaga la electricidad del barrio: farolas, conos de luz y máquinas. */
   setPower(on) {
     this.powered = on;
@@ -1280,9 +1322,10 @@ export class ZombieMap extends World {
   // Calidad gráfica (la llama Game al cambiar el detalle): cuántas luces reales y la resolución de las
   // texturas de los zombis.
   setDetail(detail) {
+    this.detail = detail;
     this.lights.setCount(LIGHTS_FOR[detail] ?? LIGHTS_FOR.media);
     this.fog.mesh.geometry.instanceCount = BANKS[detail] ?? BANKS.media;
-    this.fog.setOpacity(BANK_OPACITY[detail] ?? BANK_OPACITY.media);
+    this.fog.setOpacity(Math.min(0.85, (BANK_OPACITY[detail] ?? BANK_OPACITY.media) * (this.dread ? DREAD : CALM).bankMul));
     setZombieDetail(detail);
     this.buildShadowProxy();
   }

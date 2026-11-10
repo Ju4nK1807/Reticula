@@ -10,8 +10,8 @@ import * as THREE from 'three';
   Las texturas se dibujan en un canvas al crear el efecto (no hay que descargar nada).
 */
 
-const MIST = 64;
-const DECALS = 72;
+const MIST = 128;
+const DECALS = 160;
 const FLOOR_Y = 0.025;
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -161,24 +161,29 @@ export class BloodFx {
 
   /** Impacto de bala: neblina en el punto y, a veces, salpicadura en el suelo detrás. */
   hit(point, dir, strength = 1) {
-    const n = Math.round(3 * strength);
+    const n = Math.round(5 * strength);
     for (let i = 0; i < n; i++) {
       const m = this.mist[this.mistIndex];
       this.mistIndex = (this.mistIndex + 1) % MIST;
       m.pos.copy(point);
       m.vel.set(Math.random() - 0.5, Math.random() * 0.6, Math.random() - 0.5).multiplyScalar(0.9).addScaledVector(dir, 1.1 + Math.random());
       m.max = m.life = 0.35 + Math.random() * 0.25;
-      m.size = (0.18 + Math.random() * 0.14) * strength;
+      m.size = (0.22 + Math.random() * 0.18) * strength;
     }
-    if (Math.random() < 0.55) {
-      _p.copy(point).addScaledVector(dir, 0.6 + Math.random() * 1.4);
-      this.splat(_p, 0.35 + Math.random() * 0.45 * strength, 0);
+    // Salpicadura detrás (en la dirección del tiro) y goteo a los pies del zombi.
+    if (Math.random() < 0.85) {
+      _p.copy(point).addScaledVector(dir, 0.6 + Math.random() * 1.6);
+      this.splat(_p, 0.45 + Math.random() * 0.6 * strength, 0);
+    }
+    if (Math.random() < 0.5) {
+      _p.set(point.x + (Math.random() - 0.5) * 0.5, 0, point.z + (Math.random() - 0.5) * 0.5);
+      this.splat(_p, 0.2 + Math.random() * 0.25, 0);
     }
   }
 
   /** Charco bajo un cuerpo: crece durante unos segundos. */
   pool(pos, scale = 1) {
-    this.splat(pos, (1 + Math.random() * 0.5) * scale, 2.5);
+    this.splat(pos, (1.4 + Math.random() * 0.7) * scale, 3);
   }
 
   splat(pos, size, grow) {

@@ -13,6 +13,8 @@ import { acquireZombieSkin, loadZombieModel, pooledZombieSkins, prefillZombieSki
 import { BloodFx } from './BloodFx.js';
 import { addHeightFog, nightEnvironment } from './atmosphere.js';
 import { setGrade } from '../../gfx/grade.js';
+import { Flashlight } from './flashlight.js';
+import { setZombieRim } from './zombieLook.js';
 
 export const MODE_ID = 'zombies';
 export const DEFENSE_ID = 'zombie-defense';
@@ -44,7 +46,14 @@ const FORGE_GLOW = new THREE.ShaderMaterial({
 const PREFILL = 30;
 const WARM = 26; // los que se crean mientras se lee la pantalla de inicio
 // Color de la noche (calidad alta): algo desaturado, negros fríos, luces cálidas, viñeta y grano.
-const GRADE = { saturation: 0.86, contrast: 1.06, vignette: 0.55, grain: 0.028, lift: [0.004, 0.007, 0.013], gain: [1.03, 1.0, 0.95] };
+// Color de la noche de terror (calidad alta): desaturado, negros profundos, viñeta fuerte y grano.
+const GRADE = { saturation: 0.78, contrast: 1.12, vignette: 0.85, grain: 0.04, lift: [0, 0.002, 0.006], gain: [1.02, 0.97, 0.92] };
+// Cámara más cerrada que en los demás modos (aumento sobre el campo de visión elegido): se ve menos
+// alrededor y los zombis se ven más grandes y cerca.
+const VIEW_ZOOM = 1.3;
+// Luz del arma en primera persona (se dibuja aparte): a oscuras casi no se ve; con la linterna, algo más.
+const VM_DARK = 0.2;
+const VM_LIT = 0.55;
 
 /*
   Modo zombi. Estados:
@@ -118,6 +127,13 @@ export class Zombies extends Mode {
     addHeightFog(this.ash.points.material);
     addHeightFog(this.blood.decals.material);
     setGrade(GRADE);
+    // Terror: el barrio casi a oscuras y con más niebla; la linterna es la luz del jugador (se crea
+    // antes de precalentar: los sombreadores ya cuentan con ella).
+    g.world.setDread?.(true);
+    setZombieRim(0.35); // sin luna, la silueta casi no se recorta: se ven por los ojos
+    this.flashlight = new Flashlight(g.world.scene);
+    this.flashlight.setShadows(g.engine.detail === 'alta');
+    this.vmLights = g.viewmodel.scene.children.filter((o) => o.isLight).map((light) => ({ light, base: light.intensity }));
     // Defensa: la fuente se vuelve una barra llena de botellas.
     if (this.variant === 'defense') this.bar = new Bar(g, this.root);
     this.showIntro();
@@ -208,6 +224,18 @@ export class Zombies extends Mode {
   }
 
   // --- Interfaz de modo -------------------------------------------------------------------------------
+  // Aumento de la cámara principal (Game lo multiplica por el de las miras).
+  get viewZoom() {
+    return VIEW_ZOOM;
+  }
+
+  // Prende o apaga la linterna (tecla F o botón táctil).
+  toggleFlashlight() {
+    if (!this.flashlight || !COMBAT.has(this.state) || this.shopOpen) return;
+    this.flashlight.toggle();
+    this.game.sfx.tone('square', 2300, 1500, 0.025, 0.05); // clic del interruptor
+  }
+
   wantsLock() {
     return COMBAT.has(this.state) && !this.shopOpen;
   }
@@ -286,6 +314,7 @@ export class Zombies extends Mode {
 
   // Acciones propias del modo (las llama Game.onKey): usar / comprar.
   onKey(e, action) {
+    if (action === 'flashlight' && !e.repeat) this.toggleFlashlight();
     if (action !== 'interact' || e.repeat) return;
     if (this.nearBarricade) return; // reparar se hace manteniendo la tecla (en update)
     if (this.near) this.buyNear();
@@ -395,6 +424,8 @@ export class Zombies extends Mode {
     g.hud.setHealth(1);
     g.hud.setLabel(`${this.variant === 'defense' ? 'Defensa de la barra' : 'Modo zombi'} · ${DIFFICULTIES[this.difficulty].name}`);
     this.hud.setVisible(true);
+    this.flashlight.on = true;
+    g.hud.flash(g.touchMode ? 'Linterna: botón de la luz' : `Linterna: ${keyLabel(g.settings.keys, 'flashlight')} para prender o apagar`, 'info');
     this.state = 'countdown';
     this.timer = FIRST_COUNTDOWN;
     this.nextWave = 1;
@@ -413,6 +444,7 @@ export class Zombies extends Mode {
     const run = this.run;
     this.ash?.update(dt, true);
     this.blood?.update(this.state === 'dying' ? dt * DEATH_SLOWMO : dt);
+    this.updateFlashlight(dt);
     if (!run) return;
     if (this.state === 'countdown' || this.state === 'intermission') this.prefillSkins();
     switch (this.state) {
@@ -468,6 +500,15 @@ export class Zombies extends Mode {
     g.hud.setStats(run.hudStats());
     this.hud.update(g, run, this);
     this.updateForgeGlow(dt);
+  }
+
+  // La linterna sigue la mirada; el arma en primera persona se ilumina según esté prendida.
+  updateFlashlight(dt) {
+    const g = this.game;
+    if (!this.flashlight) return;
+    this.flashlight.update(dt, g.engine.camera, g.engine.detail);
+    const k = VM_DARK + (VM_LIT - VM_DARK) * this.flashlight.level;
+    for (const v of this.vmLights) v.light.intensity = v.base * k;
   }
 
   // Sufijo del nombre del arma en el HUD: las forjadas lo dicen.
@@ -682,6 +723,12 @@ export class Zombies extends Mode {
     this.blood?.dispose();
     this.blood = null;
     setGrade(null);
+    this.flashlight?.dispose();
+    this.flashlight = null;
+    for (const v of this.vmLights ?? []) v.light.intensity = v.base;
+    this.vmLights = null;
+    g.world.setDread?.(false);
+    setZombieRim(1);
     g.world.camera = null;
     this.bar?.dispose();
     this.bar = null;
