@@ -45,9 +45,8 @@ const FORGE_GLOW = new THREE.ShaderMaterial({
 });
 const PREFILL = 30;
 const WARM = 26; // los que se crean mientras se lee la pantalla de inicio
-// Color de la noche (calidad alta): algo desaturado, negros fríos, luces cálidas, viñeta y grano.
-// Color de la noche de terror (calidad alta): desaturado, negros profundos, viñeta fuerte y grano.
-const GRADE = { saturation: 0.78, contrast: 1.12, vignette: 0.85, grain: 0.04, lift: [0, 0.002, 0.006], gain: [1.02, 0.97, 0.92] };
+// Color de la noche de terror (calidad alta): desaturado y frío, negros profundos, viñeta fuerte y grano.
+const GRADE = { saturation: 0.74, contrast: 1.16, vignette: 0.95, grain: 0.045, lift: [0, 0.003, 0.008], gain: [0.98, 0.99, 1.0] };
 // Cámara más cerrada que en los demás modos (aumento sobre el campo de visión elegido): se ve menos
 // alrededor y los zombis se ven más grandes y cerca.
 const VIEW_ZOOM = 1.3;
