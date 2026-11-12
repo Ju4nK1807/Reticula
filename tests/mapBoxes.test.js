@@ -136,9 +136,14 @@ describe('espacio libre: puertas, pasillos, entradas, compras y escaleras', () =
       const s = BOX_SPOTS[i];
       const hx = Math.abs(Math.cos(s.ry)) > 0.5 ? 0.85 : 0.43;
       const hz = Math.abs(Math.cos(s.ry)) > 0.5 ? 0.43 : 0.85;
-      const hit = penetrates(footprint(s.x, s.z, hx, hz), 0, 0.85, world.box.collider);
+      // Apoyada en su piso: el mismo en todo el ancho de la caja (no a medias sobre una vereda).
+      const y0 = world.floorAt(s.x, s.z, 0);
+      const hit = penetrates(footprint(s.x, s.z, hx, hz), y0, y0 + 0.85, world.box.collider);
       if (hit) bad.push(`caja en ${s.where}`);
-      if (Math.abs(world.floorAt(s.x, s.z, 0)) > 0.01) bad.push(`caja en ${s.where} sobre una vereda`);
+      if (Math.abs(world.box.group.position.y - y0) > 0.01) bad.push(`caja en ${s.where} flota o está enterrada`);
+      for (const [dx, dz] of [[-hx, -hz], [hx, -hz], [-hx, hz], [hx, hz]]) {
+        if (Math.abs(world.floorAt(s.x + dx, s.z + dz, 0) - y0) > 0.01) bad.push(`caja en ${s.where} a medias sobre una vereda`);
+      }
     }
     world.moveBox(0);
     expect(bad).toEqual([]);

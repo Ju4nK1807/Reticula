@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { BOX_SPOTS, ZombieMap } from '../src/modes/zombies/ZombieMap.js';
 import { NavGrid } from '../src/modes/zombies/navGrid.js';
+import { RELICARIO, RELICARIO_BOX } from '../src/modes/zombies/relicario.js';
 import { DOORS, PERKS, WALL_BUYS, doorSection } from '../src/modes/zombies/zombieData.js';
 
 const world = new ZombieMap();
@@ -301,6 +302,23 @@ describe('electricidad, caja misteriosa y Forja', () => {
     expect(world.beacon.src.on).toBe(false);
     expect(world.lever.target).toBe(world.lever.on);
     world.setPower(false);
+  });
+
+  it('la caja empieza en el Relicario: un rincón cerrado de la plaza con una sola entrada', () => {
+    const R = RELICARIO;
+    world.moveBox(0);
+    const p = world.box.group.position;
+    expect(BOX_SPOTS[0]).toBe(RELICARIO_BOX);
+    expect(p.x > R.minX && p.x < R.maxX && p.z > R.minZ && p.z < R.maxZ).toBe(true);
+    // Recorrido por el muro sur: libre solo en el hueco de la puerta.
+    const zWall = R.maxZ - R.t / 2;
+    const open = [];
+    for (let x = R.minX + 0.6; x < R.maxX - 0.3; x += 0.25) if (world.isFree(x, zWall, 0.3)) open.push(x);
+    expect(open.length).toBeGreaterThan(0);
+    expect(Math.min(...open)).toBeGreaterThanOrEqual(R.door[0]);
+    expect(Math.max(...open)).toBeLessThanOrEqual(R.door[1]);
+    // Y el muro oeste, cerrado de punta a punta.
+    for (let z = R.minZ + 0.3; z < R.maxZ; z += 0.25) expect(world.isFree(R.minX + R.t / 2, z, 0.3)).toBe(false);
   });
 
   it('cada lugar de la caja misteriosa es alcanzable y se usa desde un sitio libre', () => {
