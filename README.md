@@ -224,7 +224,7 @@ mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requ
 - **El Circo y las barricadas**: se empieza encerrado en una carpa de circo abandonada (lona a
   rayas, pista con aserrín, banderines y focos de colores) con cuatro ventanas tapiadas. Los zombis
   salen de la tierra, arrancan los tablones uno a uno y recién entonces entran; mantener `E` junto a
-  una ventana la repara (+10 puntos por tablón, hasta 500 por oleada). Todas las entradas del mapa
+  una ventana la repara (+10 puntos por tablón, hasta 500 por ronda). Todas las entradas del mapa
   tienen su barricada.
 - **Secciones**: las puertas tapiadas se compran con puntos (`E`, desde cualquiera de sus lados).
   Cada una lleva un cartel con el precio. Al acercarte aparece «Presiona [E] para abrir ($precio)»,
@@ -257,17 +257,26 @@ mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requ
 
   Los íconos son siluetas en SVG (`src/ui/weaponIcons.js`). Para usar imágenes, pon el archivo en
   `public/icons/weapons/` y su ruta en `ICON_IMAGES`.
-- **Dificultad de los clásicos**: la vida sigue la de la ronda (150, 250, 350… y ×1.1 desde la 10);
-  el cuchillo hace 150 (1 golpe en la ronda 1, 2 en la 2…); tres golpes tumban sin Coraza y la vida
-  se regenera tras 5 s. Un tiro a la cabeza la hace volar, y algunos siguen caminando sin ella hasta
-  desangrarse.
+- **Rondas**: la ronda 1 trae 6 caminantes lentos que mueren de 2 tiros de pistola (o 1 a la cabeza).
+  En cada ronda aumentan la cantidad, la vida, la velocidad y el daño. Las fórmulas y todos los
+  valores de balance están en `src/modes/zombies/roundConfig.js`:
+  - cantidad = 4 + 1.6 × ronda (+ una curva suave)
+  - vida = 55 × (1 + 0.2 × (ronda − 1)), y ×1.1 por ronda desde la 10
+  - velocidad ×0.75 → ×1.35
+  - daño ×0.6 → ×1.4
+
+  En pantalla se ven la ronda y los zombis que faltan. Entre rondas hay 12 s de pausa con el cartel
+  «Ronda X» y la armería abierta. Vivos a la vez: hasta 24, con un tope según la calidad gráfica
+  (baja 14, media 20, alta 24). El cuchillo hace 150.
+- **Vida y golpes**: la vida se regenera tras 5 s sin recibir golpes. Un tiro a la cabeza la hace
+  volar, y algunos zombis siguen caminando sin ella hasta desangrarse.
 - **Armas en la pared**: se empieza con la pistola (munición infinita). Las demás están colgadas en las
   paredes de cada sección (revólver, subfusil, rifle, escopeta, ráfaga, tirador, ametralladora,
   francotirador); con el arma ya comprada, el mismo puesto vende su munición a mitad de precio.
 - **Bebidas** (máquinas del mapa, duran hasta caer): Coraza (vida 250), Doble Plomo (+50 % de daño,
   +25 % de cadencia), Mano Rápida (recarga al doble), Pies Ligeros (+15 % de velocidad), Segundo Aire
   (regenera antes y más rápido) y Último Aliento (si caes, te levantas una vez con toda la vida).
-- **Armería** entre oleadas (`E` o botón táctil): munición, botiquín y cuatro granadas —
+- **Armería** entre rondas (`E` o botón táctil): munición, botiquín y cuatro granadas —
   fragmentación, incendiaria (deja fuego), aturdidora (frena a la horda) y señuelo (atrae a los zombis
   y explota). `G` lanza y `Q` cambia de tipo.
 - **Tipos**: caminante, corredor (rápido), reptante (bajo, difícil de acertar) y bruto (mucha vida y

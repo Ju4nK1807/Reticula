@@ -16,7 +16,7 @@ function rules(game) {
   // Una vez por sección (el Hospital tiene dos puertas con el mismo precio).
   const doors = [...new Map(Object.values(DOORS).map((d) => [d.name, d])).values()].map((d) => `${d.name} (${fmt(d.price)})`).join(', ');
   return [
-    ['Resiste la horda', 'Cada oleada trae más zombis, más resistentes y más rápidos. La partida termina cuando caes. Te recuperas si pasas unos segundos sin recibir golpes.'],
+    ['Resiste la horda', 'Cada ronda trae más zombis, más resistentes y más rápidos. La partida termina cuando caes. Te recuperas si pasas unos segundos sin recibir golpes.'],
     ['Linterna', `Es de noche y la niebla no deja ver: lo único que alumbra es tu linterna. Préndela o apágala${touch ? ' con el botón de la luz' : key('flashlight')}; apagada, solo vas a ver los ojos de los payasos.`],
     ['Gana puntos', `Cada impacto da puntos; matar da más, sobre todo a la cabeza, con el cuchillo${key('melee')} o con granadas${key('grenade')}.`],
     ['Barricadas', `Empiezas encerrado en el Vestíbulo. La horda sale de la tierra y arranca los tablones de las ventanas; mantén${key('interact')} junto a una ventana para repararla (+${BARRICADE.repairPoints} por tablón).`],
@@ -26,7 +26,7 @@ function rules(game) {
     ['La Forja', `En el quirófano del Hospital, con electricidad: ${fmt(FORGE.price)} puntos forjan el arma que llevas en la mano (doble daño, cargador y reserva más grandes).`],
     ['Armas en la pared', `Empiezas con la pistola (munición infinita). Las demás están colgadas en las paredes: acércate y cómpralas${key('interact')}; con el arma ya comprada, el mismo puesto vende su munición.`],
     ['Bebidas', `${Object.keys(PERKS).length} máquinas repartidas por el mapa: ${Object.values(PERKS).map((p) => p.name).join(', ')}. Duran hasta que caes (Último Aliento te levanta una vez).`],
-    ['Granadas y armería', `Entre oleadas abre la armería${key('interact')}: munición, botiquín y cuatro tipos de granada (fragmentación, incendiaria, aturdidora y señuelo). Cambia de tipo${key('grenadeNext')}.`],
+    ['Granadas y armería', `Entre rondas abre la armería${key('interact')}: munición, botiquín y cuatro tipos de granada (fragmentación, incendiaria, aturdidora y señuelo). Cambia de tipo${key('grenadeNext')}.`],
     ['Potenciadores', `Algunos zombis sueltan un cristal brillante: ${Object.values(POWERUPS).map((p) => p.name.toLowerCase()).join(', ')}. Pasa por encima para tomarlo.`],
     ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte. Una explosión cerca puede arrancarles las piernas: siguen arrastrándose.'],
   ];
@@ -41,7 +41,7 @@ function controls(keys) {
     [k('reload'), 'Recargar'],
     [k('melee'), 'Cuchillo'],
     [`${k('grenade')} · ${k('grenadeNext')}`, 'Granada · cambiar de tipo'],
-    [k('interact'), 'Comprar lo que tienes delante · armería (entre oleadas)'],
+    [k('interact'), 'Comprar lo que tienes delante · armería (entre rondas)'],
     ['Esc', 'Pausa'],
   ];
 }
@@ -51,7 +51,7 @@ function records(record) {
   return h(
     'div',
     { class: 'zh-records' },
-    h('div', {}, h('small', {}, 'Mejor oleada'), h('strong', {}, record.bestWave)),
+    h('div', {}, h('small', {}, 'Mejor ronda'), h('strong', {}, record.bestWave)),
     h('div', {}, h('small', {}, 'Récord de puntos'), h('strong', {}, fmt(record.bestScore))),
     h('div', {}, h('small', {}, 'Más bajas'), h('strong', {}, record.bestKills)),
     h('div', {}, h('small', {}, 'Partidas'), h('strong', {}, record.totalRuns)),
@@ -66,7 +66,7 @@ function defenseRules(touch, lightKey = 'F') {
     ['Defiende la barra', 'La fuente de la plaza es una barra llena de botellas de licor. Los zombis van primero por ella: cada golpe rompe botellas. Si se rompe la última, se acaba la partida.'],
     ['Atráelos', `Un zombi deja la barra y te persigue si te acercas a menos de ${DEFENSE.aggroRange} m o si le disparas (por unos segundos). Úsalo para sacarlos de la barra.`],
     ['Cuidado con la puntería', 'Las botellas también se rompen con tus balas: dispara con cuidado cerca de la barra.'],
-    ['Armería', `Entre oleadas${key('E')} puedes comprar armas, granadas y «Reponer licor» (${DEFENSE.restock} botellas).`],
+    ['Armería', `Entre rondas${key('E')} puedes comprar armas, granadas y «Reponer licor» (${DEFENSE.restock} botellas).`],
   ];
 }
 
@@ -83,7 +83,7 @@ function difficultyPicker(record, current, onPick) {
         { class: `zh-diff${id === current ? ' active' : ''}`, type: 'button', role: 'radio', 'aria-checked': id === current ? 'true' : 'false', style: { '--c': DIFF_COLORS[id] }, onclick: () => onPick(id) },
         h('strong', {}, d.name),
         h('small', {}, d.desc),
-        h('span', { class: 'zh-best' }, best?.totalRuns ? `Récord: oleada ${best.bestWave}` : 'Sin jugar'),
+        h('span', { class: 'zh-best' }, best?.totalRuns ? `Récord: ronda ${best.bestWave}` : 'Sin jugar'),
       );
     }),
   );
@@ -142,7 +142,7 @@ export function zombieShopScreen({ state, onBuy, onClose }) {
       h(
         'div',
         {},
-        h('div', { class: 'eyebrow' }, 'Entre oleadas'),
+        h('div', { class: 'eyebrow' }, 'Entre rondas'),
         h('h2', {}, 'Armería'),
         h('p', { class: 'muted small' }, `Vida ${Math.round(state.health)} / ${state.maxHealth} · Granadas (frag. · incend. · aturd. · señuelo) ${nades}`),
         h('p', { class: 'muted small' }, 'Las armas están colgadas en las paredes del mapa y las mejoras en las máquinas de bebidas.'),
@@ -194,8 +194,8 @@ export function zombieResultsScreen({ result, record, isBest, variant = 'surviva
       'section',
       { class: 'panel zh-result-hero' },
       h('div', { class: 'eyebrow' }, `${isBest ? 'Nuevo récord' : lost} · ${diff}`),
-      h('h2', {}, `Oleada ${result.wave}`),
-      h('p', { class: 'muted' }, isBest ? `¡Tu mejor resistencia en ${diff}!` : `Tu récord en ${diff}: oleada ${record.byDifficulty?.[result.difficulty]?.bestWave ?? record.bestWave} · ${fmt(record.byDifficulty?.[result.difficulty]?.bestScore ?? record.bestScore)} pts`),
+      h('h2', {}, `Ronda ${result.wave}`),
+      h('p', { class: 'muted' }, isBest ? `¡Tu mejor resistencia en ${diff}!` : `Tu récord en ${diff}: ronda ${record.byDifficulty?.[result.difficulty]?.bestWave ?? record.bestWave} · ${fmt(record.byDifficulty?.[result.difficulty]?.bestScore ?? record.bestScore)} pts`),
     ),
     h(
       'div',

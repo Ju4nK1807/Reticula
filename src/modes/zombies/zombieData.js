@@ -2,14 +2,14 @@
   Datos del modo zombi: tipos de zombi, oleadas, economía (puntos y armería) y potenciadores.
   Todo son funciones puras (sin Three.js ni DOM): ver tests/zombieData.test.js.
 */
+import { FIRST_COUNTDOWN, INTERMISSION, ROUNDS } from './roundConfig.js';
 
 // --- Tipos de zombi -----------------------------------------------------------------------------
 // height: altura en m · hpScale: vida respecto a la de la ronda (roundHp) · speed: m/s · damage: daño
 // por golpe · attackRange: m · attackEvery: s entre golpes · points: puntos al matarlo · low: se
 // arrastra (hitboxes cerca del suelo) · look: aspecto (zombieLook.js: ojos y tonos) · bulk: corpulencia
 // Todos usan el mismo modelo realista (zombieSkin.js); cambian su tamaño, su aspecto y su animación.
-// Inspirado en los modos de supervivencia clásicos: un caminante tiene 150 de vida en la ronda 1 y
-// 100 más por ronda; tres golpes de caminante (45) tumban a un jugador sin bebidas.
+// La vida, la velocidad y el daño de cada ronda multiplican estos valores (roundConfig.js).
 export const ZOMBIE_TYPES = {
   walker: { name: 'Caminante', height: 1.78, hpScale: 1, speed: 1.6, damage: 45, attackRange: 1.3, attackEvery: 1.35, points: 60, look: 'normal', bulk: 1 },
   runner: { name: 'Corredor', height: 1.74, hpScale: 0.7, speed: 4.1, damage: 34, attackRange: 1.25, attackEvery: 0.95, points: 80, look: 'runner', bulk: 0.94 },
@@ -17,10 +17,11 @@ export const ZOMBIE_TYPES = {
   brute: { name: 'Bruto', height: 2.35, hpScale: 3, speed: 1.45, damage: 80, attackRange: 1.75, attackEvery: 1.8, points: 300, look: 'brute', bulk: 1.18 },
 };
 
-/** Vida de un caminante en la ronda n: 150, 250, 350… hasta la 9; desde la 10, ×1.1 por ronda. */
+/** Vida de un caminante en la ronda n (fórmula y valores en roundConfig.js). */
 export function roundHp(n) {
-  const w = Math.max(1, Math.floor(n));
-  return w < 10 ? 150 + 100 * (w - 1) : Math.round(950 * 1.1 ** (w - 9));
+  const r = Math.max(1, Math.floor(n));
+  const R = ROUNDS;
+  return Math.round(R.hpBase * (1 + R.hpPerRound * (r - 1)) * R.hpLate ** Math.max(0, r - R.hpLateFrom));
 }
 
 // Cuchillo en este modo: daño fijo de 150 (mata de un golpe en la ronda 1, de dos en la 2…). Las
@@ -139,36 +140,40 @@ export const DIFFICULTIES = {
   facil: { name: 'Fácil', desc: 'Zombis lentos y frágiles que pegan la mitad. Para aprender el modo.', hp: 0.7, speed: 0.85, damage: 0.5, count: 0.75, alive: 0.8, spawn: 1.3, points: 0.8, regen: 1.5, runners: 0, brutesFrom: 7 },
   normal: { name: 'Normal', desc: 'La horda tal como fue pensada.', hp: 1, speed: 1, damage: 1, count: 1, alive: 1, spawn: 1, points: 1, regen: 1, runners: 0, brutesFrom: 5 },
   dificil: { name: 'Difícil', desc: 'Más zombis, más rápidos y resistentes. Cada golpe duele.', hp: 1.3, speed: 1.12, damage: 1.4, count: 1.25, alive: 1.08, spawn: 0.8, points: 1.25, regen: 0.8, runners: 0.08, brutesFrom: 4 },
-  locura: { name: 'Locura', desc: 'Una marea: corredores desde el principio, brutos desde la oleada 3 y casi sin respiro.', hp: 1.7, speed: 1.25, damage: 2, count: 1.5, alive: 1.15, spawn: 0.6, points: 1.6, regen: 0.5, runners: 0.18, brutesFrom: 3 },
+  locura: { name: 'Locura', desc: 'Una marea: corredores desde el principio, brutos desde la ronda 3 y casi sin respiro.', hp: 1.7, speed: 1.25, damage: 2, count: 1.5, alive: 1.15, spawn: 0.6, points: 1.6, regen: 0.5, runners: 0.18, brutesFrom: 3 },
 };
 export const DIFFICULTY_ORDER = ['facil', 'normal', 'dificil', 'locura'];
 export const difficultyOf = (id) => DIFFICULTIES[id] ?? DIFFICULTIES.normal;
 
-// --- Oleadas ------------------------------------------------------------------------------------
-export const FIRST_COUNTDOWN = 6; // s antes de la primera oleada
-export const INTERMISSION = 14; // s de descanso (armería abierta)
+// --- Rondas ------------------------------------------------------------------------------------
+// Los valores de balance (cantidad, vida, velocidad, daño, vivos a la vez, pausas) están en
+// roundConfig.js.
+export { FIRST_COUNTDOWN, INTERMISSION, ROUNDS };
 
 /** Configuración de la oleada n (1, 2, …) en una dificultad ('facil' | 'normal' | 'dificil' | 'locura'). */
 export function waveConfig(n, difficulty = 'normal') {
   const d = difficultyOf(difficulty);
+  const R = ROUNDS;
   const w = Math.max(1, Math.floor(n));
-  const runnerNight = w % 6 === 0; // cada 6 oleadas: noche de corredores
+  const k = w - 1; // rondas desde la primera
+  const runnerNight = w % R.runnerNightEvery === 0; // noche de corredores
+  const lerpGap = (i) => Math.max(R.spawnGapMin[i], (R.spawnGapStart[i] + R.spawnGapPerRound[i] * w) * d.spawn);
   return {
     wave: w,
     difficulty: DIFFICULTIES[difficulty] ? difficulty : 'normal',
     runnerNight,
-    count: Math.max(3, Math.round((6 + 2.6 * w + 0.08 * w * w) * d.count)),
-    maxAlive: Math.round(Math.min(24, 8 + 2 * w) * d.alive),
-    spawnGap: [Math.max(0.25, (1.8 - 0.12 * w) * d.spawn), Math.max(0.45, (2.6 - 0.15 * w) * d.spawn)],
+    count: Math.max(3, Math.round(Math.min(R.countMax, R.countBase + R.countPerRound * w + R.countCurve * w * w) * d.count)),
+    maxAlive: Math.round(Math.min(R.aliveMax, R.aliveBase + R.alivePerRound * k) * d.alive),
+    spawnGap: [lerpGap(0), lerpGap(1)],
     hp: Math.round(roundHp(w) * d.hp), // vida de un caminante en esta ronda (y dificultad)
     hpMul: (roundHp(w) / roundHp(1)) * d.hp,
-    speedMul: Math.min(1.5, 1 + 0.04 * (w - 1)) * d.speed,
-    damageMul: d.damage,
-    diffSpeed: d.speed, // el bruto no acelera con las oleadas, solo con la dificultad
-    runnerShare: runnerNight ? 0.7 : Math.min(0.5, (w >= 3 ? Math.min(0.4, 0.06 * (w - 2)) : 0) + d.runners),
-    crawlerShare: w >= 4 ? Math.min(0.2, 0.04 * (w - 3)) : 0,
-    brutes: w >= d.brutesFrom ? 1 + Math.floor((w - d.brutesFrom) / 3) : 0,
-    clearBonus: Math.round(100 * w * d.points),
+    speedMul: Math.min(R.speedMax, R.speedBase + R.speedPerRound * k) * d.speed,
+    damageMul: Math.min(R.damageMax, R.damageBase + R.damagePerRound * k) * d.damage,
+    diffSpeed: d.speed, // el bruto no acelera con las rondas, solo con la dificultad
+    runnerShare: runnerNight ? 0.7 : Math.min(0.5, (w >= R.runnersFrom ? Math.min(R.runnerMax, R.runnerPerRound * (w - R.runnersFrom + 1)) : 0) + d.runners),
+    crawlerShare: w >= R.crawlersFrom ? Math.min(R.crawlerMax, R.crawlerPerRound * (w - R.crawlersFrom + 1)) : 0,
+    brutes: w >= d.brutesFrom ? 1 + Math.floor((w - d.brutesFrom) / R.brutesEvery) : 0,
+    clearBonus: Math.round(R.clearBonus * w * d.points),
     pointsMul: d.points,
     regenMul: d.regen,
   };

@@ -7,6 +7,7 @@ import { clock } from '../../utils/format.js';
 import { rand } from '../../utils/math.js';
 import { NavGrid } from './navGrid.js';
 import { Zombie } from './Zombie.js';
+import { ALIVE_BY_DETAIL } from './roundConfig.js';
 import { BARRICADE, BOX_MOVE, BOX_PRICE, rollBox, DOORS, MAX_WEAPONS, DROP, FORGE, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
 const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
@@ -131,7 +132,7 @@ export class ZombieRun extends Phase {
     this.sinceDrop += dt;
     if (this.state !== 'wave' || this.died) return;
     this.spawnTimer -= dt;
-    if (this.roster.length && this.spawnTimer <= 0 && this.aliveCount < this.cfg.maxAlive) {
+    if (this.roster.length && this.spawnTimer <= 0 && this.aliveCount < this.maxAlive()) {
       this.spawn(this.roster.shift());
       this.spawnTimer = rand(...this.cfg.spawnGap);
     }
@@ -267,6 +268,11 @@ export class ZombieRun extends Phase {
   }
 
   // --- Daño a los zombis ------------------------------------------------------------------------
+  // Zombis vivos a la vez: el de la ronda, sin pasar el tope de la calidad gráfica (rendimiento).
+  maxAlive() {
+    return Math.min(this.cfg.maxAlive, ALIVE_BY_DETAIL[this.game.engine?.detail] ?? Infinity);
+  }
+
   damageMultiplier() {
     return this.dmgMul;
   }
