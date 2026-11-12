@@ -26,6 +26,7 @@ export const WEAPON_MODELS = {
   magnum: { file: 'pistol.glb', scale: 1.9, back: 0.07, top: 0.105, x: -0.03, tint: '#8a8f98', grip: [-0.03, -0.075, 0.01], fore: null },
   burst: { file: 'rifle.glb', scale: 1.12, back: 0.3, top: 0.115, x: -0.03, tint: '#55603f', grip: [-0.033, -0.095, -0.02], fore: [-0.033, -0.005, -0.34] },
   lmg: { file: 'rifle.glb', scale: 1.38, back: 0.36, top: 0.135, x: -0.03, tint: '#30352c', grip: [-0.036, -0.11, -0.01], fore: [-0.036, -0.01, -0.42] },
+  ray: { file: 'smg.glb', scale: 1.3, back: 0.24, top: 0.115, x: -0.03, tint: '#8a3fd0', grip: [-0.03, -0.083, -0.05], fore: [-0.03, -0.02, -0.34] },
   dmr: { file: 'sniper.glb', scale: 1.0, back: 0.34, top: 0.12, x: -0.03, tint: '#7a6548', grip: [-0.04, -0.055, 0.0], fore: [-0.04, -0.005, -0.24] },
 };
 

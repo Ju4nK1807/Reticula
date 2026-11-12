@@ -170,7 +170,7 @@ const WALL_SPOTS = [
   ['magnum', -6, PLAZA, 's'], // en el vestíbulo
   ['shotgun', -54.5, -13, 'n'], // en la caseta del generador (Subestación)
   ['rifle', -14, -48, 'e'], // en la farmacia del hospital
-  ['lmg', 60, 50.5, 'e', DECK_H], // arriba, en la terraza de la Casa de la Risa (Feria)
+  ['ray', 60, 50.5, 'e', DECK_H], // arma especial: arriba, en la terraza de la Casa de la Risa (Feria)
 ];
 // Lugares de la caja misteriosa: empieza en la plaza y, cada tantos usos, se muda a otro.
 export const BOX_SPOTS = [

@@ -253,8 +253,40 @@ export const WEAPONS = {
   },
 };
 
+// Arma especial del modo zombi (no está en el arsenal de entrenamiento): sale de la caja misteriosa o
+// se compra en la terraza de la Feria. Un rayo de energía que deshace a casi cualquier zombi de un tiro.
+WEAPONS.ray = {
+  id: 'ray',
+  key: '0',
+  name: 'Desintegrador',
+  category: 'Especial',
+  special: true,
+  desc: 'Arma especial: rayos de energía que deshacen a casi cualquier zombi de un tiro. Pocas cargas y recarga lenta.',
+  rps: 2.6,
+  magazine: 8,
+  reloadTime: 2.8,
+  drawTime: 0.6,
+  damage: { head: 1500, body: 900, legs: 700 },
+  fireModes: ['semi'],
+  bloomPerShot: 0.3,
+  maxBloom: 1.6,
+  bloomRecovery: 5,
+  moveSpread: 0.9,
+  pellets: 1,
+  pelletSpread: 0,
+  hipSpread: 0,
+  zoom: null,
+  ads: { zoom: 1.2, spread: 0.5, speed: 0.85 },
+  recoil: 0.55,
+  sound: 'sniper',
+  soundRate: 1.7,
+  crosshair: normalizeCrosshair({ shape: 'circle', color: '#c77dff', size: 6, thickness: 2, gap: 3, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
+};
+
 // Orden de las teclas (1-9): las cinco de siempre conservan su número.
 export const WEAPON_ORDER = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr'];
+// Todas, con las especiales (munición por arma, modelos).
+export const ALL_WEAPONS = [...WEAPON_ORDER, 'ray'];
 export const DEFAULT_WEAPON = 'rifle';
 export const EVALUATION_WEAPON = 'rifle'; // la evaluación siempre con el rifle: rangos comparables
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { DEG } from '../utils/math.js';
-import { DEFAULT_WEAPON, WEAPONS, WEAPON_ORDER, getWeapon } from './weapons.js';
+import { ALL_WEAPONS, DEFAULT_WEAPON, WEAPONS, getWeapon } from './weapons.js';
 
 // Compatibilidad: el rifle sigue siendo el arma de referencia.
 export const RIFLE = WEAPONS.rifle;
@@ -60,7 +60,7 @@ export class Weapon {
     this.infinite = false;
     this.mode = 'semi'; // 'semi' | 'auto' | 'burst'
     this.burstLeft = 0; // balas que quedan de la ráfaga en curso
-    this.ammoBy = Object.fromEntries(WEAPON_ORDER.map((id) => [id, WEAPONS[id].magazine]));
+    this.ammoBy = Object.fromEntries(ALL_WEAPONS.map((id) => [id, WEAPONS[id].magazine]));
     this.onShot = null;
     this.onChange = null;
   }
@@ -152,7 +152,7 @@ export class Weapon {
 
   // Todas las armas con el cargador lleno (al empezar una fase o partida).
   refill() {
-    for (const id of WEAPON_ORDER) this.ammoBy[id] = this.magazineOf(id);
+    for (const id of ALL_WEAPONS) this.ammoBy[id] = this.magazineOf(id);
     this.reloadLeft = 0;
     this.cooldown = 0;
     this.drawLeft = 0;

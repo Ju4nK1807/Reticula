@@ -1,4 +1,6 @@
 import { crosshairSVG } from './Crosshair.js';
+import { WEAPONS } from '../combat/weapons.js';
+import { weaponIconEl } from './weaponIcons.js';
 
 // HUD en DOM. Solo toca el DOM cuando un valor cambia, para no costar FPS.
 export class HUD {
@@ -86,24 +88,38 @@ export class HUD {
 
   // Barra de armas (teclas 1-9). weapons: [{ id, key, name }]; locked: no se puede cambiar.
   // owned(id): false = no se tiene (modo zombi: se compra); se dibuja atenuada.
-  setWeaponSlots(weapons, activeId, locked = false, owned = () => true) {
-    const key = `${activeId}|${locked}|${weapons.map((w) => (owned(w.id) ? 1 : 0)).join('')}`;
+  // Armas disponibles (solo las que tiene el jugador), cada una con su ícono, su tecla y su munición;
+  // la equipada, resaltada. weapons = [{ id, key }].
+  setWeaponSlots(weapons, activeId, locked = false) {
+    const key = `${activeId}|${locked}|${weapons.map((w) => `${w.id}:${w.key}`).join(',')}`;
     if (this.slotsKey === key) return;
     this.slotsKey = key;
     const el = this.refs.slots;
     el.classList.toggle('locked', locked);
+    el.classList.toggle('many', weapons.length > 4); // muchas (entrenamiento): munición solo en la equipada
+    this.slotAmmo = new Map();
     el.replaceChildren(
       ...weapons.map((w) => {
         const slot = document.createElement('div');
-        slot.className = `hud-slot${w.id === activeId ? ' active' : ''}${owned(w.id) ? '' : ' missing'}`;
+        slot.className = `hud-slot${w.id === activeId ? ' active' : ''}`;
+        slot.title = WEAPONS[w.id]?.name ?? w.id;
         const k = document.createElement('kbd');
         k.textContent = w.key;
-        const n = document.createElement('span');
-        n.textContent = w.name;
-        slot.append(k, n);
+        const ammo = document.createElement('span');
+        ammo.className = 'hud-slot-ammo';
+        this.slotAmmo.set(w.id, { el: ammo, text: '' });
+        slot.append(k, weaponIconEl(w.id), ammo);
         return slot;
       }),
     );
+  }
+
+  // Munición junto a cada ícono: { [arma]: 'cargador / reserva' } (solo cambia el texto que cambió).
+  setSlotAmmo(texts) {
+    for (const [id, s] of this.slotAmmo ?? []) {
+      const t = texts(id);
+      if (t !== s.text) s.el.textContent = s.text = t;
+    }
   }
 
   setLabel(text) {

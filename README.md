@@ -245,6 +245,18 @@ mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requ
   de daño, cargador y reserva ×1.5 y un brillo violeta y cian que recorre el arma.
 - **Caja misteriosa** (el haz de luz azul): 950 puntos por un arma al azar. Empieza en la plaza y cada
   4 a 7 tiradas se muda a otro de seis lugares del mapa.
+- **Armas**: se cargan hasta **3**. Con las manos llenas, comprar en la pared o sacar de la caja
+  cambia el arma que tienes en la mano; el aviso de compra dice cuál. Se cambia de arma con `1`-`3`
+  o con la rueda del mouse. El HUD muestra solo tus armas, con su ícono y su munición
+  (cargador / reserva), y resalta la equipada.
+
+  Precios en la pared: Revólver 900, Subfusil 1000, Escopeta 1500, Rifle 1600, Rifle de ráfaga 1800,
+  Fusil de tirador 2000, Ametralladora 2500 y Francotirador 2750. El **Desintegrador** es el arma
+  especial: rayos de energía que deshacen a casi cualquier zombi de un tiro. Cuesta 6000 en la terraza
+  de la Feria y también sale, poco, de la caja.
+
+  Los íconos son siluetas en SVG (`src/ui/weaponIcons.js`). Para usar imágenes, pon el archivo en
+  `public/icons/weapons/` y su ruta en `ICON_IMAGES`.
 - **Dificultad de los clásicos**: la vida sigue la de la ronda (150, 250, 350… y ×1.1 desde la 10);
   el cuchillo hace 150 (1 golpe en la ronda 1, 2 en la 2…); tres golpes tumban sin Coraza y la vida
   se regenera tras 5 s. Un tiro a la cabeza la hace volar, y algunos siguen caminando sin ella hasta

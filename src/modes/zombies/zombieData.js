@@ -73,20 +73,30 @@ export function perkStats(perks) {
 }
 
 // --- Armas de la pared --------------------------------------------------------------------------------
-// Precio del arma; con el arma ya comprada, el mismo puesto vende su munición a mitad de precio.
-export const WALL_BUYS = { magnum: 900, smg: 1000, rifle: 1600, shotgun: 1500, burst: 1800, dmr: 2000, lmg: 2500, sniper: 2500 };
+// Se cargan hasta MAX_WEAPONS armas: con las manos llenas, comprar (o sacar de la caja) una nueva cambia
+// la que tienes en la mano.
+export const MAX_WEAPONS = 3;
+// Precio del arma (cada una el suyo); con el arma ya comprada, el mismo puesto vende su munición a
+// mitad de precio. El Desintegrador (especial) solo está en la terraza de la Feria y en la caja.
+export const WALL_BUYS = { magnum: 900, smg: 1000, shotgun: 1500, rifle: 1600, burst: 1800, dmr: 2000, lmg: 2500, sniper: 2750, ray: 6000 };
 export const wallAmmoPrice = (id) => Math.round((WALL_BUYS[id] ?? 1000) / 2 / 50) * 50;
 
 // --- Caja misteriosa y barricadas ------------------------------------------------------------------------
 export const BOX_PRICE = 950; // un arma al azar de las que no tienes
 // Cada tantas tiradas (entre min y max, al azar) la caja se muda a otro lugar del mapa.
 export const BOX_MOVE = { min: 4, max: 7 };
-export const BOX_POOL = ['smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr'];
+export const BOX_POOL = ['smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr', 'ray'];
+// Probabilidad relativa (1 = normal): el arma especial sale poco.
+export const BOX_WEIGHT = { ray: 0.35 };
 
 /** Arma de la caja: una al azar entre las que no se tienen (null si ya se tienen todas). */
 export function rollBox(owned, rng = Math.random) {
   const pool = BOX_POOL.filter((id) => !owned.has(id));
-  return pool.length ? pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))] : null;
+  if (!pool.length) return null;
+  const total = pool.reduce((a, id) => a + (BOX_WEIGHT[id] ?? 1), 0);
+  let r = rng() * total;
+  for (const id of pool) if ((r -= BOX_WEIGHT[id] ?? 1) < 0) return id;
+  return pool[pool.length - 1];
 }
 
 // Barricadas en las entradas de zombis: tablones que arrancan para entrar y que el jugador repara.
@@ -213,7 +223,7 @@ export function pointsFor({ part, killed, type, melee = false }, double = false,
 // Las armas ya no se compran aquí: están en las paredes del mapa (WALL_BUYS), como en los modos de
 // supervivencia clásicos; las mejoras son las bebidas de las máquinas (PERKS).
 // Munición de reserva al comprar el arma o rellenarla (la pistola es infinita: nunca te quedas sin nada).
-export const RESERVE = { pistol: null, smg: 180, shotgun: 36, rifle: 150, sniper: 30, magnum: 42, burst: 210, lmg: 300, dmr: 72 };
+export const RESERVE = { pistol: null, smg: 180, shotgun: 36, rifle: 150, sniper: 30, magnum: 42, burst: 210, lmg: 300, dmr: 72, ray: 40 };
 
 export const SHOP = [
   { id: 'ammo', kind: 'ammo', name: 'Munición', desc: 'Rellena la reserva de todas tus armas.', price: 500 },

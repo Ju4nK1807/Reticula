@@ -39,7 +39,7 @@ import { WEAPONS, WEAPON_ORDER, getWeapon } from '../combat/weapons.js';
 const _v = new THREE.Vector3();
 const NO_BODIES = [];
 const WEAPON_KEYS = Object.fromEntries(WEAPON_ORDER.map((id) => [`Digit${WEAPONS[id].key}`, id]));
-const SLOT_LIST = WEAPON_ORDER.map((id) => ({ id, key: WEAPONS[id].key, name: WEAPONS[id].name }));
+const DIGITS = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5, Digit7: 6, Digit8: 7, Digit9: 8 };
 const ZOOM_SPEED = 14; // qué tan rápido entra y sale la mira telescópica
 
 // Orquestador: conecta motor, entrada, jugador, arma, audio, guardado, UI y el modo activo.
@@ -288,16 +288,21 @@ export class Game {
     if (this.weapon.setWeapon(id)) this.hud.flash(WEAPONS[id].name, 'info');
   }
 
-  // Rueda del mouse: la siguiente (o anterior) arma disponible en este modo.
+  // Armas que el jugador tiene, en orden. Los modos con inventario limitado (zombi) dan sus espacios
+  // (mode.weaponSlots: la tecla 1 es el primero); en los demás, las del arsenal con su tecla de siempre.
+  availableWeapons() {
+    const slots = this.mode?.weaponSlots?.();
+    if (slots) return slots.map((id, i) => ({ id, key: String(i + 1) }));
+    return WEAPON_ORDER.filter((id) => this.mode?.ownsWeapon?.(id) !== false).map((id) => ({ id, key: WEAPONS[id].key }));
+  }
+
+  // Rueda del mouse (o botón táctil): la siguiente (o anterior) arma que se tiene.
   cycleWeapon(dir) {
     if (this.weaponLock() || !this.weapon.enabled) return;
-    const i = WEAPON_ORDER.indexOf(this.weapon.id);
-    for (let k = 1; k < WEAPON_ORDER.length; k++) {
-      const id = WEAPON_ORDER[(i + dir * k + WEAPON_ORDER.length * k) % WEAPON_ORDER.length];
-      if (this.mode?.ownsWeapon?.(id) === false) continue;
-      this.selectWeapon(id);
-      return;
-    }
+    const list = this.availableWeapons();
+    if (list.length < 2) return;
+    const i = Math.max(0, list.findIndex((w) => w.id === this.weapon.id));
+    this.selectWeapon(list[(i + dir + list.length) % list.length].id);
   }
 
   onWeaponChange() {
@@ -308,15 +313,18 @@ export class Game {
     const modeKey = keys ? ` [${keyLabel(this.settings.keys, 'fireMode')}]` : '';
     const mode = w.stats.fireModes.length > 1 ? ` · ${w.modeLabel}${modeKey}` : w.stats.fireModes[0] === 'burst' ? ' · RÁFAGA' : w.stats.zoom && keys ? ' · clic der. = mira' : '';
     this.hud.setWeapon(`${w.stats.name}${mode}${this.mode?.weaponHudSuffix?.() ?? ''}`);
-    this.hud.setWeaponSlots(SLOT_LIST, w.id, !!this.weaponLock(), (id) => this.mode?.ownsWeapon?.(id) !== false);
+    this.hud.setWeaponSlots(this.availableWeapons(), w.id, !!this.weaponLock());
   }
 
   // Teclas en partida: cada código se traduce a su acción según los controles del jugador
   // (config/keybinds.js). Las armas (1-9) son fijas.
   onKey(e) {
     if (!this.playing) return;
-    if (WEAPON_KEYS[e.code]) {
-      if (!e.repeat) this.selectWeapon(WEAPON_KEYS[e.code]);
+    // Números: en los modos con espacios de armas, el espacio (1 = el primero); si no, el arma de esa tecla.
+    const slots = this.mode?.weaponSlots?.();
+    if (slots ? e.code in DIGITS : WEAPON_KEYS[e.code]) {
+      const id = slots ? slots[DIGITS[e.code]] : WEAPON_KEYS[e.code];
+      if (!e.repeat && id) this.selectWeapon(id);
       return;
     }
     const action = actionFor(this.settings.keys, e.code);
@@ -414,7 +422,15 @@ export class Game {
     this.showcase.update(dt, !this.mode);
     this.viewmodel.showArms = this.settings.gameplay.hands !== false;
     this.viewmodel.update(dt, this.player);
-    if (this.mode) this.hud.setAmmo(this.weapon.ammo, this.weapon.magazine, this.weapon.reloadProgress, this.weapon.reserve, this.weapon.infinite);
+    if (this.mode) {
+      const w = this.weapon;
+      this.hud.setAmmo(w.ammo, w.magazine, w.reloadProgress, w.reserve, w.infinite);
+      this.hud.setSlotAmmo((id) => {
+        if (w.infinite) return '∞';
+        const r = w.reserveBy?.[id];
+        return `${w.ammoBy[id]}${r === null || r === undefined ? '' : ` / ${r}`}`;
+      });
+    }
     // El arma se oculta solo dentro de la mira telescópica (con las miras de hierro se sigue viendo).
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && !(this.weapon.scoped && this.zoomLevel > 1.15);
     // El detalle puede cambiar en cualquier momento (calidad automática): el mapa ajusta sus luces.

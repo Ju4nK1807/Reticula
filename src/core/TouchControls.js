@@ -1,5 +1,4 @@
 import '../ui/touch.css';
-import { WEAPON_ORDER } from '../combat/weapons.js';
 import { icon } from '../ui/icons.js';
 
 export const JOYSTICK_RADIUS = 56; // px que recorre la palanca
@@ -155,15 +154,8 @@ export class TouchControls {
         else inp.keys.delete(inp.codeFor('crouch'));
         return;
       case 'weapon': {
-        // Siguiente arma disponible (en el modo zombi, solo las compradas).
-        const i = WEAPON_ORDER.indexOf(this.game.weapon.id);
-        for (let k = 1; k <= WEAPON_ORDER.length; k++) {
-          const id = WEAPON_ORDER[(i + k) % WEAPON_ORDER.length];
-          if (this.game.mode?.ownsWeapon?.(id) !== false) {
-            this.game.selectWeapon(id);
-            break;
-          }
-        }
+        // Siguiente arma que se tiene (en el modo zombi, sus espacios).
+        this.game.cycleWeapon(1);
         return;
       }
       case 'melee':
