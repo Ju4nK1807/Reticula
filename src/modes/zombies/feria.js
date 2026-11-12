@@ -258,6 +258,8 @@ export function buildFeria(map, M) {
     map.lights.add({ pos: p, color, intensity: 26, distance: 13, power: true });
     map.pools.push({ pos: p.clone().setY(0.02), radius: 4.5, color, power: true });
   }
+  // Depósito de la feria: cajas apiladas en la esquina noreste (lejos de la puerta y de la entrada).
+  for (const [x, z, s] of [[59.05, 31.1, 1.1], [59.2, 32.35, 0.8], [57.85, 31.0, 0.8]]) map.crate(x, z, s);
   map.fireBarrel(48.5, 41.5, M);
   map.fireBarrel(30, 44.5, M);
   sign(map, 'FERIA', '#ff5a8a', FERIA.minX + 0.03, 4.4, 34.5, Math.PI / 2, 2.6, 0.7);

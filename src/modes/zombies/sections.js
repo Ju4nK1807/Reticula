@@ -125,7 +125,7 @@ export function buildSubestacion(map, M) {
     map.solids.push(spool);
     map.colliders.push(new THREE.Box3().setFromCenterAndSize(spool.position, new THREE.Vector3(1.8, 1.8, 0.9)));
   }
-  for (const [x, z, s] of [[-58.2, -9.5, 1.1], [-57.2, -8.3, 0.8], [-35.4, -3.2, 1]]) b(s, s, s, M.wood, x, z);
+  for (const [x, z, s] of [[-58.2, -9.5, 1.1], [-57.2, -8.3, 0.8], [-35.4, -3.2, 1]]) map.crate(x, z, s);
   map.fireBarrel(-43, -15, M);
   map.lamp(-35.6, -7.5, M, { ry: -1.9, broken: true });
   for (const [x, z, s, ry] of [[-52, -15.5, 1.3, 0.5], [-41, -21, 2.2, 1.1], [-49, -4.5, 1.8, 2.4]]) map.decal('oil', x, z, s, ry);
@@ -203,7 +203,7 @@ export function buildHospital(map, M) {
   for (const z of [-46.5, -43.5]) b(4.2, 2.0, 0.5, M.metal, -21, z);
   sign(map, 'FARMACIA', '#7dffb0', -21, 2.7, -40.05, Math.PI, 1.6, 0.36);
   // Depósito (suroeste): cajas apiladas.
-  for (const [x, z, s] of [[-54.6, -41.4, 1.1], [-53.4, -41.5, 0.9], [-43, -41.2, 0.9]]) b(s, s, s, M.wood, x, z);
+  for (const [x, z, s] of [[-54.6, -41.4, 1.1], [-53.4, -41.5, 0.9], [-43, -41.2, 0.9]]) map.crate(x, z, s);
   // Camilla abandonada en la sala sur-centro (en el pasillo cortaría el paso de la horda).
   b(1.9, 0.85, 0.7, M.metal, -31, -47.5);
   // Sangre en el piso del pasillo y de las salas (charcos y arrastres).
