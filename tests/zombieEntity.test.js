@@ -84,8 +84,10 @@ describe('zombi', () => {
       prev = ang;
     }
     expect(z.state).toBe('attack'); // llegó al jugador rodeando el muro
-    // < 20° por cuadro, incluso al deslizar por la esquina (antes daba medias vueltas entre cuadros).
-    expect(maxTurn).toBeLessThan(0.35);
+    // Nunca medias vueltas entre cuadros (antes llegaba a ~π al deslizar por la esquina). Con la ronda 1
+    // lenta, el empuje del muro pesa más en cada paso: según el ritmo al azar (pace) el peor cuadro ronda
+    // 0.22–0.45 rad (~13–26°), así que el tope (~34°) deja margen sin depender del azar.
+    expect(maxTurn).toBeLessThan(0.6);
   });
 
   it('la animación sigue la velocidad real: frenado contra un muro no camina en el sitio a toda marcha', () => {
