@@ -17,9 +17,19 @@ const DISTANCE = 42; // m
 const ANGLE = 0.52; // rad (medio ángulo del cono, con el halo; el disco es DISK de esto)
 const PENUMBRA = 0.12; // el borde lo dibuja la máscara
 const BEAM = 0.04; // brillo del haz en la niebla
-const CLEAR = 0.65; // cuánto aclara la niebla dentro del círculo
+const CLEAR = 0.78; // cuánto aclara la niebla dentro del círculo (la luz la atraviesa)
 const FOLLOW = 14; // 1/s: qué tan rápido sigue la mirada
 const FADE = 22; // 1/s: encendido y apagado
+
+// Batería: se gasta prendida y se recarga apagada. Con poca, la luz baja y titila; vacía, se apaga sola
+// y no vuelve a prender hasta tener `minOn`.
+export const BATTERY = {
+  drainTime: 150, // s de luz con la batería llena
+  rechargeTime: 45, // s para recargarla entera estando apagada
+  low: 0.2, // desde aquí la luz se debilita y titila
+  lowLevel: 0.45, // intensidad con la batería casi vacía (respecto de la normal)
+  minOn: 0.08, // carga mínima para volver a prenderla
+};
 
 const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
@@ -93,12 +103,31 @@ export class Flashlight {
     this.dir = new THREE.Vector3(0, 0, -1);
     this.started = false;
     this.shadows = null;
+    this.battery = 1; // 0-1
+    this.onEmpty = null; // () => aviso cuando se apaga sola
     HEIGHT_FOG.uBeamCone.value.set(Math.cos(ANGLE * DISK * 1.05), Math.cos(ANGLE * DISK * 0.8));
   }
 
+  /** Prende o apaga. Devuelve false si no se pudo prender (sin batería). */
   toggle() {
+    if (!this.on && this.battery < BATTERY.minOn) return false;
     this.on = !this.on;
-    return this.on;
+    return true;
+  }
+
+  // Gasta o recarga la batería; vacía, se apaga sola.
+  updateBattery(dt) {
+    if (this.on) {
+      this.battery = Math.max(0, this.battery - dt / BATTERY.drainTime);
+      if (this.battery === 0) {
+        this.on = false;
+        this.onEmpty?.();
+      }
+    } else this.battery = Math.min(1, this.battery + dt / BATTERY.rechargeTime);
+  }
+
+  get low() {
+    return this.battery < BATTERY.low;
   }
 
   // Sombras solo con calidad alta (la máscara de lente va siempre: es una lectura de textura).
@@ -120,11 +149,14 @@ export class Flashlight {
     this.light.position.copy(camera.position).addScaledVector(_right, 0.18).addScaledVector(_up, -0.16);
     this.light.target.position.copy(this.light.position).addScaledVector(this.dir, 10);
     this.light.target.updateMatrixWorld();
+    this.updateBattery(dt);
     const want = this.on ? 1 : 0;
     this.level += (want - this.level) * Math.min(1, dt * FADE);
     if (Math.abs(want - this.level) < 0.01) this.level = want;
-    // Un parpadeo muy leve (pilas gastadas): casi no se nota, pero da nervios.
-    const flicker = Math.random() < 0.004 ? 0.55 : 1;
+    // Un parpadeo muy leve (casi no se nota, pero da nervios). Con la batería baja, la luz se debilita y
+    // titila mucho más.
+    const low = Math.min(1, this.battery / BATTERY.low);
+    const flicker = (Math.random() < (this.low ? 0.06 : 0.004) ? 0.55 : 1) * (BATTERY.lowLevel + (1 - BATTERY.lowLevel) * low);
     this.light.intensity = INTENSITY * this.level * flicker;
     // Sin luz, la sombra no se vuelve a dibujar.
     this.light.shadow.autoUpdate = this.level > 0;

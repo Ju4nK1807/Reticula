@@ -3,6 +3,7 @@ import { h } from '../../ui/dom.js';
 import { PERKS, POWERUPS } from './zombieData.js';
 import { GRENADE_TYPES } from '../../combat/Grenades.js';
 import { keyLabel } from '../../config/keybinds.js';
+import { icon } from '../../ui/icons.js';
 
 const MAX_ARROWS = 6;
 const THREAT_RANGE = 7; // m: zombis más cerca que esto y fuera de pantalla → flecha
@@ -58,10 +59,17 @@ export class ZombieHud {
     this.barCount = h('strong', {}, '');
     this.barFill = h('i');
     this.barBox = h('div', { class: 'zh-barbox', hidden: true }, h('small', {}, 'Barra'), this.barCount, h('div', { class: 'zh-barmeter' }, this.barFill));
+    // Linterna: ícono (encendido o apagado), su tecla y la batería.
+    this.lightKey = h('kbd', {});
+    this.lightFill = h('i');
+    this.lightState = h('span', { class: 'zh-light-state' });
+    this.lightIcon = h('span', { class: 'zh-light-icon' });
+    this.lightIcon.innerHTML = icon('flashlight', 18);
+    this.lightBox = h('div', { class: 'zh-light' }, this.lightIcon, h('div', { class: 'zh-light-info' }, h('div', { class: 'zh-light-row' }, this.lightKey, this.lightState), h('div', { class: 'zh-battery' }, this.lightFill)));
     // Viñeta oscura (en calidad alta la pone el postproceso) y bordes rojos al estar herido.
     this.vignette = h('div', { class: 'zh-vignette', hidden: true });
     this.hurt = h('div', { class: 'zh-hurt' });
-    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.banner, this.prompt);
+    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.lightBox, this.banner, this.prompt);
     layer.append(this.root);
     this.cache = new Map();
   }
@@ -104,6 +112,7 @@ export class ZombieHud {
   }
 
   update(game, run, mode) {
+    this.updateLight(game, mode.flashlight);
     const wave = String(Math.max(1, run.wave || mode.nextWave));
     if (this.cache.get('wave') !== wave) {
       this.set('wave', this.waveNum, wave);
@@ -169,6 +178,23 @@ export class ZombieHud {
     else this.banner_(null);
 
     this.updateArrows(game, run);
+  }
+
+  // Estado de la linterna: prendida (amarilla), apagada (gris), batería baja (roja, late) o vacía.
+  updateLight(game, fl) {
+    this.set('lightShow', this.lightBox, !fl, 'hidden');
+    if (!fl) return;
+    this.set('lightKey', this.lightKey, game.touchMode ? '' : keyLabel(game.settings.keys, 'flashlight'));
+    this.set('lightKeyHide', this.lightKey, game.touchMode, 'hidden');
+    const empty = !fl.on && fl.battery < 0.08;
+    this.set('lightState', this.lightState, fl.on ? 'Linterna' : empty ? 'Sin batería' : 'Apagada');
+    const pct = Math.round(fl.battery * 100);
+    if (this.cache.get('lightPct') !== pct) {
+      this.cache.set('lightPct', pct);
+      this.lightFill.style.width = `${pct}%`;
+    }
+    const cls = `zh-light${fl.on ? ' on' : ''}${fl.low ? ' low' : ''}${empty ? ' empty' : ''}`;
+    this.set('lightCls', this.lightBox, cls, 'className');
   }
 
   // Flechas alrededor de la mira hacia los zombis cercanos que no se ven.

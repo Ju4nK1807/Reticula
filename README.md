@@ -212,10 +212,15 @@ mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requ
   brilla bajo las farolas y bancos de niebla que flotan y se mueven con el viento alrededor del jugador
   (menos en calidad media y baja). **Más barreras y chatarra**: barreras de concreto, muros de sacos,
   autos quemados, pilas de neumáticos, palés, escombros y vallas de obra en todas las zonas.
-- **Noche de terror**: el barrio está casi a oscuras y con una niebla negra más espesa (a unos 25 m no se ve
-  nada). La luz es la **linterna** del jugador (tecla F o botón táctil; se puede reasignar): un foco que
-  sigue la mirada, ilumina la niebla dentro del haz y, en calidad alta, proyecta sombras. Apagada, solo se
-  ven los ojos de los zombis. La cámara del modo es más cerrada (más aumento).
+- **Noche de terror**: el barrio está casi a oscuras y con una niebla negra densa (a unos 20 m no se ve
+  nada). La cámara del modo es más cerrada (más aumento).
+- **Linterna**: se prende y apaga con F (reasignable) o con el botón táctil, con un clic.
+  - Es un foco que sigue la mirada y atraviesa la niebla: dentro de su círculo se ve mucho más lejos.
+  - En calidad alta proyecta sombras. Apagada, solo se ven los ojos de los zombis.
+  - Abajo a la izquierda, un ícono muestra si está prendida, apagada o sin batería, y cuánta carga queda.
+  - **Batería**: dura 150 s prendida y se recarga apagada en 45 s. Con menos del 20 % la luz se debilita
+    y titila. Vacía, se apaga sola y no vuelve a prender hasta recargar un poco. Los valores están en
+    `BATTERY` (`src/modes/zombies/flashlight.js`).
 - **Zombis payaso**: trajes de colores con lunares, rayas o rombos, cara pintada de blanco descascarado,
   rombos negros en los ojos, sonrisa roja, nariz, pelo de colores, sombrerito y gola (piezas pegadas a
   los huesos de la cabeza y el cuello). Mucha más sangre: salpicaduras en el traje, heridas más grandes,

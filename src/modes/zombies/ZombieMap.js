@@ -29,8 +29,8 @@ const CALM = {
   sky: { horizon: '#1e2734', glowAmount: SKIES.fire.glowAmount, stars: SKIES.fire.stars, moon: 1 },
 };
 const DREAD = {
-  hemi: 0.1, moon: 0.1, env: 0.06, background: '#07090c', fogNear: 1, fogFar: 26,
-  hfog: [0.2, 0.28, 0, 1], hfogColor: '#11151b', banks: '#232a33', bankMul: 1.2,
+  hemi: 0.1, moon: 0.1, env: 0.06, background: '#07090c', fogNear: 0.5, fogFar: 20,
+  hfog: [0.27, 0.28, 0, 1], hfogColor: '#11151b', banks: '#232a33', bankMul: 1.35,
   sky: { horizon: '#07090c', glowAmount: 0.22, stars: 0.12, moon: 0.25 },
 };
 

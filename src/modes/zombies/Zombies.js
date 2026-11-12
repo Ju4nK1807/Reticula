@@ -132,6 +132,10 @@ export class Zombies extends Mode {
     g.world.setDread?.(true);
     setZombieRim(0.35); // sin luna, la silueta casi no se recorta: se ven por los ojos
     this.flashlight = new Flashlight(g.world.scene);
+    this.flashlight.onEmpty = () => {
+      g.sfx.tone('square', 1200, 400, 0.05, 0.05);
+      g.hud.flash('La linterna se quedó sin batería: se recarga apagada', 'bad');
+    };
     this.flashlight.setShadows(g.engine.detail === 'alta');
     this.vmLights = g.viewmodel.scene.children.filter((o) => o.isLight).map((light) => ({ light, base: light.intensity }));
     // Defensa: la fuente se vuelve una barra llena de botellas.
@@ -232,8 +236,12 @@ export class Zombies extends Mode {
   // Prende o apaga la linterna (tecla F o botón táctil).
   toggleFlashlight() {
     if (!this.flashlight || !COMBAT.has(this.state) || this.shopOpen) return;
-    this.flashlight.toggle();
-    this.game.sfx.tone('square', 2300, 1500, 0.025, 0.05); // clic del interruptor
+    if (this.flashlight.toggle()) this.game.sfx.tone('square', 2300, 1500, 0.025, 0.05); // clic del interruptor
+    else {
+      // Sin batería: el clic suena hueco y no prende.
+      this.game.sfx.tone('square', 900, 500, 0.03, 0.04);
+      this.game.hud.flash('Linterna sin batería: se recarga apagada', 'bad');
+    }
   }
 
   wantsLock() {
@@ -431,6 +439,7 @@ export class Zombies extends Mode {
     g.hud.setLabel(`${this.variant === 'defense' ? 'Defensa de la barra' : 'Modo zombi'} · ${DIFFICULTIES[this.difficulty].name}`);
     this.hud.setVisible(true);
     this.flashlight.on = true;
+    this.flashlight.battery = 1;
     g.hud.flash(g.touchMode ? 'Linterna: botón de la luz' : `Linterna: ${keyLabel(g.settings.keys, 'flashlight')} para prender o apagar`, 'info');
     this.state = 'countdown';
     this.timer = FIRST_COUNTDOWN;
