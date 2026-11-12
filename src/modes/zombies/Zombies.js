@@ -119,6 +119,7 @@ export class Zombies extends Mode {
     // Sangre: neblina en los impactos y manchas en el suelo.
     this.blood = new BloodFx();
     this.blood.attach(g.world.scene);
+    this.blood.floorAt = g.world.floorAt?.bind(g.world);
     // Noche: reflejos de cielo oscuro y fuego, niebla baja también en la ceniza y la sangre, luces que
     // se reparten según lo que mira el jugador y el color de la noche (calidad alta: postproceso).
     g.world.scene.environment = nightEnvironment(g.engine.renderer);
@@ -367,7 +368,8 @@ export class Zombies extends Mode {
     let bestD = Infinity;
     for (const it of items) {
       const d = Math.hypot(it.pos.x - p.x, it.pos.z - p.z);
-      if (d > it.radius || d >= bestD || !run.offer(it)) continue;
+      // En otro piso no se alcanza (lo que está arriba de una tarima se usa desde arriba).
+      if (d > it.radius || d >= bestD || Math.abs((it.pos.y ?? 0) - p.y) > 1.5 || !run.offer(it)) continue;
       best = it;
       bestD = d;
     }
@@ -544,7 +546,15 @@ export class Zombies extends Mode {
     const o = this.run.offer(it);
     const key = this.game.touchMode ? 'Toca «Usar»' : keyLabel(this.game.settings.keys, 'interact');
     if (o.done) return { key: null, text: o.label, price: null, ok: false };
-    return { key, text: o.label, price: o.price, ok: this.run.cash >= o.price };
+    const ok = this.run.cash >= o.price;
+    // Puertas: «Presiona [E] para abrir ($750)»; si no alcanza, «Dinero insuficiente».
+    if (it.kind === 'door') {
+      const how = this.game.touchMode ? 'Toca «Usar»' : `Presiona [${key}]`;
+      const price = `($${o.price})`;
+      const text = ok ? `${how} para abrir ${o.name} ${price}` : `Dinero insuficiente · ${o.name} ${price}`;
+      return { key: null, text, price: null, ok, poor: !ok };
+    }
+    return { key, text: o.label, price: o.price, ok };
   }
 
   beeps() {

@@ -107,7 +107,8 @@
 .zh-prompt .zh-p-text { color: var(--text); }
 .zh-prompt .zh-p-price { font: 700 14px var(--mono); color: #ffd166; white-space: nowrap; }
 .zh-prompt.poor { border-color: rgba(255, 77, 77, 0.45); }
-.zh-prompt.poor .zh-p-price { color: #ff6b6b; }
+.zh-prompt.poor .zh-p-price,
+.zh-prompt.poor .zh-p-text { color: #ff6b6b; }
 
 /* Cartel central. */
 .zh-banner {

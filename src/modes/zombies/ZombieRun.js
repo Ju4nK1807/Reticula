@@ -448,7 +448,7 @@ export class ZombieRun extends Phase {
     const powered = this.world.powered ?? true;
     if (it.kind === 'door') {
       if (this.world.doors?.[it.id]?.open ?? this.world.isOpen(it.id)) return null;
-      return { price: DOORS[it.id].price, label: `Abrir · ${DOORS[it.id].name}` };
+      return { price: DOORS[it.id].price, name: DOORS[it.id].name, label: `Abrir · ${DOORS[it.id].name}` };
     }
     if (it.kind === 'power') return powered ? null : { price: 0, label: 'Encender la electricidad del barrio' };
     if (it.kind === 'perk') {
@@ -475,7 +475,7 @@ export class ZombieRun extends Phase {
     if (!o) return 'Ya está abierta';
     if (o.done) return o.reason ?? 'Ya la tienes';
     if (o.ammo && this.reserveFullFor(it.id)) return 'Munición llena';
-    if (this.cash < o.price) return 'Faltan puntos';
+    if (this.cash < o.price) return it.kind === 'door' ? 'Dinero insuficiente' : 'Faltan puntos';
     const g = this.game;
     if (it.kind === 'box') {
       const id = rollBox(this.owned);
@@ -635,9 +635,10 @@ export class ZombieRun extends Phase {
     if (!id) return;
     this.sinceDrop = 0;
     const mesh = new THREE.Mesh(powerGeo, glow(POWERUPS[id].color));
-    mesh.position.copy(z.position).setY(0.9);
+    const base = (z.floorY ?? 0) + 0.9; // sobre el piso donde cayó (también en los pisos altos)
+    mesh.position.copy(z.position).setY(base);
     this.root.add(mesh);
-    this.drops.push({ id, mesh, t: 0 });
+    this.drops.push({ id, mesh, t: 0, base });
   }
 
   updateDrops(dt) {
@@ -646,11 +647,11 @@ export class ZombieRun extends Phase {
       const d = this.drops[i];
       d.t += dt;
       d.mesh.rotation.y += dt * 2.2;
-      d.mesh.position.y = 0.9 + Math.sin(d.t * 3) * 0.12;
+      d.mesh.position.y = d.base + Math.sin(d.t * 3) * 0.12;
       // Parpadea antes de desaparecer.
       const left = DROP.lifetime - d.t;
       d.mesh.visible = left > DROP.blinkFrom || Math.floor(left * 6) % 2 === 0;
-      const near = Math.hypot(d.mesh.position.x - p.x, d.mesh.position.z - p.z) < DROP.pickupRadius;
+      const near = Math.hypot(d.mesh.position.x - p.x, d.mesh.position.z - p.z) < DROP.pickupRadius && Math.abs(d.base - 0.9 - p.y) < 1.5;
       if (near && !this.died) this.applyPowerup(d.id);
       if (near || left <= 0) {
         d.mesh.removeFromParent();

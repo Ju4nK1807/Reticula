@@ -73,6 +73,7 @@ export class Zombie {
     this.state = 'chase';
     this.escaped = false;
     this.t = 0;
+    this.floorY = 0; // altura del piso donde pisa (pisos altos y rampas: world.floorAt)
     this.attackT = 0;
     this.hitDone = false;
     this.staggerT = 0;
@@ -215,7 +216,10 @@ export class Zombie {
     const player = ctx.playerPos;
     const pdx = player.x - p.x;
     const pdz = player.z - p.z;
-    const dist = Math.hypot(pdx, pdz);
+    // Con el jugador en otro piso (arriba de una tarima) la distancia cuenta la altura: no lo alcanza
+    // desde abajo y va por la rampa.
+    const dy = Math.abs((player.y ?? 0) - this.floorY);
+    const dist = Math.hypot(pdx, pdz) + (dy > 1 ? dy * 4 : 0);
     this.distToPlayer = dist;
     const reach = this.stats.attackRange * Math.max(1, this.scale * 0.9);
 
@@ -310,6 +314,7 @@ export class Zombie {
     }
     if (this.state !== 'chase') this.separate(dt, ctx, 0.5);
     this.stunT = Math.max(0, this.stunT - dt);
+    p.y = this.floorY = this.run.world?.floorAt?.(p.x, p.z, this.floorY) ?? 0;
     this.group.rotation.y = this.yaw;
     this.group.updateMatrixWorld(true);
     this.updateSkin(dt, this.animKey());
@@ -409,6 +414,7 @@ export class Zombie {
   /** Sale de la tierra antes de avanzar (entradas del vestíbulo). */
   rise() {
     this.riseT = RISE_TIME;
+    this.floorY = 0;
     this.group.position.y = -1.9 * this.scale;
   }
 
@@ -519,7 +525,7 @@ export class Zombie {
   }
 
   updateDeath(dt) {
-    if (this.t > DEATH_TIME) this.group.position.y = -((this.t - DEATH_TIME) / SINK_TIME) * 0.9 * this.scale;
+    if (this.t > DEATH_TIME) this.group.position.y = this.floorY - ((this.t - DEATH_TIME) / SINK_TIME) * 0.9 * this.scale;
     if (this.t > DEATH_TIME + SINK_TIME) this.state = 'gone';
     this.updateSkin(dt, this.dieAnim, true);
   }

@@ -17,14 +17,14 @@ const spawn = world.spawn;
 
 // Secciones a las que la horda NO llega con su puerta cerrada (la plaza rodea al vestíbulo: sus zombis
 // entran por las ventanas; lo que la puerta de la plaza encierra es al jugador). En este orden cada una
-// queda conectada al abrir su puerta (el Hospital, por la Subestación).
-const WALLED = ['mercado', 'estacion', 'iglesia', 'subestacion', 'hospital'];
+// queda conectada al abrir su puerta (el Hospital, por la Subestación; la Feria, por la Estación).
+const WALLED = ['mercado', 'estacion', 'iglesia', 'subestacion', 'hospital', 'feria'];
 const SECTIONS = [...new Set(Object.keys(DOORS).map(doorSection))];
 
 describe('mapa zombi por secciones', () => {
-  it('vestíbulo de inicio con 4 ventanas, la plaza y cinco secciones más, cada una con su puerta', () => {
+  it('circo de inicio con 4 ventanas, la plaza y seis secciones más, cada una con su puerta', () => {
     expect(Object.keys(world.doors).sort()).toEqual(Object.keys(DOORS).sort());
-    expect(SECTIONS.sort()).toEqual(['estacion', 'hospital', 'iglesia', 'mercado', 'plaza', 'subestacion']);
+    expect(SECTIONS.sort()).toEqual(['estacion', 'feria', 'hospital', 'iglesia', 'mercado', 'plaza', 'subestacion']);
     expect(world.entries.filter((e) => e.section === 'lobby')).toHaveLength(4);
     for (const id of SECTIONS) {
       expect(world.entries.filter((e) => e.section === id).length, id).toBeGreaterThanOrEqual(3);
@@ -60,6 +60,30 @@ describe('mapa zombi por secciones', () => {
     }
     world.resetDoors();
     expect(world.isOpen('hospital')).toBe(false);
+  });
+
+  it('a la Feria se llega por la Estación o por la Iglesia (cualquiera de sus dos puertas)', () => {
+    const inside = world.entries.find((e) => e.section === 'feria').entry;
+    for (const doors of [['plaza', 'estacion', 'feria'], ['iglesia', 'feria-iglesia']]) {
+      world.resetDoors();
+      for (const id of doors) world.openDoor(id);
+      expect(world.isOpen('feria'), doors.join('+')).toBe(true);
+      expect(reachable(navFor(), inside, spawn), doors.join('+')).toBe(true);
+    }
+    world.resetDoors();
+    expect(world.isOpen('feria')).toBe(false);
+  });
+
+  it('las puertas son más caras cuanto más lejos del circo: la plaza la más barata, la Feria la más cara', () => {
+    const price = (id) => DOORS[id].price;
+    const all = Object.keys(DOORS).map(price);
+    expect(price('plaza')).toBe(Math.min(...all));
+    expect(price('feria')).toBe(Math.max(...all));
+    expect(price('feria-iglesia')).toBe(price('feria'));
+    // Las que salen del circo, más baratas que las que salen de la plaza; esas, más que las del fondo.
+    expect(price('iglesia')).toBeLessThan(price('mercado'));
+    for (const id of ['mercado', 'estacion', 'subestacion']) expect(price(id)).toBeLessThan(price('hospital'));
+    expect(price('hospital')).toBeLessThan(price('feria'));
   });
 
   it('el jugador queda encerrado en el vestíbulo: las ventanas no se cruzan y la puerta bloquea', () => {
@@ -198,6 +222,72 @@ describe('suavidad de la horda en el mapa real', () => {
     world.resetBarricades();
     expect(far).toEqual([]);
     expect(jumps / frames).toBeLessThan(0.01);
+  });
+});
+
+describe('segundo piso (terraza de la Feria)', () => {
+  const ramp = (i) => world.floors.find((f) => f.axis && (i === 0 ? f.axis === 'x' : f.axis === 'z'));
+
+  it('las escaleras suben de a poco hasta la terraza; abajo de la terraza el piso sigue en 0', () => {
+    const r = ramp(0);
+    const z = (r.minZ + r.maxZ) / 2;
+    let y = 0;
+    let maxStep = 0;
+    for (let x = r.minX - 1; x <= r.maxX + 3; x += 0.1) {
+      const f = world.floorAt(x, z, y);
+      maxStep = Math.max(maxStep, f - y);
+      y = f;
+    }
+    expect(y).toBeCloseTo(3.6, 5); // terminó arriba, en la terraza
+    expect(maxStep).toBeLessThan(0.1);
+    // Desde el suelo, en el mismo punto de la terraza, no se "sube" (no hay escalera ahí).
+    expect(world.floorAt(52, 52, 0)).toBe(0);
+    expect(world.floorAt(52, 52, 3.6)).toBeCloseTo(3.6, 5);
+    expect(world.floorAt(0, 16, 0)).toBe(0);
+  });
+
+  it('la terraza solo se alcanza por las escaleras (la navegación de la horda llega arriba)', () => {
+    for (const id of Object.keys(DOORS)) world.openDoor(id);
+    const nav = navFor();
+    expect(reachable(nav, { x: 52, z: 52 }, spawn)).toBe(true);
+    // Desde el suelo junto al muro de la terraza hay que dar la vuelta: el camino es más largo que la recta.
+    nav.build(52, 52);
+    expect(nav.pathDistance(42.5, 47)).toBeGreaterThan(Math.hypot(52 - 42.5, 52 - 47) + 4);
+    world.resetDoors();
+  });
+
+  it('un zombi sube por la escalera hasta el jugador en la terraza', async () => {
+    const { Zombie } = await import('../src/modes/zombies/Zombie.js');
+    const { waveConfig, zombieStats } = await import('../src/modes/zombies/zombieData.js');
+    for (const id of Object.keys(DOORS)) world.openDoor(id);
+    const nav = navFor();
+    const player = new THREE.Vector3(52, 3.6, 53);
+    nav.build(player.x, player.z);
+    let attacked = 0;
+    const run = { root: new THREE.Group(), nav, world, onZombieAttack() { attacked++; }, onGroan() {}, onZombieDeath() {} };
+    const zombies = [];
+    const ctx = { playerPos: player, zombies, colliders: world.colliders, decoy: null };
+    const z = new Zombie(run, zombieStats('walker', waveConfig(3)), new THREE.Vector3(36, 0, 50));
+    zombies.push(z);
+    let maxY = 0;
+    for (let f = 0; f < 60 * 40 && !attacked; f++) {
+      z.update(1 / 60, ctx);
+      maxY = Math.max(maxY, z.position.y);
+    }
+    world.resetDoors();
+    expect(maxY).toBeCloseTo(3.6, 3);
+    expect(attacked).toBeGreaterThan(0);
+  });
+
+  it('desde abajo no se alcanza al jugador que está arriba (ni lo que se compra en la terraza)', async () => {
+    const { Zombie } = await import('../src/modes/zombies/Zombie.js');
+    const { waveConfig, zombieStats } = await import('../src/modes/zombies/zombieData.js');
+    const run = { root: new THREE.Group(), nav: navFor(), world, onZombieAttack() {}, onGroan() {}, onZombieDeath() {} };
+    const z = new Zombie(run, zombieStats('walker', waveConfig(3)), new THREE.Vector3(44.2, 0, 48));
+    z.update(1 / 60, { playerPos: new THREE.Vector3(45.6, 3.6, 48), zombies: [z], colliders: world.colliders, decoy: null });
+    expect(z.distToPlayer).toBeGreaterThan(10);
+    const lmg = world.interactables.find((x) => x.kind === 'wallbuy' && x.id === 'lmg' && x.pos.y > 1);
+    expect(lmg.pos.y).toBeCloseTo(3.6, 5);
   });
 });
 

@@ -92,7 +92,7 @@ export class ZombieHud {
     this.set('pKeyHide', this.pKey, !p.key, 'hidden');
     this.set('pText', this.pText, p.text);
     this.set('pPrice', this.pPrice, p.price ? `${fmt(p.price)} pts` : '');
-    this.prompt.classList.toggle('poor', p.ok === false && !!p.price);
+    this.prompt.classList.toggle('poor', p.poor ?? (p.ok === false && !!p.price));
   }
 
   banner_(title, sub) {
