@@ -1,3 +1,5 @@
+import { ROUNDS } from '../src/modes/zombies/roundConfig.js';
+import { WEAPONS } from '../src/combat/weapons.js';
 import { describe, expect, it } from 'vitest';
 import { NavGrid } from '../src/modes/zombies/navGrid.js';
 import {
@@ -30,18 +32,40 @@ const seq = (...values) => {
 };
 
 describe('oleadas zombi', () => {
-  it('cada oleada trae más zombis, más resistentes y más rápidos (con tope)', () => {
+  it('cada ronda trae más zombis, más resistentes, más rápidos y que pegan más (con tope)', () => {
     let prev = waveConfig(1);
     for (let n = 2; n <= 30; n++) {
       const c = waveConfig(n);
       expect(c.count).toBeGreaterThan(prev.count);
       expect(c.hpMul).toBeGreaterThan(prev.hpMul);
       expect(c.speedMul).toBeGreaterThanOrEqual(prev.speedMul);
-      expect(c.speedMul).toBeLessThanOrEqual(1.5);
-      expect(c.maxAlive).toBeLessThanOrEqual(24);
+      expect(c.speedMul).toBeLessThanOrEqual(ROUNDS.speedMax);
+      expect(c.damageMul).toBeGreaterThanOrEqual(prev.damageMul);
+      expect(c.damageMul).toBeLessThanOrEqual(ROUNDS.damageMax);
+      expect(c.maxAlive).toBeLessThanOrEqual(ROUNDS.aliveMax);
       prev = c;
     }
-    expect(waveConfig(1).count).toBe(9);
+  });
+
+  it('ronda 1: 5-6 zombis lentos que mueren de 1-2 disparos de pistola', () => {
+    const c = waveConfig(1);
+    expect(c.count).toBeGreaterThanOrEqual(5);
+    expect(c.count).toBeLessThanOrEqual(6);
+    expect(new Set(waveRoster(c))).toEqual(new Set(['walker']));
+    const z = zombieStats('walker', c);
+    expect(z.speed).toBeLessThan(ZOMBIE_TYPES.walker.speed);
+    const p = WEAPONS.pistol.damage;
+    expect(Math.ceil(z.hp / p.body)).toBeLessThanOrEqual(2);
+    expect(Math.ceil(z.hp / p.head)).toBe(1);
+  });
+
+  it('las fórmulas salen de roundConfig.js (cantidad = base + ronda × factor; vida = base × (1 + k × ronda))', () => {
+    const R = ROUNDS;
+    for (const r of [1, 5, 9]) {
+      expect(waveConfig(r).count).toBe(Math.round(R.countBase + R.countPerRound * r + R.countCurve * r * r));
+      expect(roundHp(r)).toBe(Math.round(R.hpBase * (1 + R.hpPerRound * (r - 1))));
+    }
+    expect(roundHp(R.hpLateFrom + 2)).toBe(Math.round(R.hpBase * (1 + R.hpPerRound * (R.hpLateFrom + 1)) * R.hpLate ** 2));
   });
 
   it('las primeras oleadas solo traen caminantes; luego corredores, reptantes y brutos', () => {
@@ -78,16 +102,9 @@ describe('oleadas zombi', () => {
     expect(zombieStats('brute', w10).speed).toBe(ZOMBIE_TYPES.brute.speed);
   });
 
-  it('vida por ronda como en los clásicos: 150, 250, 350… y ×1.1 desde la ronda 10', () => {
-    expect([1, 2, 3, 9].map(roundHp)).toEqual([150, 250, 350, 950]);
-    expect(roundHp(10)).toBe(Math.round(950 * 1.1));
-    expect(roundHp(12)).toBeGreaterThan(roundHp(11));
-  });
-
-  it('el cuchillo mata de 1 golpe en la ronda 1, de 2 en la 2 y de 3 en la 3', () => {
-    for (const [wave, hits] of [[1, 1], [2, 2], [3, 3]]) {
-      expect(Math.ceil(zombieStats('walker', waveConfig(wave)).hp / KNIFE_DAMAGE), `ronda ${wave}`).toBe(hits);
-    }
+  it('el cuchillo mata de 1 golpe en las primeras rondas y después hacen falta más', () => {
+    expect(Math.ceil(zombieStats('walker', waveConfig(1)).hp / KNIFE_DAMAGE)).toBe(1);
+    expect(Math.ceil(zombieStats('walker', waveConfig(15)).hp / KNIFE_DAMAGE)).toBeGreaterThan(1);
   });
 
   it('tres golpes de caminante tumban a un jugador sin bebidas; con Coraza aguanta más', () => {

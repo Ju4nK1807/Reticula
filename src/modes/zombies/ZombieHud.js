@@ -25,7 +25,7 @@ export class ZombieHud {
     this.waveNum = h('strong', {}, '1');
     this.left = h('span', {}, '');
     this.tag = h('span', { class: 'zh-tag', hidden: true }, 'Noche de corredores');
-    this.panel = h('div', { class: 'zh-panel' }, h('div', { class: 'zh-wave' }, h('small', {}, 'Oleada'), this.waveNum), h('div', { class: 'zh-meta' }, this.left, this.tag));
+    this.panel = h('div', { class: 'zh-panel' }, h('div', { class: 'zh-wave' }, h('small', {}, 'Ronda'), this.waveNum), h('div', { class: 'zh-meta' }, this.left, this.tag));
 
     this.cash = h('strong', {}, '0');
     this.gain = h('span', { class: 'zh-gain' });
@@ -163,8 +163,9 @@ export class ZombieHud {
     if (mode.state === 'countdown') this.banner_('Prepárate', `La horda llega en ${Math.ceil(mode.timer)}`);
     else if (mode.state === 'intermission') {
       const shop = game.touchMode ? 'Toca «Armería»' : `${keyLabel(game.settings.keys, 'interact')}: armería`;
-      this.banner_(`Oleada ${run.wave} superada`, `${shop} · siguiente oleada en ${Math.ceil(mode.timer)} s`);
-    } else if (mode.state === 'wave' && mode.waveBannerT > 0) this.banner_(`Oleada ${run.wave}`, run.cfg?.runnerNight ? 'Noche de corredores: vienen rápido' : `${run.cfg?.count ?? ''} zombis`);
+      // Pausa entre rondas: el cartel anuncia la que viene.
+      this.banner_(`Ronda ${run.wave + 1}`, `Ronda ${run.wave} superada · empieza en ${Math.ceil(mode.timer)} s · ${shop}`);
+    } else if (mode.state === 'wave' && mode.waveBannerT > 0) this.banner_(`Ronda ${run.wave}`, run.cfg?.runnerNight ? 'Noche de corredores: vienen rápido' : `${run.cfg?.count ?? ''} zombis`);
     else this.banner_(null);
 
     this.updateArrows(game, run);

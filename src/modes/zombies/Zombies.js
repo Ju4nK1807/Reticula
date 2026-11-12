@@ -656,7 +656,7 @@ export class Zombies extends Mode {
         break;
       case 'waveClear':
         sfx.complete();
-        hud.flash(`Oleada superada · +${data.bonus}`, 'good');
+        hud.flash(`Ronda superada · +${data.bonus}`, 'good');
         break;
       case 'cash':
         this.hud?.popGain(data.amount);

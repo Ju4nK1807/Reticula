@@ -9,7 +9,7 @@ registerWorld(WORLD_ID, () => new ZombieMap());
 registerMode({
   id: MODE_ID,
   title: 'Modo zombi',
-  desc: 'Sobrevive a la horda en el Barrio en ruinas: compra armas entre oleadas, usa granadas y potenciadores',
+  desc: 'Sobrevive a la horda en el Barrio en ruinas: compra armas entre rondas, usa granadas y potenciadores',
   order: 60,
   create: (game) => new Zombies(game),
 });

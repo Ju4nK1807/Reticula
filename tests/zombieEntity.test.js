@@ -140,10 +140,10 @@ describe('zombi', () => {
   it('un golpe fuerte lo hace tambalear; al bruto no', () => {
     const { make } = setup();
     const w = make(0, 10);
-    w.damage(80, 'body');
+    w.damage(w.maxHp * 0.5, 'body');
     expect(w.state).toBe('stagger');
     const b = make(2, 10, 'brute');
-    b.damage(400, 'head');
+    b.damage(b.maxHp * 0.5, 'head');
     expect(b.state).toBe('chase');
   });
 

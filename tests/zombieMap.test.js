@@ -200,8 +200,8 @@ describe('suavidad de la horda en el mapa real', () => {
     let jumps = 0;
     let frames = 0;
     const prev = new Map();
-    // Salen a ~30 m del jugador: a 1.7 m/s necesitan unos 18 s.
-    for (let f = 0; f < 60 * 30; f++) {
+    // Salen a ~30 m del jugador: a ~1.4 m/s (ronda 3) necesitan unos 22 s.
+    for (let f = 0; f < 60 * 40; f++) {
       for (const z of zombies) {
         const x0 = z.position.x;
         const z0 = z.position.z;
