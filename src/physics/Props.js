@@ -123,8 +123,9 @@ export class Props {
       group.add(mesh);
       this.world.solids.push(mesh);
     }
-    // Sobre el suelo del mapa (algunos tienen el piso un poco por encima de 0) o sobre lo que se indique.
-    body.position.set(x, Math.max(y, this.world.groundY ?? 0) + halfHeight(t), z);
+    // Sobre el suelo del mapa (algunos tienen el piso un poco por encima de 0, o pisos con altura:
+    // world.floorAt) o sobre lo que se indique.
+    body.position.set(x, Math.max(y, this.floorAt(x, z, y)) + halfHeight(t), z);
     body.quaternion.setFromEuler(new THREE.Euler(rx, ry, rz));
     const item = { type, def: t, body, group, home: { p: body.position.clone(), q: body.quaternion.clone() }, soundT: 0 };
     body.item = item;
@@ -181,6 +182,11 @@ export class Props {
     }
   }
 
+  // Piso bajo (x, z) para algo a la altura y: el del mapa (veredas, pisos altos) o groundY.
+  floorAt(x, z, y = 0) {
+    return Math.max(this.world.groundY ?? 0, this.world.floorAt?.(x, z, y) ?? 0);
+  }
+
   /**
    * movers: cilindros que empujan ({ x, z, r, y0, h }): el jugador y los enemigos. Avanza la física de
    * lo que está despierto y separa lo que se toca.
@@ -217,7 +223,7 @@ export class Props {
       const b = it.body;
       if (!b.awake) continue;
       b.lastImpact = 0;
-      stepBody(b, dt, colliders, this.world.groundY ?? 0);
+      stepBody(b, dt, colliders, this.floorAt(b.position.x, b.position.z, b.position.y - b.radius));
       it.soundT -= dt;
       if (b.lastImpact > IMPACT_SOUND && it.soundT <= 0) {
         it.soundT = SOUND_GAP;

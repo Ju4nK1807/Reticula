@@ -107,6 +107,9 @@ const ALLEY_W = 4.2;
 const OUTSIDE = 9; // m que se extiende cada callejón hacia fuera
 const NICHE_W = 2.6; // ancho de las entradas de zombis en los muros de las secciones
 const DOOR_H = 3.6;
+// Veredas de la plaza: [x, z, ancho, largo] (losas: se pisan por encima con floorAt).
+const SIDEWALKS = [[0, -PLAZA + 1.5, PLAZA * 2, 3], [0, PLAZA - 1.5, PLAZA * 2, 3], [-PLAZA + 1.5, 0, 3, PLAZA * 2 - 6], [PLAZA - 1.5, 0, 3, PLAZA * 2 - 6]];
+const SIDEWALK_H = 0.12;
 const STEP = 0.6; // m: escalón más alto que se sube caminando (escaleras de la Feria)
 
 // Callejones: lado (n/s/e/o) y posición a lo largo de ese lado. `door`: lleva a esa sección (no es
@@ -278,14 +281,15 @@ export class ZombieMap extends World {
     this.planks = []; // tablones de todas las barricadas (instancias de una malla)
     this.boxSpots = BOX_SPOTS;
 
+    // Pisos con altura (floorAt): las veredas de la plaza (losas de 12 cm), la terraza y las escaleras de
+    // la Feria (segundo piso).
+    this.floors = [...SIDEWALKS.map(([x, z, w, d]) => ({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: SIDEWALK_H })), ...feriaFloors()];
     // --- Suelo ---------------------------------------------------------------------------------
     // Afueras de barro y grava; la plaza empedrada con veredas de baldosa y una calle que la cruza.
     this.ground(150, 150, -4, M.mud);
     block(PLAZA * 2, 0.02, PLAZA * 2, M.cobble, 0, 0, 0, false);
     block(PLAZA * 2 - 6, 0.025, 7, M.asphalt, 0, -4, 0, false);
-    for (const [x, z, w, d] of [[0, -PLAZA + 1.5, PLAZA * 2, 3], [0, PLAZA - 1.5, PLAZA * 2, 3], [-PLAZA + 1.5, 0, 3, PLAZA * 2 - 6], [PLAZA - 1.5, 0, 3, PLAZA * 2 - 6]]) {
-      block(w, 0.12, d, M.sidewalk, x, z, 0, false);
-    }
+    for (const [x, z, w, d] of SIDEWALKS) block(w, SIDEWALK_H, d, M.sidewalk, x, z, 0, false);
     for (let x = -16; x <= 16; x += 8) block(3, 0.03, 0.25, M.line, x, -4, 0.02, false); // marcas viales
 
     // --- Edificios del perímetro, con los huecos de los callejones -----------------------------------
@@ -342,7 +346,8 @@ export class ZombieMap extends World {
     }
     // Contenedores de basura y cajas.
     for (const [x, z] of [[-18, -18], [18.5, 17.5], [-19, 15]]) block(2.2, 1.4, 1.4, M.dumpster, x, z);
-    for (const [x, z, s] of [[19, -5, 1], [18, -4, 0.8], [-12, 17, 1.1], [-11, 18.2, 0.8]]) block(s, s, s, M.wood, x, z, 0);
+    // Cajas: dos en la vereda este (cobertura junto a los sacos terreros) y dos en la esquina del circo.
+    for (const [x, z, s] of [[19.8, -17.6, 1], [20.9, -16.6, 0.8], [-12, 17, 1.1], [-11, 18.2, 0.8]]) this.crate(x, z, s);
     // Vallas rotas.
     for (const [x, z, w] of [[-4, 18.5, 6], [10, -19.5, 5]]) {
       block(w, 1.3, 0.12, M.metal, x, z, 0);
@@ -365,7 +370,6 @@ export class ZombieMap extends World {
     buildSubestacion(this, M);
     buildHospital(this, M);
     buildFeria(this, M);
-    this.floors = feriaFloors(); // segundo piso: terraza y escaleras (floorAt)
     for (const p of PASSAGES) this.passage(p, M);
 
     // --- Máquinas de bebidas y armas de la pared ---------------------------------------------------------
@@ -404,10 +408,10 @@ export class ZombieMap extends World {
       { type: 'canGreen', x: -7.6, z: -16.9, y: 0.9 },
       { type: 'ammo', x: -18, z: -18, y: 1.4, ry: -0.4 },
       ...[[-8.6, 12.9], [-3.4, 12.8], [13.8, 5.6], [16.2, 0.5], [3.0, -13.6], [7.6, -16.4], [-16.2, -10.2]].map(([x, z], i) => ({ type: 'cone', x, z, ry: i })),
-      ...[[-20.4, -8.5], [20.3, 6.8], [-6.5, -20.4], [13.2, 20.3], [20.4, -10.5]].map(([x, z]) => ({ type: 'trash', x, z })),
+      ...[[-20.4, -9.6], [20.3, 5.6], [-6.5, -20.4], [14.8, 20.6], [20.4, -8.4]].map(([x, z]) => ({ type: 'trash', x, z })),
       { type: 'crate', x: 16.6, z: -11.8, ry: 0.3 },
       { type: 'crate', x: -3.2, z: -19.6, ry: -0.2 },
-      { type: 'crate', x: -19.4, z: -3.6, ry: 0.6 },
+      { type: 'crate', x: -19.4, z: -2.9, ry: 0.6 },
       { type: 'crateSmall', x: -18.3, z: -2.4, ry: 0.2 },
       { type: 'crateSmall', x: 6, z: 19.6, ry: -0.5 },
       { type: 'barrel', x: -9.6, z: -14.4 },
@@ -421,7 +425,7 @@ export class ZombieMap extends World {
       { type: 'cone', x: -44.5, z: -13, ry: 0.6 },
       { type: 'crateSmall', x: -26, z: -45, ry: 0.3 },
       { type: 'trash', x: -16.2, z: -52.6 },
-      { type: 'can', x: -36.3, z: -59.6, y: 0.95 },
+      { type: 'can', x: -36.3, z: -59.6, y: 0.9 },
       { type: 'crateSmall', x: 23, z: -36.5, ry: -0.3 },
       { type: 'trash', x: 36, z: 1 },
       { type: 'barrel', x: 57, z: 13 },
@@ -1205,7 +1209,7 @@ export class ZombieMap extends World {
       b(3, 0.06, 1.8, cloth, x, z, 2.4, false);
       for (let i = 0; i < 3; i++) b(0.5, 0.35, 0.4, M.wood, x - 0.8 + i * 0.8, z, 0.9, false); // cajas de fruta
     }
-    for (const [x, z, s] of [[24, -51.4, 1.1], [23.1, -52.4, 0.8], [22.5, -38.5, 1]]) b(s, s, s, M.wood, x, z);
+    for (const [x, z, s] of [[24, -51.4, 1.1], [23.1, -52.4, 0.8], [22.5, -38.5, 1]]) this.crate(x, z, s);
     this.car(18, -51.2, 0.15, M.carB, M);
     for (const [x, z, ry] of [[3, -36.5, 2.4], [23, -36.5, -2.4], [8, -52.5, 0.4]]) this.lamp(x, z, M, { ry });
     this.fireBarrel(10, -48.5, M);
@@ -1227,6 +1231,8 @@ export class ZombieMap extends World {
       this.pools.push({ pos: new THREE.Vector3(x, 0.02, z), radius: 3.5, color: '#bcd6ff', power: true });
     }
     this.fireBarrel(36.5, 19.5, M);
+    // Carga sin despachar en la esquina noroeste del andén.
+    for (const [x, z, s] of [[35.25, -2.85, 1.1], [36.5, -3.05, 0.8], [35.2, -1.5, 0.8]]) this.crate(x, z, s);
   }
 
   iglesia(M) {
@@ -1302,6 +1308,22 @@ export class ZombieMap extends World {
     const length = { pistol: 0.25, magnum: 0.3, smg: 0.6, rifle: 0.9, burst: 0.85, shotgun: 1.0, lmg: 1.1, dmr: 1.0, sniper: 1.2 }[id] ?? 0.9;
     const origin = at.clone().addScaledVector(n, 0.06).addScaledVector(along, -length / 2).setY(y0 + 1.6);
     return { id, position: origin, rotation: new THREE.Euler(0, yaw, 0) };
+  }
+
+  /**
+   * Caja de madera fija (cobertura): apoyada en el piso de ese lugar (veredas incluidas). Se registra
+   * en `crates` para auditarlas (tests/mapBoxes.test.js).
+   */
+  crate(x, z, s, ry = 0) {
+    const y0 = this.floorAt(x, z, 0);
+    const m = this.block(s, s, s, this.materials.wood, x, z, y0);
+    if (ry) {
+      m.rotation.y = ry;
+      this.fixCollider(m);
+      withObb(this.colliders.at(-1), x, z, s / 2, s / 2, ry);
+    }
+    (this.crates ??= []).push({ x, z, s, y0, mesh: m, collider: this.colliders.at(-1) });
+    return m;
   }
 
   /**
