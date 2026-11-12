@@ -17,6 +17,7 @@ function rules(game) {
   const doors = [...new Map(Object.values(DOORS).map((d) => [d.name, d])).values()].map((d) => `${d.name} (${fmt(d.price)})`).join(', ');
   return [
     ['Resiste la horda', 'Cada oleada trae más zombis, más resistentes y más rápidos. La partida termina cuando caes. Te recuperas si pasas unos segundos sin recibir golpes.'],
+    ['Linterna', `Es de noche y la niebla no deja ver: lo único que alumbra es tu linterna. Préndela o apágala${touch ? ' con el botón de la luz' : key('flashlight')}; apagada, solo vas a ver los ojos de los payasos.`],
     ['Gana puntos', `Cada impacto da puntos; matar da más, sobre todo a la cabeza, con el cuchillo${key('melee')} o con granadas${key('grenade')}.`],
     ['Barricadas', `Empiezas encerrado en el Vestíbulo. La horda sale de la tierra y arranca los tablones de las ventanas; mantén${key('interact')} junto a una ventana para repararla (+${BARRICADE.repairPoints} por tablón).`],
     ['Abre el mapa', `Las puertas tapiadas se compran${key('interact')}: ${doors}. Cada sección tiene más armas y bebidas, pero también más entradas de zombis. Al Hospital se llega por la Subestación o por el Mercado.`],
@@ -58,9 +59,10 @@ function records(record) {
 }
 
 // Reglas propias de la defensa de la barra.
-function defenseRules(touch) {
+function defenseRules(touch, lightKey = 'F') {
   const key = (k) => (touch ? '' : ` (${k})`);
   return [
+    ['Linterna', `Está muy oscuro: prende o apaga la linterna${touch ? ' con el botón de la luz' : key(lightKey)}.`],
     ['Defiende la barra', 'La fuente de la plaza es una barra llena de botellas de licor. Los zombis van primero por ella: cada golpe rompe botellas. Si se rompe la última, se acaba la partida.'],
     ['Atráelos', `Un zombi deja la barra y te persigue si te acercas a menos de ${DEFENSE.aggroRange} m o si le disparas (por unos segundos). Úsalo para sacarlos de la barra.`],
     ['Cuidado con la puntería', 'Las botellas también se rompen con tus balas: dispara con cuidado cerca de la barra.'],
@@ -107,7 +109,7 @@ export function zombieIntroScreen(game, { record, variant = 'survival', difficul
       records(record),
       h('h3', {}, 'Dificultad'),
       onDifficulty && difficultyPicker(record, difficulty, onDifficulty),
-      h('ol', { class: 'stage-list' }, (defense ? defenseRules(game.touchMode) : rules(game)).map(([t, x], i) => h('li', {}, h('span', { class: 'num' }, i + 1), h('div', {}, h('strong', {}, t), h('p', {}, x))))),
+      h('ol', { class: 'stage-list' }, (defense ? defenseRules(game.touchMode, keyLabel(game.settings.keys, 'flashlight')) : rules(game)).map(([t, x], i) => h('li', {}, h('span', { class: 'num' }, i + 1), h('div', {}, h('strong', {}, t), h('p', {}, x))))),
       !game.touchMode && h('dl', { class: 'controls compact' }, controls(game.settings.keys).map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h('div', { class: 'row' }, button('Comenzar', onStart, { variant: 'primary' }), button('Configuración', onSettings), button('Volver', onBack, { variant: 'ghost' })),

@@ -212,6 +212,14 @@ mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requ
   brilla bajo las farolas y bancos de niebla que flotan y se mueven con el viento alrededor del jugador
   (menos en calidad media y baja). **Más barreras y chatarra**: barreras de concreto, muros de sacos,
   autos quemados, pilas de neumáticos, palés, escombros y vallas de obra en todas las zonas.
+- **Noche de terror**: el barrio está casi a oscuras y con una niebla negra más espesa (a unos 25 m no se ve
+  nada). La luz es la **linterna** del jugador (tecla F o botón táctil; se puede reasignar): un foco que
+  sigue la mirada, ilumina la niebla dentro del haz y, en calidad alta, proyecta sombras. Apagada, solo se
+  ven los ojos de los zombis. La cámara del modo es más cerrada (más aumento).
+- **Zombis payaso**: trajes de colores con lunares, rayas o rombos, cara pintada de blanco descascarado,
+  rombos negros en los ojos, sonrisa roja, nariz, pelo de colores, sombrerito y gola (piezas pegadas a
+  los huesos de la cabeza y el cuello). Mucha más sangre: salpicaduras en el traje, heridas más grandes,
+  más neblina de sangre y más charcos.
 
 - **Vestíbulo y barricadas**: se empieza encerrado en un cuarto con cuatro ventanas tapiadas. Los
   zombis salen de la tierra, arrancan los tablones uno a uno y recién entonces entran; mantener `E`

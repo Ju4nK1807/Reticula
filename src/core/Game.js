@@ -467,7 +467,7 @@ export class Game {
     const target = w.scoped ? w.stats.zoom : w.aiming ? w.stats.ads.zoom : 1;
     this.zoomLevel += (target - this.zoomLevel) * Math.min(1, dt * ZOOM_SPEED);
     if (Math.abs(target - this.zoomLevel) < 0.01) this.zoomLevel = target;
-    this.engine.setZoom(this.zoomLevel);
+    this.engine.setZoom(this.zoomLevel * (this.mode?.viewZoom ?? 1)); // el modo puede cerrar la cámara
     this.player.sensScale = this.zoomLevel > 1 ? (1 / this.zoomLevel) * this.settings.gameplay.zoomSensitivity : 1;
     this.player.speedScale = w.aiming ? w.stats.ads.speed : w.scoped ? 0.7 : 1;
     this.viewmodel.aimTarget = w.aiming ? 1 : 0;

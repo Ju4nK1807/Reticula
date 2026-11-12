@@ -75,7 +75,8 @@ export class TouchControls {
         ${btn('melee', 'Golpe cuerpo a cuerpo', 'knife')}
         ${btn('grenade', 'Granada', 'grenade')}
       </div>
-      ${btn('shop', 'Armería', 'cart', '<span class="tc-label">Armería</span>')}`;
+      ${btn('shop', 'Armería', 'cart', '<span class="tc-label">Armería</span>')}
+      ${btn('light', 'Linterna', 'flashlight')}`;
     root.append(this.el);
     this.stickEl = this.el.querySelector('.tc-stick');
     this.knob = this.stickEl.querySelector('i');
@@ -107,6 +108,9 @@ export class TouchControls {
     this.el.classList.toggle('can-grenade', !!m?.grenadesAllowed?.() && (m.grenades ?? 0) > 0);
     // Botón de usar: armería entre oleadas o lo comprable que hay delante (puerta, arma, bebida).
     this.el.classList.toggle('can-shop', (m?.state === 'intermission' && !!m.openShop) || !!m?.near || !!m?.nearBarricade);
+    // Linterna (modo zombi): el botón se ve encendido mientras alumbra.
+    this.el.classList.toggle('can-light', !!m?.flashlight);
+    this.el.classList.toggle('light-on', !!m?.flashlight?.on);
     if (this.weaponKey.textContent !== w.stats.key) this.weaponKey.textContent = w.stats.key;
   }
 
@@ -167,6 +171,9 @@ export class TouchControls {
         return;
       case 'grenade':
         this.game.grenades.throw();
+        return;
+      case 'light':
+        this.game.mode?.toggleFlashlight?.();
         return;
       case 'shop':
         // Junto a una barricada, mantener el botón repara (como mantener la tecla de usar).

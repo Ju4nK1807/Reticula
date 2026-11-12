@@ -19,6 +19,13 @@ import * as THREE from 'three';
 export const HEIGHT_FOG = {
   uHFog: { value: new THREE.Vector4(0.016, 0.5, 0, 1) },
   uHFogColor: { value: new THREE.Color('#1c2330') },
+  // Haz de la linterna (sale de la cámara): la niebla dentro del cono se ilumina.
+  // uBeam: dirección (xyz) · fuerza (w; 0 = apagada) · uBeamCone: cosenos del borde y del centro.
+  uBeam: { value: new THREE.Vector4(0, 0, -1, 0) },
+  uBeamCone: { value: new THREE.Vector2(0.9, 0.97) },
+  uBeamColor: { value: new THREE.Color('#f3f1ec') },
+  // Cuánto aclara la niebla dentro del círculo de la linterna (0-1): la luz la atraviesa y deja ver.
+  uBeamClear: { value: 0 },
 };
 
 const FOG_PARS_VERT = /* glsl */ `#include <fog_pars_vertex>
@@ -41,6 +48,10 @@ const FOG_PARS_FRAG = /* glsl */ `#include <fog_pars_fragment>
 varying vec3 vFogWorld;
 uniform vec4 uHFog;
 uniform vec3 uHFogColor;
+uniform vec4 uBeam;
+uniform vec2 uBeamCone;
+uniform vec3 uBeamColor;
+uniform float uBeamClear;
 #endif`;
 // Profundidad óptica de una densidad a·e^(−b·(y−h0)) entre la cámara y el punto (fórmula cerrada).
 const FOG_FRAG = /* glsl */ `#ifdef USE_FOG
@@ -55,8 +66,18 @@ const FOG_FRAG = /* glsl */ `#ifdef USE_FOG
   float hfB = uHFog.y;
   float hfK = abs( hfY ) > 1e-3 ? ( 1.0 - exp( - hfT * hfY * hfB ) ) / ( hfY * hfB ) : hfT;
   float hfFog = 1.0 - exp( - uHFog.x * exp( - ( cameraPosition.y - uHFog.z ) * hfB ) * hfK );
+  // Linterna: dentro del círculo la niebla se aclara (la luz la atraviesa y se ve lo que alumbra, con
+  // borde nítido) y además brilla un poco (la luz que dispersa, más cuanto más niebla cruza el rayo).
+  float hfCone = 0.0;
+  if ( uBeam.w > 0.0 ) {
+    hfCone = smoothstep( uBeamCone.x, uBeamCone.y, dot( hfR / max( hfT, 1e-4 ), uBeam.xyz ) );
+    float hfClear = 1.0 - uBeamClear * hfCone;
+    hfFog *= hfClear;
+    fogFactor *= hfClear;
+  }
   gl_FragColor.rgb = mix( gl_FragColor.rgb, uHFogColor, hfFog * uHFog.w );
   gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+  if ( uBeam.w > 0.0 ) gl_FragColor.rgb += uBeamColor * ( uBeam.w * hfCone * ( 0.55 * fogFactor + hfFog ) / ( 1.0 + hfT * 0.06 ) );
 #endif`;
 
 /** Añade la niebla baja al sombreador (para encadenar con otros parches, p. ej. el de los zombis). */
@@ -555,12 +576,17 @@ uniform float uFade; // m: más cerca de la cámara se desvanecen
 varying vec2 vUv;
 varying float vSeed;
 varying float vNear;
+varying vec3 vRay;
 #include <fog_pars_vertex>
 void main() {
   vUv = uv;
   vSeed = aBank.w;
   vec4 mvPosition = viewMatrix * vec4(aBank.xyz, 1.0);
   vNear = smoothstep(uFade * 0.35, uFade, -mvPosition.z);
+  // Del ojo a este vértice en el mundo (para saber si cae dentro del haz de la linterna).
+  vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+  vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+  vRay = aBank.xyz + right * position.x * aSize + up * position.y * aSize * 0.45 - cameraPosition;
   mvPosition.xy += position.xy * vec2(aSize, aSize * 0.45);
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
@@ -569,9 +595,14 @@ const BANK_FRAG = /* glsl */ `
 uniform float uTime;
 uniform vec3 uColor;
 uniform float uOpacity;
+uniform vec4 uBeam;
+uniform vec2 uBeamCone;
+uniform vec3 uBeamColor;
+uniform float uBeamClear;
 varying vec2 vUv;
 varying float vSeed;
 varying float vNear;
+varying vec3 vRay;
 #include <fog_pars_fragment>
 ${NOISE}
 void main() {
@@ -581,6 +612,12 @@ void main() {
   float a = smoothstep(1.0, 0.15, r) * smoothstep(0.25, 0.75, n) * uOpacity * vNear;
   if (a < 0.004) discard;
   vec3 c = uColor;
+  // Dentro del círculo de la linterna la bruma brilla un poco pero se ve a través (la luz la atraviesa).
+  float dist = length(vRay);
+  float cone = smoothstep(uBeamCone.x - 0.03, uBeamCone.y, dot(vRay / max(dist, 1e-3), uBeam.xyz));
+  float lit = uBeam.w * cone / (1.0 + dist * 0.09);
+  c += uBeamColor * lit * 1.4;
+  a *= 1.0 - uBeamClear * cone * 0.7;
   #ifdef USE_FOG
     float f = smoothstep(fogNear, fogFar, vFogDepth);
     c = mix(c, fogColor, f);
@@ -610,6 +647,8 @@ export function fogBanks({ count = 42, radius = 34, color = '#5a6678', opacity =
     depthWrite: false,
     fog: true,
   });
+  // El haz de la linterna es el mismo que el de la niebla baja (uniformes compartidos).
+  for (const k of ['uBeam', 'uBeamCone', 'uBeamColor', 'uBeamClear']) mat.uniforms[k] = HEIGHT_FOG[k];
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
   mesh.userData.noShadow = true;
@@ -632,6 +671,9 @@ export function fogBanks({ count = 42, radius = 34, color = '#5a6678', opacity =
     mesh,
     setOpacity(v) {
       mat.uniforms.uOpacity.value = v;
+    },
+    setColor(c) {
+      mat.uniforms.uColor.value.set(c);
     },
     update(dt, camera) {
       if (!camera) return;

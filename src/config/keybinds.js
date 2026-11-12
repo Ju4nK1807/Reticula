@@ -18,6 +18,7 @@ export const ACTIONS = [
   { id: 'grenadeNext', group: 'Combate', label: 'Cambiar de granada', key: 'KeyQ' },
   { id: 'fireMode', group: 'Combate', label: 'Modo de disparo', key: 'KeyB' },
   { id: 'interact', group: 'Combate', label: 'Usar / comprar (modo zombi)', key: 'KeyE' },
+  { id: 'flashlight', group: 'Combate', label: 'Linterna (modo zombi)', key: 'KeyF' },
   { id: 'sensDown', group: 'Otros', label: 'Bajar sensibilidad 3 %', key: 'BracketLeft' },
   { id: 'sensUp', group: 'Otros', label: 'Subir sensibilidad 3 %', key: 'BracketRight' },
   { id: 'restart', group: 'Otros', label: 'Reiniciar la fase', key: 'Backspace' },

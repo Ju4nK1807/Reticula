@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createZombieMaterial, zombieDetail } from './zombieLook.js';
+import { clownPieces, prepareClownKit } from './clownKit.js';
 
 /*
   Apariencia animada de los zombis (modelo realista con texturas PBR; créditos en
@@ -63,7 +64,9 @@ export function loadZombieModel() {
     const height = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3()).y || 1;
     mixer.stopAllAction();
     mixer.uncacheRoot(gltf.scene);
-    return { scene: gltf.scene, clips, height, clone: SkeletonUtils.clone };
+    // Disfraz de payaso (nariz, pelo, sombrero y gola): se mide la cabeza en la pose de reposo.
+    const clown = prepareClownKit(gltf.scene);
+    return { scene: gltf.scene, clips, height, clone: SkeletonUtils.clone, clown };
   })().catch(() => null);
   return template;
 }
@@ -127,6 +130,12 @@ export class ZombieSkin {
       if (o.isBone) this.bones[o.name] = o;
     });
     this.headBone = this.bones.Head ?? null;
+    // Piezas del disfraz colgadas de la cabeza y del cuello (se van con la cabeza si la pierde).
+    this.clown = tpl.clown && this.headBone ? clownPieces(tpl.clown) : null;
+    if (this.clown) {
+      this.headBone.add(this.clown.head);
+      if (this.clown.ruff) (this.bones.Neck ?? this.headBone).add(this.clown.ruff);
+    }
     this.woundBones = Object.values(this.bones).filter((b) => WOUND_BONES.test(b.name));
     this.mixer = new THREE.AnimationMixer(this.body);
     this.actions = {};
@@ -161,6 +170,7 @@ export class ZombieSkin {
     this.root.scale.set(1, 1, 1);
     this.material.emissiveIntensity = 0;
     this.look.randomize(kind);
+    this.clown?.pick();
     this.play('idle', 0);
   }
 
