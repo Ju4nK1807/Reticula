@@ -221,15 +221,23 @@ mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requ
   los huesos de la cabeza y el cuello). Mucha más sangre: salpicaduras en el traje, heridas más grandes,
   más neblina de sangre y más charcos.
 
-- **Vestíbulo y barricadas**: se empieza encerrado en un cuarto con cuatro ventanas tapiadas. Los
-  zombis salen de la tierra, arrancan los tablones uno a uno y recién entonces entran; mantener `E`
-  junto a una ventana la repara (+10 puntos por tablón, hasta 500 por oleada). Todas las entradas del
-  mapa tienen su barricada.
-- **Secciones**: las puertas tapiadas se compran con puntos (`E`, desde cualquiera de sus lados): la
-  **Plaza** (750), el **Mercado** (750), la **Estación** (1000), la **Iglesia** (1250; se llega desde el
-  Vestíbulo), la **Subestación** (1000, al oeste) y el **Hospital** (1250; por la Subestación o por un
-  pasillo desde el Mercado: el mapa forma un circuito). Cada sección trae armas y bebidas nuevas, pero
-  también sus propias entradas; la horda sale de las entradas abiertas más cercanas al jugador.
+- **El Circo y las barricadas**: se empieza encerrado en una carpa de circo abandonada (lona a
+  rayas, pista con aserrín, banderines y focos de colores) con cuatro ventanas tapiadas. Los zombis
+  salen de la tierra, arrancan los tablones uno a uno y recién entonces entran; mantener `E` junto a
+  una ventana la repara (+10 puntos por tablón, hasta 500 por oleada). Todas las entradas del mapa
+  tienen su barricada.
+- **Secciones**: las puertas tapiadas se compran con puntos (`E`, desde cualquiera de sus lados).
+  Cada una lleva un cartel con el precio. Al acercarte aparece «Presiona [E] para abrir ($precio)»,
+  o «Dinero insuficiente» si no alcanza. Cuanto más lejos del Circo, más caras: la **Plaza** (500),
+  la **Iglesia** (750; se llega desde el Circo), el **Mercado** y la **Estación** (1000), la
+  **Subestación** (1250, al oeste), el **Hospital** (1500; por la Subestación o por un pasillo desde el
+  Mercado) y la **Feria** (2000; por la Estación o por la Iglesia). Cada sección trae armas y bebidas
+  nuevas, pero también sus propias entradas. La horda solo sale de las entradas de las secciones
+  abiertas, de las más cercanas al jugador.
+- **La Feria y el segundo piso**: un parque de diversiones abandonado con carrusel, rueda de la
+  fortuna y puestos de juegos. La **Casa de la Risa** tiene una terraza a 3.6 m que se sube por dos
+  escaleras, con una ametralladora en la pared. Los zombis también suben por las escaleras: desde abajo
+  no te alcanzan, pero arriba solo hay dos salidas.
 - **Electricidad**: el barrio empieza sin luz (farolas apagadas, una baliza roja girando). En la
   caseta de la Subestación está el **generador**: su palanca enciende las farolas, los focos, los
   fluorescentes del hospital, las máquinas de bebidas y la Forja. Sin luz solo funciona Segundo Aire.
