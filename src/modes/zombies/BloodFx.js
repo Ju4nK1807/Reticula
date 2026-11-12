@@ -176,7 +176,7 @@ export class BloodFx {
       this.splat(_p, 0.45 + Math.random() * 0.6 * strength, 0);
     }
     if (Math.random() < 0.5) {
-      _p.set(point.x + (Math.random() - 0.5) * 0.5, 0, point.z + (Math.random() - 0.5) * 0.5);
+      _p.set(point.x + (Math.random() - 0.5) * 0.5, point.y, point.z + (Math.random() - 0.5) * 0.5);
       this.splat(_p, 0.2 + Math.random() * 0.25, 0);
     }
   }
@@ -188,7 +188,9 @@ export class BloodFx {
 
   splat(pos, size, grow) {
     const d = this.decalData[this.decalIndex];
-    d.pos.set(pos.x, FLOOR_Y + this.decalIndex * 0.0004, pos.z);
+    // Sobre el piso de ese lugar (pisos altos y rampas: floorAt, si el mapa los tiene).
+    const floor = this.floorAt?.(pos.x, pos.z, pos.y ?? 0) ?? 0;
+    d.pos.set(pos.x, floor + FLOOR_Y + this.decalIndex * 0.0004, pos.z);
     d.rot = Math.random() * Math.PI * 2;
     d.size = size;
     d.grow = grow;

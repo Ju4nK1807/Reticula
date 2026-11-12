@@ -147,11 +147,14 @@ export class PlayerController {
     p.x += this.velocity.x * dt;
     p.z += this.velocity.z * dt;
     p.y += this.velocity.y * dt;
-    if (p.y <= 0) {
-      p.y = 0;
+    // Piso: 0 salvo en los mapas con pisos altos y rampas (world.floorAt). Bajando una rampa se pega al
+    // piso (sin saltitos); si el piso desaparece debajo, cae.
+    const floor = this.world.floorAt?.(p.x, p.z, p.y) ?? 0;
+    if (p.y <= floor || (this.onGround && this.velocity.y <= 0 && p.y - floor < 0.35)) {
+      p.y = floor;
       this.velocity.y = 0;
       this.onGround = true;
-    }
+    } else this.onGround = false;
 
     const height = HEIGHT_STAND + (HEIGHT_CROUCH - HEIGHT_STAND) * this.crouch;
     // Primero los bots y después el mapa: si un bot empuja al jugador contra un muro, gana el muro.

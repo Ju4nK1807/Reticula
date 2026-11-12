@@ -13,6 +13,8 @@ import { setZombieDetail } from './zombieLook.js';
 import { HEIGHT_FOG, LIGHTS_FOR, LightPool, applyHeightFog, fireField, fogBanks, lightShapes } from './atmosphere.js';
 import { darkWindow, decalTexture, litWindow } from './facadeTextures.js';
 import { HOSPITAL, SUBESTACION, buildHospital, buildSubestacion, sign } from './sections.js';
+import { buildCircus, circusMaterials } from './circo.js';
+import { DECK_H, FERIA, buildFeria, feriaFloors } from './feria.js';
 
 const plankGeo = new THREE.BoxGeometry(1, 1, 1);
 // Bancos de niebla según el detalle: son cuadros transparentes grandes (cuestan relleno de píxeles), así
@@ -76,11 +78,13 @@ function mergeChildren(group) {
 }
 
 /*
-  "Barrio en ruinas": una plaza nocturna rodeada de edificios y, detrás de puertas tapiadas que se
-  compran con puntos, cinco secciones más: el Mercado (norte), la Estación (este), la Iglesia (sur), la
-  Subestación (oeste, con el generador que da la luz) y el Hospital (noroeste, con la Forja; se llega
-  desde la Subestación o desde el Mercado). Al estilo de los modos de supervivencia clásicos: el mapa
-  se abre a medida que se gana y sin electricidad las farolas, las bebidas y la Forja no funcionan.
+  "Barrio en ruinas": se empieza encerrado en el Circo (una carpa abandonada, circo.js) junto a una
+  plaza nocturna rodeada de edificios y, detrás de puertas tapiadas que se compran con puntos (más caras
+  cuanto más lejos), seis secciones más: el Mercado (norte), la Estación (este), la Iglesia (sur), la
+  Subestación (oeste, con el generador que da la luz), el Hospital (noroeste, con la Forja; se llega
+  desde la Subestación o desde el Mercado) y la Feria (sureste, con un segundo piso: feria.js; se llega
+  desde la Estación o desde la Iglesia). Al estilo de los modos de supervivencia clásicos: el mapa se
+  abre a medida que se gana y sin electricidad las farolas, las bebidas y la Forja no funcionan.
 
   - entries: [{ id, section, spawn, entry, center }] — por dónde entra la horda. Cada sección tiene las
     suyas (callejones de la plaza, nichos en los muros de las secciones); solo se usan las de las
@@ -92,6 +96,8 @@ function mergeChildren(group) {
     la palanca del generador y la Forja.
   - setPower(on): la electricidad (luces, máquinas y la Forja).
   - nav: límites para la cuadrícula de navegación (todo el mapa).
+  - floorAt(x, z, y): altura del piso (0, o la terraza y las escaleras de la Feria) para el jugador,
+    los zombis, la sangre y lo que se usa con E.
   - update(dt): luces, fuego de los barriles, palanca, baliza, tablones y caída de las puertas.
 */
 
@@ -101,6 +107,7 @@ const ALLEY_W = 4.2;
 const OUTSIDE = 9; // m que se extiende cada callejón hacia fuera
 const NICHE_W = 2.6; // ancho de las entradas de zombis en los muros de las secciones
 const DOOR_H = 3.6;
+const STEP = 0.6; // m: escalón más alto que se sube caminando (escaleras de la Feria)
 
 // Callejones: lado (n/s/e/o) y posición a lo largo de ese lado. `door`: lleva a esa sección (no es
 // una entrada de zombis: la tapia una puerta que se compra).
@@ -118,20 +125,24 @@ const ALLEYS = [
 // Lados del rectángulo: n = minZ, s = maxZ, o = minX, e = maxX.
 const SECTIONS = {
   mercado: { rect: { minX: 0, maxX: 26, minZ: -54, maxZ: -34 }, openings: [['s', 11], ['o', -52]], entries: [['n', 6], ['n', 20], ['e', -44]], floor: ['cobble', '#3d3a38'], walls: ['brick', 'plasterDamaged', 'peeling', 'brickDark'] },
-  estacion: { rect: { minX: 34, maxX: 58, minZ: -4, maxZ: 22 }, openings: [['o', 9]], entries: [['e', 2], ['e', 16], ['n', 46]], floor: ['concrete', '#4b4f55'], walls: ['shutter', 'concrete', 'peelingBlue', 'brickDark'] },
-  iglesia: { rect: { minX: -14, maxX: 18, minZ: 34, maxZ: 56 }, openings: [['n', 2]], entries: [['s', -6], ['s', 10], ['o', 46]], floor: ['mud', '#3a3226'], walls: ['stoneWall', 'stoneWall', 'plasterDamaged'] },
+  estacion: { rect: { minX: 34, maxX: 58, minZ: -4, maxZ: 22 }, openings: [['o', 9], ['s', 55]], entries: [['e', 2], ['e', 16], ['n', 46]], floor: ['concrete', '#4b4f55'], walls: ['shutter', 'concrete', 'peelingBlue', 'brickDark'] },
+  iglesia: { rect: { minX: -14, maxX: 18, minZ: 34, maxZ: 56 }, openings: [['n', 2], ['e', 40]], entries: [['s', -6], ['s', 10], ['o', 46]], floor: ['mud', '#3a3226'], walls: ['stoneWall', 'stoneWall', 'plasterDamaged'] },
   subestacion: { rect: SUBESTACION, openings: [['e', -16], ['n', -46]], entries: [['o', -29], ['s', -54], ['s', -40]], floor: ['concrete_floor', '#44474c'], walls: ['shutter', 'concrete', 'brickDark'] },
   hospital: { rect: HOSPITAL, openings: [['s', -46], ['e', -52]], entries: [['n', -49], ['n', -21], ['o', -52]], floor: ['tiles_dirty', '#5d635e'], walls: ['peeling', 'plasterDamaged', 'peeling', 'concrete'] },
+  feria: { rect: FERIA, openings: [['n', 55], ['o', 40]], entries: [['n', 38], ['s', 42], ['o', 49], ['e', 36]], floor: ['mud', '#3b3128'], walls: ['plasterDamaged', 'brickDark', 'shutter', 'brick'] },
 };
 // Pasillos entre secciones con su puerta (se compra desde los dos lados): eje del pasillo, posición
 // fija en el otro eje, de dónde a dónde va.
 const PASSAGES = [
   { door: 'hospital', axis: 'z', at: -46, from: -39, to: -33 },
   { door: 'hospital-mercado', axis: 'x', at: -52, from: -13, to: -1 },
+  { door: 'feria', axis: 'z', at: 55, from: 23, to: 29 },
+  { door: 'feria-iglesia', axis: 'x', at: 40, from: 19, to: 27 },
 ];
 
-// Vestíbulo: cuarto de inicio cerrado (al estilo de los mapas clásicos), en el sur de la plaza. Ventanas
-// tapiadas por donde entra la horda y dos puertas: a la plaza (norte) y a la iglesia (el callejón sur).
+// Circo: cuarto de inicio cerrado (al estilo de los mapas clásicos), en el sur de la plaza: una carpa
+// abandonada (circo.js). Ventanas tapiadas por donde entra la horda y dos puertas: a la plaza (norte) y
+// a la iglesia (el callejón sur).
 const LOBBY = { minX: -10, maxX: 10, minZ: 10, maxZ: 22, wallH: 5 };
 const WINDOW_W = 2.4;
 // Ventanas: [lado del cuarto, posición]. n = pared norte (z = minZ), o = oeste, e = este.
@@ -159,6 +170,7 @@ const WALL_SPOTS = [
   ['magnum', -6, PLAZA, 's'], // en el vestíbulo
   ['shotgun', -54.5, -13, 'n'], // en la caseta del generador (Subestación)
   ['rifle', -14, -48, 'e'], // en la farmacia del hospital
+  ['lmg', 60, 50.5, 'e', DECK_H], // arriba, en la terraza de la Casa de la Risa (Feria)
 ];
 // Lugares de la caja misteriosa: empieza en la plaza y, cada tantos usos, se muda a otro.
 export const BOX_SPOTS = [
@@ -188,9 +200,9 @@ export class ZombieMap extends World {
       background: '#1e2734',
       fogNear: 2,
       fogFar: 34,
-      spawn: new THREE.Vector3(0, 0, 16), // en el vestíbulo
+      spawn: new THREE.Vector3(0, 0, 16), // en el circo, en medio de la pista
       // El jugador puede ir a todo el mapa: lo limitan los muros y las puertas cerradas.
-      playerZone: { minX: -70, maxX: 66, minZ: -72, maxZ: 64 },
+      playerZone: { minX: -70, maxX: 70, minZ: -72, maxZ: 70 },
     });
     const scene = this.scene;
     // Luna fría y relleno muy bajo: la noche se lee por las farolas y el fuego (luces de verdad).
@@ -345,18 +357,21 @@ export class ZombieMap extends World {
 
     // --- Vestíbulo (inicio) y secciones que se abren con puertas -----------------------------------------
     this.lobby(M);
+    buildCircus(this, LOBBY, this.spawn);
     for (const [id, def] of Object.entries(SECTIONS)) this.section(id, def, M);
     this.mercado(M);
     this.estacion(M);
     this.iglesia(M);
     buildSubestacion(this, M);
     buildHospital(this, M);
+    buildFeria(this, M);
+    this.floors = feriaFloors(); // segundo piso: terraza y escaleras (floorAt)
     for (const p of PASSAGES) this.passage(p, M);
 
     // --- Máquinas de bebidas y armas de la pared ---------------------------------------------------------
     for (const [perk, x, z, ry] of PERK_SPOTS) this.perkMachine(perk, x, z, ry, M);
     const placements = [];
-    for (const [weapon, x, z, side] of WALL_SPOTS) placements.push(this.wallBuy(weapon, x, z, side));
+    for (const [weapon, x, z, side, y0] of WALL_SPOTS) placements.push(this.wallBuy(weapon, x, z, side, y0));
     this.wallWeapons = placeWeapons(this.scene, placements).catch(() => null); // modelos 3D (llegan después)
     this.mysteryBox(BOX_SPOTS[0], M);
     this.forge(FORGE_SPOT, M);
@@ -366,7 +381,7 @@ export class ZombieMap extends World {
     for (const [x, z, s, ry] of [[-3, 12, 1.8, 0.2], [18, -17, 2.2, 1.0], [-19, 9, 2, 2.3], [11, 17.5, 1.6, 0.4], [2, -36, 2.4, 1.6], [40, 4, 2, 2.2], [-8, 40, 2.6, 0.9]]) this.decal('litter', x, z, s, ry);
 
     // Navegación: todo el mapa (plaza, callejones, secciones y sus entradas).
-    this.nav = { minX: -64, maxX: 64, minZ: -68, maxZ: 62 };
+    this.nav = { minX: -64, maxX: 68, minZ: -68, maxZ: 68 };
     this.openArea = { minX: -PLAZA + 2, maxX: PLAZA - 2, minZ: -PLAZA + 2, maxZ: PLAZA - 2 };
 
     // Utilería con física: latas sobre barreras y sacos (para tirarlas a balazos), conos, botes de
@@ -409,7 +424,7 @@ export class ZombieMap extends World {
       { type: 'can', x: -36.3, z: -59.6, y: 0.95 },
       { type: 'crateSmall', x: 23, z: -36.5, ry: -0.3 },
       { type: 'trash', x: 36, z: 1 },
-      { type: 'barrel', x: 56, z: 20.5 },
+      { type: 'barrel', x: 57, z: 13 },
       { type: 'cone', x: 44, z: 3, ry: 1 },
       { type: 'crate', x: -11.5, z: 54, ry: 0.2 },
     ]);
@@ -635,12 +650,16 @@ export class ZombieMap extends World {
       group.add(m);
     }
     mergeChildren(group); // tablones y escombros: una malla por material (no 13 llamadas de dibujo)
-    // Letrero con el nombre de la sección, a los dos lados.
-    const signMat = new THREE.MeshBasicMaterial({ map: signTexture(DOORS[id].name, '#ffd166'), transparent: true, toneMapped: false, side: THREE.DoubleSide });
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.4), signMat);
-    sign.position.set(0, DOOR_H + 0.4, 0);
-    sign.lookAt(sign.position.clone().addScaledVector(side.inward, 10)); // de frente, sin inclinarse
-    group.add(sign);
+    // Letrero con el nombre de la sección y el precio, uno de cada lado (un poco por delante: en el circo
+    // la puerta tiene un dintel grueso encima). Se cae con la puerta al abrirla.
+    const signMat = new THREE.MeshBasicMaterial({ map: signTexture(`${DOORS[id].name.toUpperCase()} · $${DOORS[id].price}`, '#ffd166'), transparent: true, toneMapped: false });
+    const signGeo = new THREE.PlaneGeometry(3.2, 0.45);
+    for (const k of [1, -1]) {
+      const sign = new THREE.Mesh(signGeo, signMat);
+      sign.position.set(0, DOOR_H + 0.4, 0).addScaledVector(side.inward, 0.5 * k);
+      sign.lookAt(sign.position.clone().addScaledVector(side.inward, 10 * k)); // de frente, sin inclinarse
+      group.add(sign);
+    }
     group.position.copy(center);
     this.scene.add(group);
     group.updateMatrixWorld(true);
@@ -1027,7 +1046,7 @@ export class ZombieMap extends World {
   lobby(M) {
     const r = LOBBY;
     const T = 0.8; // grosor de los muros
-    const mat = M.plasterWarm;
+    const mat = circusMaterials().canvas; // lona a rayas de la carpa
     const gapsBy = { n: [[LOBBY_DOOR.at, LOBBY_DOOR.width]], o: [], e: [] };
     for (const [side, at] of LOBBY_WINDOWS) gapsBy[side].push([at, WINDOW_W]);
     const lines = { n: { alongX: true, fixed: r.minZ, from: r.minX - T / 2, to: r.maxX + T / 2 }, o: { alongX: false, fixed: r.minX, from: r.minZ, to: r.maxZ }, e: { alongX: false, fixed: r.maxX, from: r.minZ, to: r.maxZ } };
@@ -1263,12 +1282,12 @@ export class ZombieMap extends World {
   }
 
   // Arma de la pared: silueta pintada con el nombre y el arma real colgada (llega async).
-  wallBuy(id, x, z, side) {
+  wallBuy(id, x, z, side, y0 = 0) {
     const n = NORMALS[side];
-    const at = new THREE.Vector3(x, 1.45, z).addScaledVector(n, 0.04);
+    const at = new THREE.Vector3(x, y0 + 1.45, z).addScaledVector(n, 0.04);
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.25), new THREE.MeshBasicMaterial({ map: signTexture(WEAPONS[id].name, '#e8e2c8'), transparent: true, toneMapped: false }));
-    panel.position.copy(at).setY(1.05);
-    panel.lookAt(at.clone().setY(1.05).add(n));
+    panel.position.copy(at).setY(y0 + 1.05);
+    panel.lookAt(at.clone().setY(y0 + 1.05).add(n));
     panel.userData.dynamic = true;
     this.scene.add(panel);
     const frame = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.55), new THREE.MeshBasicMaterial({ color: '#d8d0b0', transparent: true, opacity: 0.12, depthWrite: false }));
@@ -1276,13 +1295,28 @@ export class ZombieMap extends World {
     frame.lookAt(at.clone().add(n));
     frame.userData.dynamic = true;
     this.scene.add(frame);
-    this.interactables.push({ kind: 'wallbuy', id, pos: new THREE.Vector3(x, 0, z).addScaledVector(n, 0.9), radius: 1.7 });
+    this.interactables.push({ kind: 'wallbuy', id, pos: new THREE.Vector3(x, y0, z).addScaledVector(n, 0.9), radius: 1.7 });
     // El arma: cañón a lo largo de la pared, centrada en el panel.
     const along = new THREE.Vector3(n.z, 0, -n.x); // dirección del cañón
     const yaw = Math.atan2(-along.x, -along.z); // el modelo apunta a -Z
     const length = { pistol: 0.25, magnum: 0.3, smg: 0.6, rifle: 0.9, burst: 0.85, shotgun: 1.0, lmg: 1.1, dmr: 1.0, sniper: 1.2 }[id] ?? 0.9;
-    const origin = at.clone().addScaledVector(n, 0.06).addScaledVector(along, -length / 2).setY(1.6);
+    const origin = at.clone().addScaledVector(n, 0.06).addScaledVector(along, -length / 2).setY(y0 + 1.6);
     return { id, position: origin, rotation: new THREE.Euler(0, yaw, 0) };
+  }
+
+  /**
+   * Altura del piso en (x, z) para algo que está a la altura y: el piso más alto que no quede más de un
+   * escalón por encima (así, debajo de nada no se "sube" a la terraza; por la escalera, sí).
+   */
+  floorAt(x, z, y = 0) {
+    let best = 0;
+    for (const f of this.floors ?? []) {
+      if (x < f.minX || x > f.maxX || z < f.minZ || z > f.maxZ) continue;
+      let h = f.h;
+      if (f.axis) h *= Math.min(1, Math.max(0, ((f.axis === 'x' ? x : z) - f.from) / (f.to - f.from)));
+      if (h > best && h <= y + STEP) best = h;
+    }
+    return best;
   }
 
   // --- Puertas -------------------------------------------------------------------------------------

@@ -100,16 +100,19 @@ export const BARRICADE = {
 };
 
 // --- Puertas entre secciones del mapa ------------------------------------------------------------------
-// section: la sección que abre (por defecto, la de su mismo id). El Hospital tiene dos puertas: desde
-// la Subestación y desde el Mercado (el mapa forma un circuito).
+// section: la sección que abre (por defecto, la de su mismo id). Más caras cuanto más lejos del circo
+// (el inicio) y cuanto mejor la zona: la plaza es la más barata y la Feria (con el segundo piso) la más
+// cara. El Hospital y la Feria tienen dos puertas cada uno (el mapa forma circuitos).
 export const DOORS = {
-  plaza: { name: 'Plaza', price: 750 },
-  mercado: { name: 'Mercado', price: 750 },
+  plaza: { name: 'Plaza', price: 500 },
+  iglesia: { name: 'Iglesia', price: 750 },
+  mercado: { name: 'Mercado', price: 1000 },
   estacion: { name: 'Estación', price: 1000 },
-  iglesia: { name: 'Iglesia', price: 1250 },
-  subestacion: { name: 'Subestación', price: 1000 },
-  hospital: { name: 'Hospital', price: 1250 },
-  'hospital-mercado': { name: 'Hospital', price: 1250, section: 'hospital' },
+  subestacion: { name: 'Subestación', price: 1250 },
+  hospital: { name: 'Hospital', price: 1500 },
+  'hospital-mercado': { name: 'Hospital', price: 1500, section: 'hospital' },
+  feria: { name: 'Feria', price: 2000 },
+  'feria-iglesia': { name: 'Feria', price: 2000, section: 'feria' },
 };
 export const doorSection = (id) => DOORS[id]?.section ?? id;
 
