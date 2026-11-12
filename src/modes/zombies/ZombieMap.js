@@ -15,6 +15,7 @@ import { darkWindow, decalTexture, litWindow } from './facadeTextures.js';
 import { HOSPITAL, SUBESTACION, buildHospital, buildSubestacion, sign } from './sections.js';
 import { buildCircus, circusMaterials } from './circo.js';
 import { DECK_H, FERIA, buildFeria, feriaFloors } from './feria.js';
+import { RELICARIO_BOX, buildRelicario } from './relicario.js';
 
 const plankGeo = new THREE.BoxGeometry(1, 1, 1);
 // Bancos de niebla según el detalle: son cuadros transparentes grandes (cuestan relleno de píxeles), así
@@ -175,9 +176,10 @@ const WALL_SPOTS = [
   ['rifle', -14, -48, 'e'], // en la farmacia del hospital
   ['ray', 60, 50.5, 'e', DECK_H], // arma especial: arriba, en la terraza de la Casa de la Risa (Feria)
 ];
-// Lugares de la caja misteriosa: empieza en la plaza y, cada tantos usos, se muda a otro.
+// Lugares de la caja misteriosa: empieza en el Relicario (rincón cerrado de la plaza, relicario.js) y,
+// cada tantos usos, se muda a otro.
 export const BOX_SPOTS = [
-  { x: -8, z: -3, ry: Math.PI / 2, where: 'la Plaza' },
+  RELICARIO_BOX,
   { x: 12, z: -36.2, ry: Math.PI, where: 'el Mercado' },
   { x: 56.8, z: 19, ry: -Math.PI / 2, where: 'la Estación' },
   { x: -8, z: 50, ry: Math.PI / 2, where: 'la Iglesia' },
@@ -346,13 +348,16 @@ export class ZombieMap extends World {
     }
     // Contenedores de basura y cajas.
     for (const [x, z] of [[-18, -18], [18.5, 17.5], [-19, 15]]) block(2.2, 1.4, 1.4, M.dumpster, x, z);
-    // Cajas: dos en la vereda este (cobertura junto a los sacos terreros) y dos en la esquina del circo.
-    for (const [x, z, s] of [[19.8, -17.6, 1], [20.9, -16.6, 0.8], [-12, 17, 1.1], [-11, 18.2, 0.8]]) this.crate(x, z, s);
+    // Cajas: dos en la vereda este (cobertura) y dos en la esquina del circo.
+    for (const [x, z, s] of [[20.5, 3.6, 1], [21.2, 4.6, 0.8], [-12, 17, 1.1], [-11, 18.2, 0.8]]) this.crate(x, z, s);
     // Vallas rotas.
     for (const [x, z, w] of [[-4, 18.5, 6], [10, -19.5, 5]]) {
       block(w, 1.3, 0.12, M.metal, x, z, 0);
       for (let i = 0; i <= 2; i++) block(0.12, 1.5, 0.12, M.metal, x - w / 2 + (i * w) / 2, z, 0);
     }
+
+    // Relicario: el rincón de la caja misteriosa, en la esquina noreste.
+    buildRelicario(this, M);
 
     // --- Luces de la plaza: farolas y barriles con fuego ------------------------------------------------
     // Farolas con el brazo hacia el centro de la plaza; dos están rotas y titilan.
@@ -1139,13 +1144,14 @@ export class ZombieMap extends World {
     const b = this.box;
     const spot = BOX_SPOTS[i] ?? BOX_SPOTS[0];
     b.spot = Math.max(0, i);
-    b.group.position.set(spot.x, 0, spot.z);
+    const y0 = this.floorAt(spot.x, spot.z, 0); // apoyada en su piso (el Relicario tiene uno propio)
+    b.group.position.set(spot.x, y0, spot.z);
     b.group.rotation.y = spot.ry;
     b.group.updateMatrixWorld(true);
     b.collider.setFromObject(b.box);
     const front = new THREE.Vector3(Math.sin(spot.ry), 0, Math.cos(spot.ry));
     b.it.pos.set(spot.x, 0, spot.z).addScaledVector(front, 1.1);
-    b.glow.pos.set(spot.x, 1.3, spot.z).addScaledVector(front, 0.6);
+    b.glow.pos.set(spot.x, y0 + 1.3, spot.z).addScaledVector(front, 0.6);
     return spot;
   }
 
