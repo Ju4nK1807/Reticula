@@ -7,7 +7,7 @@ import { clock } from '../../utils/format.js';
 import { rand } from '../../utils/math.js';
 import { NavGrid } from './navGrid.js';
 import { Zombie } from './Zombie.js';
-import { BARRICADE, BOX_MOVE, BOX_PRICE, rollBox, DOORS, DROP, FORGE, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
+import { BARRICADE, BOX_MOVE, BOX_PRICE, rollBox, DOORS, MAX_WEAPONS, DROP, FORGE, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
 const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
 const PLAYER_RADIUS = 0.38; // los zombis no se meten dentro del jugador (ni de la cámara)
@@ -53,6 +53,7 @@ export class ZombieRun extends Phase {
     this.health = this.maxHealth;
     this.sinceHurt = 99;
     this.owned = new Set(['pistol']);
+    this.slots = ['pistol']; // espacios de armas en orden (teclas 1-3); hasta MAX_WEAPONS
     this.perks = new Set(); // bebidas tomadas (zombieData.PERKS)
     this.upgraded = new Set(); // armas forjadas (zombieData.FORGE)
     this.game.weapon.magazineBy = {};
@@ -463,10 +464,10 @@ export class ZombieRun extends Phase {
       if (this.upgraded.has(id)) return { price: 0, label: `Forja · ${WEAPONS[id].name} ya está forjada`, done: true, reason: 'Ya está forjada' };
       return { price: FORGE.price, label: `Forjar ${WEAPONS[id].name} · doble daño, cargador y reserva más grandes` };
     }
-    if (it.kind === 'box') return { price: BOX_PRICE, label: 'Caja misteriosa · un arma al azar' };
+    if (it.kind === 'box') return { price: BOX_PRICE, label: `Caja misteriosa · un arma al azar${this.swapNote()}` };
     const name = WEAPONS[it.id]?.name ?? it.id;
     if (this.owned.has(it.id)) return { price: wallAmmoPrice(it.id), label: `Munición · ${name}`, ammo: true };
-    return { price: WALL_BUYS[it.id], label: `Comprar ${name}` };
+    return { price: WALL_BUYS[it.id], label: `Comprar ${name}${this.swapNote()}` };
   }
 
   /** Compra algo del mapa. Devuelve null si se compró o el motivo si no. */
@@ -481,8 +482,8 @@ export class ZombieRun extends Phase {
       const id = rollBox(this.owned);
       if (!id) return 'Ya tienes todas las armas';
       this.cash -= o.price;
-      this.giveWeapon(id);
-      this.emit('box', { id });
+      const dropped = this.giveWeapon(id);
+      this.emit('box', { id, dropped });
       if (++this.boxUses >= this.boxMoveAt) this.moveBox();
       return null;
     }
@@ -524,19 +525,45 @@ export class ZombieRun extends Phase {
       g.weapon.ammoBy[it.id] = g.weapon.magazineOf(it.id);
       this.emit('ammo', { id: it.id });
     } else {
-      this.giveWeapon(it.id);
-      this.emit('weapon', { id: it.id });
+      const dropped = this.giveWeapon(it.id);
+      this.emit('weapon', { id: it.id, dropped });
     }
     return null;
   }
 
-  // Arma nueva con su cargador lleno y su reserva; queda en la mano.
+  // Con las manos llenas, lo que se compre cambia el arma de la mano (se dice en el mensaje).
+  swapNote() {
+    if (this.slots.length < MAX_WEAPONS) return '';
+    return ` (cambia tu ${WEAPONS[this.handSlotWeapon()]?.name ?? 'arma'})`;
+  }
+
+  handSlotWeapon() {
+    const cur = this.game.weapon.id;
+    return this.slots.includes(cur) ? cur : this.slots[this.slots.length - 1];
+  }
+
+  /**
+   * Arma nueva con su cargador lleno y su reserva; queda en la mano. Si ya hay MAX_WEAPONS, reemplaza a
+   * la que está en la mano (en su mismo espacio) y la pierde con su forja. Devuelve la que dejó (o null).
+   */
   giveWeapon(id) {
     const w = this.game.weapon;
-    this.owned.add(id);
+    let dropped = null;
+    if (!this.owned.has(id)) {
+      if (this.slots.length >= MAX_WEAPONS) {
+        dropped = this.handSlotWeapon();
+        this.slots[this.slots.indexOf(dropped)] = id;
+        this.owned.delete(dropped);
+        this.upgraded.delete(dropped);
+        if (w.reserveBy) delete w.reserveBy[dropped];
+        if (w.magazineBy) delete w.magazineBy[dropped];
+      } else this.slots.push(id);
+      this.owned.add(id);
+    }
     w.reserveBy[id] = this.reserveMax(id);
     w.setWeapon(id, { force: true });
     w.ammo = w.magazine;
+    return dropped;
   }
 
   // Reserva máxima de un arma (más grande si está forjada); null = infinita.

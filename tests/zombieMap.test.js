@@ -286,8 +286,8 @@ describe('segundo piso (terraza de la Feria)', () => {
     const z = new Zombie(run, zombieStats('walker', waveConfig(3)), new THREE.Vector3(44.2, 0, 48));
     z.update(1 / 60, { playerPos: new THREE.Vector3(45.6, 3.6, 48), zombies: [z], colliders: world.colliders, decoy: null });
     expect(z.distToPlayer).toBeGreaterThan(10);
-    const lmg = world.interactables.find((x) => x.kind === 'wallbuy' && x.id === 'lmg' && x.pos.y > 1);
-    expect(lmg.pos.y).toBeCloseTo(3.6, 5);
+    const ray = world.interactables.find((x) => x.kind === 'wallbuy' && x.id === 'ray' && x.pos.y > 1);
+    expect(ray.pos.y).toBeCloseTo(3.6, 5);
   });
 });
 

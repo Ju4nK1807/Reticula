@@ -155,3 +155,44 @@ describe('zombis sin piernas', () => {
     expect(brute.loseLegs()).toBe(false);
   });
 });
+
+describe('armas: límite de 3, cambio al comprar y arma especial', () => {
+  it('se cargan hasta 3 armas; con las manos llenas, comprar cambia la de la mano (en su espacio)', () => {
+    const { run, game, events } = makeRun();
+    run.cash = 99999;
+    game.weapon.setWeapon('pistol', { force: true });
+    expect(run.slots).toEqual(['pistol']);
+    expect(run.buy(find('wallbuy', 'smg'))).toBeNull();
+    expect(run.buy(find('wallbuy', 'shotgun'))).toBeNull();
+    expect(run.slots).toEqual(['pistol', 'smg', 'shotgun']);
+    // Con la escopeta en la mano, el rifle la reemplaza (y se avisa).
+    expect(run.offer(find('wallbuy', 'rifle')).label).toContain('cambia tu Escopeta');
+    expect(run.buy(find('wallbuy', 'rifle'))).toBeNull();
+    expect(run.slots).toEqual(['pistol', 'smg', 'rifle']);
+    expect(run.owned.has('shotgun')).toBe(false);
+    expect(game.weapon.id).toBe('rifle');
+    expect(events.at(-1)).toEqual(['weapon', { id: 'rifle', dropped: 'shotgun' }]);
+    // Con la pistola en la mano, la caja cambia la pistola.
+    game.weapon.setWeapon('pistol', { force: true });
+    run.giveWeapon('ray');
+    expect(run.slots).toEqual(['ray', 'smg', 'rifle']);
+    expect(run.owned.size).toBe(3);
+  });
+
+  it('cada arma tiene su precio, cargador, cadencia, daño y recarga; el Desintegrador es especial', async () => {
+    const { WALL_BUYS, rollBox } = await import('../src/modes/zombies/zombieData.js');
+    const ids = Object.keys(WALL_BUYS);
+    expect(ids.length).toBeGreaterThanOrEqual(6);
+    expect(new Set(ids.map((id) => WALL_BUYS[id])).size).toBe(ids.length);
+    for (const k of ['magazine', 'rps', 'reloadTime']) expect(new Set(ids.map((id) => WEAPONS[id][k])).size, k).toBeGreaterThan(ids.length / 2);
+    expect(WEAPONS.ray.special).toBe(true);
+    expect(RESERVE.ray).toBeGreaterThan(0);
+    // La caja da el arma especial, pero poco.
+    let rays = 0;
+    let s = 1;
+    const rng = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+    for (let i = 0; i < 2000; i++) if (rollBox(new Set(['pistol']), rng) === 'ray') rays++;
+    expect(rays).toBeGreaterThan(0);
+    expect(rays / 2000).toBeLessThan(1 / 9);
+  });
+});

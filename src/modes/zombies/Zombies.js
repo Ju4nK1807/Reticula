@@ -252,6 +252,11 @@ export class Zombies extends Mode {
     return this.run ? this.run.owned.has(id) : id === 'pistol';
   }
 
+  // Espacios de armas (Game: teclas 1-3, rueda y HUD con solo las que se tienen).
+  weaponSlots() {
+    return this.run ? this.run.slots : ['pistol'];
+  }
+
   meleeAllowed() {
     return COMBAT.has(this.state) && !this.shopOpen;
   }
@@ -682,10 +687,10 @@ export class Zombies extends Mode {
         sfx.powerup();
         break;
       case 'weapon':
-        hud.flash(`${WEAPONS[data.id].name} comprada`, 'good');
+        hud.flash(`${WEAPONS[data.id].name} comprada${data.dropped ? ` · dejaste ${WEAPONS[data.dropped].name}` : ''}`, 'good');
         break;
       case 'box':
-        hud.flash(`Caja misteriosa: ¡${WEAPONS[data.id].name}!`, 'good');
+        hud.flash(`Caja misteriosa: ¡${WEAPONS[data.id].name}!${data.dropped ? ` · dejaste ${WEAPONS[data.dropped].name}` : ''}`, 'good');
         sfx.powerup();
         break;
       case 'ammo':
