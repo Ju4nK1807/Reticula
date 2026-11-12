@@ -188,3 +188,25 @@
   .zh-barbox { top: 84px; }
   .zh-diffs { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Linterna: ícono, tecla, estado y batería (abajo a la izquierda, sobre la vida). */
+.zh-light {
+  position: absolute; left: 22px; bottom: 50px; display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 7px;
+  border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--muted);
+  transition: border-color 0.15s, color 0.15s;
+}
+.zh-light-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); }
+.zh-light-icon svg { transform: rotate(-90deg); }
+.zh-light-info { display: flex; flex-direction: column; gap: 4px; }
+.zh-light-row { display: flex; align-items: center; gap: 6px; font: 600 11px var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; }
+.zh-light-row kbd { padding: 0 4px; font-size: 10px; }
+.zh-battery { width: 74px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.zh-battery i { display: block; height: 100%; width: 100%; background: #9aa4b2; transition: width 0.25s; }
+.zh-light.on { color: #ffe9a8; border-color: rgba(255, 214, 102, 0.45); }
+.zh-light.on .zh-light-icon { background: rgba(255, 214, 102, 0.18); color: #ffd166; box-shadow: 0 0 12px rgba(255, 214, 102, 0.35); }
+.zh-light.on .zh-battery i { background: #ffd166; }
+.zh-light.low .zh-battery i { background: #ff6b6b; }
+.zh-light.low.on { animation: zh-light-low 0.9s steps(2) infinite; }
+.zh-light.empty { color: #ff8a8a; border-color: rgba(255, 77, 77, 0.4); }
+@keyframes zh-light-low { 50% { border-color: rgba(255, 77, 77, 0.6); } }
+.touch-mode .zh-light { bottom: auto; top: 236px; left: 72px; }
