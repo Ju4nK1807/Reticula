@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { HorrorMusic } from '../../audio/HorrorMusic.js';
 import './zombies.css';
 import { Mode } from '../Mode.js';
 import { Ambience } from '../../effects/Ambience.js';
@@ -137,6 +138,9 @@ export class Zombies extends Mode {
       g.hud.flash('La linterna se quedó sin batería: se recarga apagada', 'bad');
     };
     this.flashlight.setShadows(g.engine.detail === 'alta');
+    // Sonido: música de terror y más eco (barrio abierto entre fachadas).
+    this.music = new HorrorMusic(g.sfx, { paused: () => g.paused || this.shopOpen });
+    g.sfx.setSpace(1.35);
     this.vmLights = g.viewmodel.scene.children.filter((o) => o.isLight).map((light) => ({ light, base: light.intensity }));
     // Defensa: la fuente se vuelve una barra llena de botellas.
     if (this.variant === 'defense') this.bar = new Bar(g, this.root);
@@ -440,6 +444,7 @@ export class Zombies extends Mode {
     this.hud.setVisible(true);
     this.flashlight.on = true;
     this.flashlight.battery = 1;
+    this.music.start();
     g.hud.flash(g.touchMode ? 'Linterna: botón de la luz' : `Linterna: ${keyLabel(g.settings.keys, 'flashlight')} para prender o apagar`, 'info');
     this.state = 'countdown';
     this.timer = FIRST_COUNTDOWN;
@@ -501,6 +506,7 @@ export class Zombies extends Mode {
         return;
     }
     if (this.state === 'over') return;
+    this.updateMusic();
     // Lo que hay delante: barricada para reparar o algo comprable (puerta, arma, bebida, caja).
     const active = COMBAT.has(this.state) && !this.shopOpen && !run.died;
     this.nearBarricade = active ? this.findBarricade() : null;
@@ -515,6 +521,22 @@ export class Zombies extends Mode {
     g.hud.setStats(run.hudStats());
     this.hud.update(g, run, this);
     this.updateForgeGlow(dt);
+  }
+
+  // Música: calma entre rondas; durante la ronda, más tensa cuantos más zombis hay cerca.
+  updateMusic() {
+    const run = this.run;
+    const m = this.music;
+    if (!m || !run) return;
+    m.setHealth(run.health / run.maxHealth);
+    if (this.state !== 'wave') {
+      m.setIntensity(this.state === 'dying' ? 1 : 0.15);
+      return;
+    }
+    const p = this.game.player.position;
+    let close = 0;
+    for (const z of run.bots) if (z.alive && z.position.distanceToSquared(p) < 15 * 15) close++;
+    m.setIntensity(0.45 + Math.min(1, close / 6) * 0.55);
   }
 
   // La linterna sigue la mirada; el arma en primera persona se ilumina según esté prendida.
@@ -587,6 +609,7 @@ export class Zombies extends Mode {
     g.weapon.enabled = false;
     this.hud.setVisible(false);
     g.sfx.tone('sawtooth', 200, 50, 1.1, 0.2);
+    this.music?.stop(DEATH_TIME);
   }
 
   finish() {
@@ -678,9 +701,26 @@ export class Zombies extends Mode {
       case 'powerupEnd':
         hud.flash(`${POWERUPS[data.id].name}: terminó`, 'info');
         break;
-      case 'groan':
-        sfx.groan(this.game.panFor(data.zombie.position), data.dist, data.zombie.type);
+      case 'groan': {
+        const z = data.zombie;
+        if (z.type === 'brute' && z.t < 2) sfx.zombieVoice('roar', this.game.panFor(z.position), data.dist);
+        else sfx.groan(this.game.panFor(z.position), data.dist, z.type);
         break;
+      }
+      case 'hurt': // el que te alcanzó gruñe al morder
+        sfx.zombieVoice('snarl', this.game.panFor(data.zombie.position), 1);
+        break;
+      case 'kill': {
+        const z = data.zombie;
+        if (Math.random() < 0.7) sfx.zombieVoice(z.type === 'brute' ? 'brute' : 'death', this.game.panFor(z.position), z.position.distanceTo(this.game.player.position));
+        break;
+      }
+      case 'tear': { // arrancan un tablón de la barricada
+        const at = data.barricade.mouth;
+        sfx.propHit('wood', this.game.panFor(at), 1);
+        sfx.noiseBurst({ type: 'bandpass', f0: 2600, f1: 900, q: 1.5, peak: 0.12, decay: 0.12, pan: this.game.panFor(at) });
+        break;
+      }
       case 'multi':
         hud.flash(`¡${data.kills} de una sola granada!`, 'good');
         break;
@@ -737,6 +777,9 @@ export class Zombies extends Mode {
 
   dispose() {
     const g = this.game;
+    this.music?.stop(1);
+    this.music = null;
+    g.sfx.setSpace(1);
     this.run?.dispose();
     this.run = null;
     this.hud?.dispose();

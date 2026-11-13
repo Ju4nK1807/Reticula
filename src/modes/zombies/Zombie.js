@@ -97,7 +97,7 @@ export class Zombie {
     this.radius = RADIUS * this.scale;
     this.dieAnim = Math.random() < 0.5 ? 'die' : 'die2';
     this.attackAnim = 'attack';
-    this.groanT = 1 + Math.random() * 4;
+    this.groanT = stats.type === 'brute' ? 0.2 : 1 + Math.random() * 4; // el bruto ruge al aparecer
     this.legless = false; // una explosión le arrancó las piernas: se arrastra con los brazos
     this.bleedT = 0;
 
