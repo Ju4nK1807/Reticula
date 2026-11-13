@@ -235,6 +235,7 @@ export class Game {
       this.autoQuality ??= new AutoQuality({ detail: s.video.autoDetail, scale: s.video.autoScale });
     } else this.autoQuality = null;
     this.sfx.setVolume(s.audio.volume);
+    this.sfx.setMusicVolume(s.audio.music ?? 0.5);
   }
 
   // Ajusta la sensibilidad un porcentaje (atajos [ y ]).

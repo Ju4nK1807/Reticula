@@ -391,7 +391,10 @@ export function settingsScreen(game, onBack, opts = {}) {
         field('Volumen', slider(s.audio, 'volume', { min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)}%` }, () => {
           commit();
           game.sfx.hit();
-        }))),
+        })),
+        field('Música', slider(s.audio, 'music', { min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)}%` }, () => {
+          commit();
+        }), 'Música de ambiente del modo zombi (terror y suspenso).')),
     ]],
     juego: ['Juego', () => [
       h('section', { class: 'panel' },

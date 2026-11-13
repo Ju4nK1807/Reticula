@@ -61,7 +61,9 @@ src/
   gfx/                    Superficies PBR, iluminación, calidad automática, cielo y texturas de canvas
   config/                 defaults, ranks, sensitivity (conversión entre 8 juegos y cm/360)
   storage/                SaveStore (localStorage versionado con migraciones), profile (rango general)
-  audio/Sfx.js            Sonidos procedurales con Web Audio API
+  audio/Sfx.js            Sonidos con Web Audio API: disparos grabados con cuerpo y eco, reverb, voces de zombi
+  audio/zombieVoices.js   Perfiles de las voces de zombi (gruñido, chillido, rugido, estertor…)
+  audio/HorrorMusic.js    Música de terror generada en vivo para el modo zombi (volumen propio en Ajustes)
   scenes/                 Mapas base (ShootingRange, TrainingYard), la Armería del menú y registry.js
   bots/                   Bots humanoides: hitboxes, strafing, peeks, agachadas, saltos y disparo
   modes/                  Mode.js (interfaz base), registry.js (registro), index.js (descubre los modos)

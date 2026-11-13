@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS = {
   },
   // Controles reasignables: acción → tecla (KeyboardEvent.code). Ver config/keybinds.js.
   keys: { ...DEFAULT_KEYS },
-  audio: { volume: 0.6 },
+  audio: { volume: 0.6, music: 0.5 },
   // Controles táctiles (teléfono/tableta). mode: auto | on | off. sensitivity: independiente del mouse.
   touch: { mode: 'auto', sensitivity: 1, invertY: false },
   // quality: auto (resolución dinámica, ver gfx/AutoQuality.js) | alta | media | baja | custom.
