@@ -3,12 +3,6 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { glow } from '../gfx/surfaces.js';
 import { WEAPON_MODELS, fitWeaponModel } from '../combat/weaponModels.js';
 
-/*
-  Utilería de escenario: dron procedural (sin modelos descargados) y armas a escala real para
-  estantes y mesas (los mismos GLB de primera persona, unidos por material).
-*/
-
-// --- Dron -----------------------------------------------------------------------------------------
 const droneMats = () => ({
   body: new THREE.MeshStandardMaterial({ color: '#1b2025', roughness: 0.42, metalness: 0.6 }),
   shell: new THREE.MeshStandardMaterial({ color: '#2b333b', roughness: 0.35, metalness: 0.5 }),
@@ -20,16 +14,11 @@ const droneMats = () => ({
   lens: glow('#7ff9ff'),
 });
 
-/**
- * Cuadricóptero de unos 50 cm. Devuelve { group, update(dt, t), camera, setBase } (camera = punto del
- * objetivo de la cámara, para colgarle un láser). Las piezas fijas van unidas por material (7 mallas en
- * vez de 26) y las hélices son discos de movimiento: a esa velocidad no se ven las palas.
- */
 export function createDrone() {
   const M = droneMats();
   const group = new THREE.Group();
   group.userData.dynamic = true;
-  const parts = new Map(); // material → geometrías ya ubicadas
+  const parts = new Map();
   const put = (geo, mat, x, y, z, ry = 0) => {
     const g = geo.clone();
     if (ry) g.rotateY(ry);
@@ -39,7 +28,7 @@ export function createDrone() {
   };
   put(new THREE.BoxGeometry(0.2, 0.07, 0.3), M.body, 0, 0, 0);
   put(new THREE.BoxGeometry(0.15, 0.04, 0.22), M.shell, 0, 0.05, -0.01);
-  put(new THREE.BoxGeometry(0.08, 0.025, 0.06), M.shell, 0, 0.08, 0.04); // antena GPS
+  put(new THREE.BoxGeometry(0.08, 0.025, 0.06), M.shell, 0, 0.08, 0.04);
   const armGeo = new THREE.BoxGeometry(0.3, 0.022, 0.034);
   const motorGeo = new THREE.CylinderGeometry(0.028, 0.032, 0.045, 12);
   const discGeo = new THREE.CircleGeometry(0.125, 28).rotateX(-Math.PI / 2);
@@ -52,7 +41,6 @@ export function createDrone() {
   }
   const legGeo = new THREE.BoxGeometry(0.012, 0.07, 0.2);
   for (const sx of [-1, 1]) put(legGeo, M.arm, sx * 0.07, -0.07, 0);
-  // Cámara con lente brillante, colgando al frente.
   const gimbal = new THREE.Object3D();
   gimbal.position.set(0, -0.055, 0.12);
   group.add(gimbal);
@@ -61,7 +49,7 @@ export function createDrone() {
   put(lensGeo, M.lens, 0, -0.059, 0.149);
   for (const [mat, geos] of parts) {
     const mesh = new THREE.Mesh(mergeGeometries(geos.map(plainUV), false), mat);
-    mesh.castShadow = mat === M.body; // solo el cuerpo da sombra (las hélices y las luces, no)
+    mesh.castShadow = mat === M.body;
     mesh.userData.noShadow = mat !== M.body;
     group.add(mesh);
   }
@@ -72,7 +60,6 @@ export function createDrone() {
   return {
     group,
     camera: gimbal,
-    /** Flota en el sitio (bamboleo suave). */
     update(dt, t) {
       if (!baseSet) {
         base.copy(group.position);
@@ -83,7 +70,6 @@ export function createDrone() {
       group.rotation.z = Math.sin(s * 1.1) * 0.035;
       group.rotation.x = Math.cos(s * 0.9) * 0.03;
     },
-    /** Mueve el punto de reposo (para drones que se desplazan). */
     setBase(v) {
       base.copy(v);
       baseSet = true;
@@ -91,7 +77,6 @@ export function createDrone() {
   };
 }
 
-// Geometría con posición, normal y uv (todas iguales: se pueden unir aunque vengan de primitivas distintas).
 function plainUV(geo) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', geo.attributes.position);
@@ -100,9 +85,8 @@ function plainUV(geo) {
   return g;
 }
 
-// --- Armas de utilería ------------------------------------------------------------------------------
 let loaderPromise = null;
-const raw = new Map(); // id → Promise<THREE.Object3D | null> (modelo a escala real, ajustado)
+const raw = new Map();
 
 function loadRaw(id) {
   const cfg = WEAPON_MODELS[id];
@@ -115,7 +99,6 @@ function loadRaw(id) {
       loaderPromise
         .then((l) => l.loadAsync(BASE + cfg.file))
         .then((gltf) => {
-          // Escala real: culata en z = 0, lomo en y = 0, centrada en x. Cañón hacia -Z.
           fitWeaponModel(gltf.scene, { scale: 1, back: 0, top: 0, x: 0, finish: cfg.finish, rotY: cfg.rotY, norm: cfg.norm, thin: cfg.thin });
           return gltf.scene;
         })
@@ -125,7 +108,6 @@ function loadRaw(id) {
   return raw.get(id);
 }
 
-// Geometría solo con posición y normal (todas iguales: se pueden unir).
 function plain(geometry, matrix) {
   const src = geometry.index ? geometry.toNonIndexed() : geometry.clone();
   const g = new THREE.BufferGeometry();
@@ -136,7 +118,6 @@ function plain(geometry, matrix) {
   return g;
 }
 
-// Une la geometría de `models` (cada uno con su matriz) en una malla por material.
 async function mergeByMaterial(entries) {
   const { mergeGeometries } = await import('three/addons/utils/BufferGeometryUtils.js');
   const byMaterial = new Map();
@@ -157,17 +138,13 @@ async function mergeByMaterial(entries) {
     const mesh = new THREE.Mesh(merged, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.userData.dynamic = true; // llega después de preparar el mapa: no entra en la unión estática
+    mesh.userData.dynamic = true;
     group.add(mesh);
   }
   group.userData.dynamic = true;
   return group;
 }
 
-/**
- * Coloca armas en el mundo y las une por material (pocas llamadas de dibujo para todo el estante).
- * placements: [{ id, position: Vector3, rotation: Euler, scale? }]. Resuelve al grupo agregado a `parent`.
- */
 export async function placeWeapons(parent, placements) {
   const models = await Promise.all(placements.map((p) => loadRaw(p.id)));
   const entries = [];
@@ -185,10 +162,6 @@ export async function placeWeapons(parent, placements) {
   return group;
 }
 
-/**
- * Un arma suelta a escala real (para colgarla de un personaje): grupo con origen en el extremo de la
- * culata y el lomo, cañón hacia -Z. Resuelve a null si no se pudo cargar.
- */
 export async function loadWeaponProp(id) {
   const model = await loadRaw(id);
   if (!model) return null;

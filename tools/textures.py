@@ -1,19 +1,3 @@
-"""Descarga y optimiza las texturas PBR del juego (CC0, Poly Haven).
-
-Uso:  python tools/textures.py            (procesa solo lo que falta)
-      python tools/textures.py --force    (rehace todo)
-
-Por cada superficie de src/gfx/surfaces.json:
-  - Descarga color (diff), normal (convención OpenGL, la de three.js) y ARM
-    (R = oclusión ambiental, G = rugosidad, B = metalicidad) en 1K.
-  - Escribe public/textures/<superficie>/<1k|512>/{albedo,normal,arm}.webp
-    (1K para calidad Alta; 512 para Media y Baja: 4 veces menos memoria de GPU).
-  - Calcula el color medio del albedo en espacio lineal y lo guarda en src/gfx/textureStats.json.
-    El juego lo usa para que cada superficie tenga, en promedio, el color de la paleta del mapa.
-
-Requiere Python 3 con Pillow. Las descargas quedan en tools/.cache (ignorada por git).
-"""
-
 import json
 import sys
 import urllib.request
@@ -29,7 +13,7 @@ CACHE = ROOT / 'tools' / '.cache'
 API = 'https://api.polyhaven.com/files/'
 MAPS = {'albedo': 'Diffuse', 'normal': 'nor_gl', 'arm': 'arm'}
 SIZES = {'1k': 1024, '512': 512}
-QUALITY = {'albedo': 82, 'normal': 88, 'arm': 80}  # el normal pierde detalle antes con la compresión
+QUALITY = {'albedo': 82, 'normal': 88, 'arm': 80}
 HEADERS = {'User-Agent': 'Reticula-texture-tool/1.0'}
 
 
@@ -52,7 +36,6 @@ def srgb_to_linear(c):
 
 
 def mean_linear(img):
-    # Promedio en espacio lineal sobre una versión reducida (rápido y suficiente).
     small = img.convert('RGB').resize((64, 64), Image.BILINEAR)
     lut = [srgb_to_linear(float(i)) for i in range(256)]
     raw = small.tobytes()
@@ -69,15 +52,12 @@ def process(key, entry, force):
 
     images = {name: get(ph) for name, ph in MAPS.items() if ph in files}
     if 'arm' not in images:
-        # Algunas texturas no traen ARM: se arma con la oclusión (o blanco) y la rugosidad; metal = 0.
         rough = get('Rough').convert('L')
         ao = get('AO').convert('L').resize(rough.size) if 'AO' in files else Image.new('L', rough.size, 255)
         images['arm'] = Image.merge('RGB', (ao, rough, Image.new('L', rough.size, 0)))
     if entry.get('gray'):
-        # Superficie neutra: solo luminancia; el color lo pone la paleta del mapa al teñir.
         images['albedo'] = images['albedo'].convert('L').convert('RGB')
     if entry.get('contrast'):
-        # Más contraste en el color (las armas se ven de cerca y teñidas: sin esto el desgaste no se nota).
         images['albedo'] = ImageEnhance.Contrast(images['albedo'].convert('RGB')).enhance(entry['contrast'])
     for size_key, px in SIZES.items():
         for name, img in images.items():
@@ -100,7 +80,6 @@ def main():
     for key, entry in catalog.items():
         print(f'· {key} ({entry["asset"]})', flush=True)
         stats[key] = process(key, entry, force)
-    # Superficies que ya no están en el catálogo: se borran.
     for d in OUT.iterdir() if OUT.exists() else []:
         if d.is_dir() and d.name not in catalog:
             shutil.rmtree(d)

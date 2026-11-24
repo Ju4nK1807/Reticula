@@ -1,7 +1,3 @@
-/* Estilos propios de los ejercicios de coordinación (se cargan con el modo; no tocan style.css). */
-
-/* ---------- HUD ---------- */
-
 .ch-root { position: absolute; inset: 0; pointer-events: none; }
 
 .ch-panel {
@@ -37,8 +33,6 @@
   transition: border-color 0.08s;
 }
 .ch-ring.on { border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 255, 163, 0.35); }
-
-/* ---------- Pantallas ---------- */
 
 .cs-circuit { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-color: var(--accent); }
 .cs-circuit p { margin: 6px 0 8px; }

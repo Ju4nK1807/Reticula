@@ -2,21 +2,12 @@ import * as THREE from 'three';
 import { h } from '../../ui/dom.js';
 
 const MAX_ARROWS = 8;
-const ARROW_FAR = 30; // m: a esta distancia la flecha se ve más tenue
-const INTRO_BANNER = 1.8; // s que se muestra "Oleada N" al empezar
-const EDGE = 0.92; // margen de pantalla (NDC) para considerar a un enemigo "visible"
+const ARROW_FAR = 30;
+const INTRO_BANNER = 1.8;
+const EDGE = 0.92;
 
 const _v = new THREE.Vector3();
 
-/*
-  Capa de HUD propia del modo infinito. Se monta dentro de la capa de juego del HUD general, así
-  que se oculta y se muestra con él. Solo toca el DOM cuando cambia un valor.
-
-  - Panel de oleada: número, enemigos restantes y racha.
-  - Cartel central: cuenta antes de la oleada, "Oleada N" y resumen al superarla.
-  - Flechas de amenaza alrededor de la mira para enemigos fuera de la pantalla. Se ponen rojas si el
-    enemigo te tiene en la mira (puede dispararte).
-*/
 export class EndlessHud {
   constructor(hud) {
     const playLayer = hud.refs.crosshair.parentElement;
@@ -46,11 +37,10 @@ export class EndlessHud {
     this.root = h('div', { class: 'eh-root' }, this.arrowLayer, this.panel, this.banner);
     playLayer.append(this.root);
     this.cache = new Map();
-    this.waveClear = null; // { wave, bonus, heal, perfect } de la última oleada superada
+    this.waveClear = null;
   }
 
   set(key, el, fn) {
-    // fn() devuelve el valor a mostrar; solo se escribe si cambió.
     const v = fn();
     if (this.cache.get(key) === v) return;
     this.cache.set(key, v);

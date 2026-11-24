@@ -1,10 +1,8 @@
 import * as THREE from 'three';
 
 const TRACER_POOL = 48;
-const TRACER_SPEED = 190; // m/s: lo bastante lento para ver la bala viajar
+const TRACER_SPEED = 190;
 const TRACER_LENGTH = 4.2;
-// Grosor (m) a 6 m de la cámara; más lejos crece con la distancia (si no, a 20 m la bala mide menos
-// de un píxel y "desaparece"), hasta TRACER_MAX_WIDTH.
 const TRACER_WIDTH = { player: 0.02, enemy: 0.03 };
 const TRACER_NEAR = 6;
 const TRACER_MAX_WIDTH = 0.11;
@@ -20,14 +18,11 @@ const _p = new THREE.Vector3();
 const _c = new THREE.Color();
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
-// Efectos visuales del mundo: trazadoras (balas visibles), marcas de impacto y partículas.
-// Decals y partículas usan InstancedMesh: una sola draw call cada uno.
 export class Effects {
   constructor() {
     this.root = new THREE.Group();
 
     const tracerGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
-    // Color por encima de 1 y sin mapeo de tonos: brilla (y con calidad alta, el bloom lo realza).
     const tracerMat = (color, boost) =>
       new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(boost), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
     this.tracerMaterials = { player: tracerMat('#ffd27a', 2.4), enemy: tracerMat('#ff4a3a', 2.2) };
@@ -35,7 +30,7 @@ export class Effects {
     for (let i = 0; i < TRACER_POOL; i++) {
       const mesh = new THREE.Mesh(tracerGeo, this.tracerMaterials.player);
       mesh.visible = false;
-      mesh.userData.warm = i === 0; // el precalentamiento compila su sombreador (Engine.warmup)
+      mesh.userData.warm = i === 0;
       mesh.frustumCulled = false;
       this.root.add(mesh);
       this.tracers.push({ mesh, from: new THREE.Vector3(), dir: new THREE.Vector3(), dist: 0, t: 0, active: false, width: 0.012 });
@@ -69,8 +64,7 @@ export class Effects {
 
   tracer(from, to, kind = 'player') {
     const dist = from.distanceTo(to);
-    if (dist < 0.5) return; // demasiado corta para verse: no se ocupa ninguna trazadora
-    // Libre, o si todas están en vuelo, la que más ha recorrido (la más próxima a terminar).
+    if (dist < 0.5) return;
     let t = this.tracers.find((x) => !x.active);
     if (!t) t = this.tracers.reduce((a, b) => (b.t > a.t ? b : a));
     t.from.copy(from);
@@ -114,14 +108,10 @@ export class Effects {
     this.particles.instanceColor.needsUpdate = true;
   }
 
-  // camera: para engrosar las trazadoras lejanas (sin cámara, grosor fijo).
   update(dt, camera = null) {
     for (const t of this.tracers) {
       if (!t.active) continue;
       t.t += dt;
-      // La cola se calcula con lo recorrido SIN limitar: antes salía de la punta ya limitada al
-      // impacto, así que se quedaba fija 2.4 m antes del final y la bala no terminaba nunca
-      // (quedaba flotando en el aire hasta que se reciclaba la trazadora).
       const travel = t.t * TRACER_SPEED;
       const head = Math.min(travel, t.dist);
       const tail = Math.min(Math.max(0, travel - TRACER_LENGTH), t.dist);

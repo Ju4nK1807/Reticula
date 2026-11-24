@@ -3,7 +3,6 @@ import { RANKS, rankIndex } from '../config/ranks.js';
 
 export const LOGO_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="3.5" fill="currentColor"/><path d="M32 4v14M32 46v14M4 32h14M46 32h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
 
-// Insignia hexagonal; el número de chevrones indica el nivel del rango.
 export function rankBadge(rank, size = 72) {
   const color = rank?.color ?? '#5b6676';
   const count = rank ? rankIndex(rank.id) + 1 : 0;
@@ -37,7 +36,6 @@ export function rankLadder(currentId) {
   );
 }
 
-// Los botones "Volver" se marcan con [data-back]: Esc / Retroceso los activan (ver UI.js).
 const BACK_LABEL = /^(←\s*)?Volver\b/;
 
 export function button(label, onClick, { variant = '', disabled = false, back = BACK_LABEL.test(label) } = {}) {

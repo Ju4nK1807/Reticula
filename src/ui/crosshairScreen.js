@@ -1,5 +1,3 @@
-// Editor de retícula: la mira se arma pieza por pieza con vista previa en vivo sobre distintos fondos,
-// presets, retículas guardadas por el jugador y códigos para compartir. Todo se guarda al momento.
 import './crosshair.css';
 import { h } from './dom.js';
 import { button } from './components.js';
@@ -20,18 +18,15 @@ const BACKGROUNDS = { taller: 'Taller', cielo: 'Cielo', arena: 'Arena', noche: '
 const ZOOMS = [1, 2, 4];
 const TABS = { general: 'General', lineas: 'Líneas', centro: 'Centro', avanzado: 'Avanzado' };
 
-// Lo que se recuerda mientras dura la sesión (al volver al editor se abre igual).
 const memory = { tab: 'general', bg: 'taller', zoom: 2, weapon: null, firing: false };
 
 const pctFmt = (v) => `${Math.round(v * 100)}%`;
 const pxFmt = (v) => `${v} px`;
 
-/** Mira que se está editando: la del arma elegida o la global (según "una por arma"). */
 export function editedCrosshair(settings, weaponId) {
   return settings.crosshairPerWeapon ? settings.weaponCrosshairs[weaponId] : settings.crosshair;
 }
 
-/** Guarda la mira actual en "Mis retículas" (la más reciente primero). Devuelve el nombre usado. */
 export function saveCrosshair(settings, config, name) {
   const list = settings.savedCrosshairs ?? (settings.savedCrosshairs = []);
   const clean = String(name ?? '').trim().slice(0, 28) || `Mi retícula ${list.length + 1}`;
@@ -45,7 +40,6 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
   if (weapon && WEAPONS[weapon]) memory.weapon = weapon;
   const weaponId = WEAPONS[memory.weapon] ? memory.weapon : s.weapon;
   memory.weapon = weaponId;
-  // Siempre una mira completa y válida (guardados viejos o editados a mano).
   const xh = editedCrosshair(s, weaponId);
   Object.assign(xh, normalizeCrosshair(xh));
 
@@ -55,7 +49,6 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
     game.applySettings();
   };
 
-  // --- Vista previa -----------------------------------------------------------------------------
   const target = h('div', { class: 'xs-target' });
   const stage = h('div', { class: `xs-stage bg-${memory.bg}` }, h('div', { class: 'xs-horizon', 'aria-hidden': 'true' }), target);
   const codeInput = h('input', { type: 'text', class: 'xh-code', spellcheck: false, 'aria-label': 'Código de la retícula' });
@@ -70,7 +63,6 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
       if (tile) tile.innerHTML = crosshairSVG(editedCrosshair(s, chip.dataset.weapon));
     }
   };
-  // Cambio de un control: normaliza (rangos y piezas), guarda y redibuja.
   const change = () => {
     Object.assign(xh, normalizeCrosshair(xh));
     persist();
@@ -84,7 +76,6 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
     rerender();
   };
 
-  // Simular disparo: la mira dinámica se abre y se cierra como en una ráfaga.
   let raf = 0;
   const animateSpread = (t) => {
     if (!stage.isConnected) {
@@ -154,7 +145,6 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
     ),
   );
 
-  // Arma que se edita (con "una por arma") o aviso de que la mira es la misma para todas.
   if (s.crosshairPerWeapon) {
     weaponChips.append(
       ...WEAPON_ORDER.map((id) =>
@@ -176,7 +166,6 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
     );
   }
 
-  // --- Código para compartir ------------------------------------------------------------------
   const copyBtn = button('Copiar', async () => {
     try {
       await navigator.clipboard.writeText(codeInput.value);
@@ -195,8 +184,6 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
     apply(config, 'Retícula aplicada.');
   });
 
-  // --- Controles por pestaña ------------------------------------------------------------------
-  // Grupos que dependen de un interruptor (se atenúan si la pieza está apagada).
   const groups = [];
   const group = (key, ...children) => {
     const el = h('div', { class: 'xs-group' }, ...children);
@@ -336,7 +323,6 @@ export function crosshairScreen(game, { onBack, weapon = null } = {}) {
     tabBar.append(h('button', { class: 'settings-tab', type: 'button', role: 'tab', 'data-tab': id, onclick: () => showTab(id) }, label));
   }
 
-  // --- Biblioteca: presets y retículas guardadas --------------------------------------------------
   const card = (config, label, onPick, extra = null) =>
     h(
       'div',

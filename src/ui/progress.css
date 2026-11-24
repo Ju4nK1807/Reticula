@@ -1,7 +1,3 @@
-/* Pantalla de Progreso y gráficas (se cargan con la pantalla; style.css no crece). */
-
-/* ---------- Gráficas ---------- */
-
 .chart { display: flex; flex-direction: column; gap: 6px; }
 .chart-empty { padding: 24px 0; text-align: center; color: var(--muted); font-size: 14px; }
 .chart-frame { position: relative; outline: none; border-radius: 6px; }
@@ -35,8 +31,6 @@
 .chart-table table { width: 100%; margin-top: 6px; border-collapse: collapse; font-size: 12px; }
 .chart-table th, .chart-table td { text-align: left; padding: 3px 6px; border-top: 1px solid var(--line); }
 .chart-table td { font-family: var(--mono); }
-
-/* ---------- Pantalla ---------- */
 
 .pg-chips .chip.active { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .pg-panel { display: flex; flex-direction: column; gap: 10px; }

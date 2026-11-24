@@ -1,32 +1,13 @@
 import * as THREE from 'three';
 import { patchHeightFog } from './atmosphere.js';
 
-/*
-  Material realista de los zombis: un solo material por zombi (una llamada de dibujo) sobre el atlas
-  de texturas PBR del modelo (ropa a la izquierda, cuerpo a la derecha, ojos y boca en dos muestras).
-
-  Sobre el MeshStandardMaterial de three.js, el sombreador añade:
-  - Variación por zombi sin texturas extra: tono de piel (pálido, ceniza, verdoso, amoratado), color
-    de la ropa y cantidad de sangre. La horda no parece hecha de clones.
-  - Heridas donde entran las balas: hasta MAX_WOUNDS puntos en el espacio de reposo del modelo (se
-    pegan al cuerpo aunque se mueva). Sangre oscura y húmeda (brilla) con borde irregular.
-  - Borde frío (luz de luna) en la silueta: se lee contra la oscuridad sin aplanar el sombreado.
-  - Ojos que brillan (con el bloom de la calidad alta se ven como brasas).
-  - Ciudadanos (OUTFITS): oficinista, policía, médico, obrero, deportista y bombero; la ropa se pinta
-    por zonas del cuerpo y tiene desgarrones.
-  - Payasos: traje de colores con lunares, rayas o rombos (sucio y ensangrentado), cara pintada de
-    blanco descascarado, rombos negros en los ojos y una sonrisa roja. La nariz, el pelo, el sombrero y
-    la gola son piezas aparte pegadas a los huesos (zombieSkin.js); la cara se ubica con setZombieFace.
-  Las texturas se cargan una vez y se comparten: 2048×1024 en calidad alta, 1024×512 en media y baja.
-*/
-
 const BASE = `${import.meta.env?.BASE_URL ?? './'}models/characters/zombie/`;
 export const MAX_WOUNDS = 6;
 const SIZE_FOR = { alta: '1k', media: '512', baja: '512' };
 
 let detail = 'alta';
-const textures = new Map(); // `${size}/${map}` → Texture
-const looks = new Set(); // materiales vivos (para cambiar la resolución en caliente)
+const textures = new Map();
+const looks = new Set();
 const bitmapLoader =
   typeof document !== 'undefined' && typeof createImageBitmap === 'function'
     ? new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY', premultiplyAlpha: 'none' })
@@ -37,7 +18,6 @@ function texture(size, map) {
   let tex = textures.get(id);
   if (tex) return tex;
   tex = new THREE.Texture();
-  // Las UVs del modelo siguen la convención de OpenGL (v hacia arriba): la imagen va volteada.
   tex.flipY = false;
   tex.colorSpace = map === 'albedo' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   tex.anisotropy = 4;
@@ -66,10 +46,8 @@ function applyTextures(mat) {
   mat.needsUpdate = true;
 }
 
-/** Detalle gráfico actual de los zombis (alta | media | baja). */
 export const zombieDetail = () => detail;
 
-/** Cambia la resolución de las texturas de todos los zombis (alta | media | baja). */
 export function setZombieDetail(level) {
   const next = SIZE_FOR[level] ? level : 'alta';
   if (next === detail) return;
@@ -85,11 +63,9 @@ export function setZombieDetail(level) {
   }
 }
 
-// Paletas de variación: color medio de la piel y de la ropa (el detalle lo pone la textura).
 const SKINS = ['#6f7062', '#646b5c', '#77695f', '#5d6566', '#6e5f63', '#6a6150', '#7a7468'];
 const CLOTHES = ['#2c3340', '#3b3026', '#2b3326', '#3a3a3a', '#3d2626', '#262d38', '#4a3e2e', '#4d4d52'];
 const EYES = { normal: '#ffb347', brute: '#ff4a2a', runner: '#ffd27a', boss: '#ff1030' };
-// Trajes de payaso: color de fondo y del estampado (apagados: la tela está vieja y sucia).
 const SUITS = [
   ['#7a1612', '#c9b48a'],
   ['#a07a12', '#6a1a6a'],
@@ -100,14 +76,6 @@ const SUITS = [
   ['#8a3a0e', '#1c3a7a'],
   ['#5a1240', '#2f7a6a'],
 ];
-/*
-  Atuendos: payasos del circo y vecinos del barrio que se convirtieron con la ropa de ese día. La ropa
-  de los ciudadanos la pinta el sombreador por zonas del cuerpo (ver colorChunk); el pelo, las gorras y
-  los cascos son piezas de la cabeza (clownKit.js). Colores apagados: ropa vieja, sucia y con sangre.
-    id: número del atuendo en el sombreador · top / bottom / accent: listas de colores (arriba, abajo y
-    detalle: corbata, placa, franjas…) · sleeves: largo de manga (|x| en cm; 36 corta, 62 larga) ·
-    variant: probabilidad de la variante (altTop, altBottom, altSleeve).
-*/
 export const OUTFITS = {
   rags: { id: 0, name: 'Harapos' },
   clown: { id: 1, name: 'Payaso' },
@@ -118,8 +86,6 @@ export const OUTFITS = {
   jogger: { id: 6, name: 'Deportista', top: ['#3a3a3e', '#5a1a1a', '#1a2a4a', '#2a4a2a', '#6a6a6a'], bottom: ['#1a1a1e', '#2a2a3a'], accent: ['#c8c8c0', '#b89a2a', '#a01818'] },
   firefighter: { id: 7, name: 'Bombero', top: ['#7a6a3a', '#1e1e1e'], sameBottom: true, accent: ['#c8b81a'], sleeves: [64] },
 };
-// Cuántos de cada atuendo según el tipo de zombi (pesos). El circo sigue presente, pero la mayoría son
-// vecinos; los corredores suelen ser deportistas y los brutos, obreros, bomberos o policías.
 const OUTFIT_ODDS = {
   normal: { clown: 3, rags: 1, office: 1.5, police: 1, medic: 1, worker: 1, jogger: 0.8, firefighter: 0.6 },
   runner: { clown: 2, jogger: 3, office: 1, medic: 1, rags: 0.8, police: 0.6 },
@@ -132,29 +98,25 @@ function pickOutfit(odds, rng) {
   return 'clown';
 }
 
-// Dónde está la cara en el modelo en reposo (cm): la nariz (xyz) y el ancho de la cabeza (w); la base
-// y la cima de la cabeza y la profundidad media (z). La calcula zombieSkin.js al cargar el modelo.
 const FACE = {
   uFace: { value: new THREE.Vector4(0, 165, 12, 16) },
   uFace2: { value: new THREE.Vector4(148, 182, 2, 0) },
-  uRimK: { value: 1 }, // fuerza del borde de luz de luna (el modo zombi lo baja: noche sin luna)
+  uRimK: { value: 1 },
 };
 
-/** Fuerza del borde de luz de luna de todos los zombis (1 = normal). */
 export function setZombieRim(k) {
   FACE.uRimK.value = k;
 }
 
-/** Ubica la cara del modelo (para el maquillaje): nariz, ancho, base, cima y centro de la cabeza (cm). */
 export function setZombieFace({ nose, width, bottom, top, centerZ }) {
   FACE.uFace.value.set(nose.x, nose.y, nose.z, width);
   FACE.uFace2.value.set(bottom, top, centerZ, 0);
 }
 
-const vertexPars = /* glsl */ `
+const vertexPars = `
 varying vec3 vBind;
 `;
-const fragmentPars = /* glsl */ `
+const fragmentPars = `
 varying vec3 vBind;
 uniform vec3 uSkin;
 uniform vec3 uCloth;
@@ -186,8 +148,7 @@ float zNoise(vec3 p) {
              mix(mix(zHash(i + vec3(0, 0, 1)), zHash(i + vec3(1, 0, 1)), f.x), mix(zHash(i + vec3(0, 1, 1)), zHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 `;
-// Después de leer el albedo: separa ropa, piel, ojos y boca por la zona del atlas y tiñe.
-const colorChunk = /* glsl */ `
+const colorChunk = `
 #include <map_fragment>
 vec2 zUv = vMapUv;
 float zSwatch = step(zUv.x, 0.5) * step(zUv.y, 0.32);
@@ -314,18 +275,16 @@ zc = mix(zBase, zBloodCol, max(zBlood, zWound * 0.85));
 zc = mix(zc, vec3(0.035, 0.004, 0.003), smoothstep(0.75, 1.0, zWound));
 diffuseColor.rgb = mix(zc, diffuseColor.rgb, zSwatch);
 `;
-// Piel muerta y tela: mates. La sangre fresca de las heridas brilla.
-const roughChunk = /* glsl */ `
+const roughChunk = `
 #include <roughnessmap_fragment>
 roughnessFactor = max(roughnessFactor, mix(0.6, 0.84, zCloth));
 roughnessFactor = mix(roughnessFactor, 0.24, max(zWound, zBlood * 0.35));
 `;
-const emissiveChunk = /* glsl */ `
+const emissiveChunk = `
 #include <emissivemap_fragment>
 totalEmissiveRadiance += uEye * uEyeGlow * zEyes;
 `;
-// Borde de luz fría en la silueta (antes de escribir el color).
-const rimChunk = /* glsl */ `
+const rimChunk = `
 float zFres = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
 outgoingLight += uRim * uRimK * zFres * (1.0 - zSwatch);
 #include <opaque_fragment>
@@ -333,7 +292,7 @@ outgoingLight += uRim * uRimK * zFres * (1.0 - zSwatch);
 
 function patch(shader, u) {
   Object.assign(shader.uniforms, u);
-  patchHeightFog(shader); // la misma bruma baja que el mapa
+  patchHeightFog(shader);
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', `#include <common>\n${vertexPars}`)
     .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;');
@@ -345,16 +304,12 @@ function patch(shader, u) {
     .replace('#include <opaque_fragment>', rimChunk);
 }
 
-/**
- * Material de un zombi (uno por zombi: sus uniformes son su apariencia y sus heridas).
- * @returns {THREE.MeshStandardMaterial & { look: ZombieLook }}
- */
 export function createZombieMaterial() {
   const mat = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 1 });
   mat.emissive = new THREE.Color('#ff3b2f');
   mat.emissiveIntensity = 0;
   mat.aoMapIntensity = 0.9;
-  mat.normalScale.set(0.75, 0.75); // el relieve original es muy marcado: con luz rasante parecía arena
+  mat.normalScale.set(0.75, 0.75);
   const u = {
     uSkin: { value: new THREE.Color(SKINS[0]) },
     uCloth: { value: new THREE.Color(CLOTHES[0]) },
@@ -383,18 +338,12 @@ export function createZombieMaterial() {
   return mat;
 }
 
-/** Apariencia de un zombi (uniformes de su material). */
 export class ZombieLook {
   constructor(u) {
     this.u = u;
     this.next = 0;
   }
 
-  /**
-   * Aspecto al azar según el tipo (normal | brute | runner | boss). Devuelve el atuendo elegido
-   * (OUTFITS: clown, rags, office, police, medic, worker, jogger, firefighter) para las piezas de la
-   * cabeza (pelo, gorra, casco: clownKit.js).
-   */
   randomize(kind = 'normal', rng = Math.random) {
     const pick = (list) => list[Math.floor(rng() * list.length) % list.length];
     this.u.uSkin.value.set(pick(SKINS));
@@ -403,13 +352,11 @@ export class ZombieLook {
       this.u.uSkin.value.multiplyScalar(0.72);
       this.u.uCloth.value.multiplyScalar(0.7);
     }
-    // El Jefe: piel cenicienta casi negra con un tinte rojizo y traje de luto: se distingue de lejos.
     if (kind === 'boss') {
       this.u.uSkin.value.set('#4a3a38');
       this.u.uCloth.value.set('#1a1214');
     }
     this.u.uBlood.value = 0.8 + rng() * 0.4;
-    // Disfraz de payaso: colores y estampado al azar; algunos con la pintura casi toda caída.
     const [a, b] = pick(SUITS);
     this.u.uClownA.value.set(a);
     this.u.uClownB.value.set(b);
@@ -424,16 +371,14 @@ export class ZombieLook {
     this.u.uEye.value.set(EYES[kind] ?? EYES.normal);
     this.u.uEyeGlow.value = kind === 'boss' ? 4 : kind === 'brute' ? 2.4 : 1.5 + rng() * 0.5;
     this.clearWounds();
-    // Atuendo: payaso (el circo) o un vecino del barrio con la ropa que llevaba ese día.
     const outfit = kind === 'boss' ? 'clown' : pickOutfit(OUTFIT_ODDS[kind] ?? OUTFIT_ODDS.normal, rng);
     this.outfit = outfit;
     const o = OUTFITS[outfit];
-    if (outfit !== 'clown') this.u.uClown.value.set(0, 0, 0, 0); // ni traje ni cara pintada
+    if (outfit !== 'clown') this.u.uClown.value.set(0, 0, 0, 0);
     if (o.id < 2) {
       this.u.uOutfit.value.set(o.id, 62, 0, 0);
       return outfit;
     }
-    // Variante (saco del oficinista, camisa celeste del policía, bata del médico…).
     const v = o.variant && rng() < o.variant ? 1 : 0;
     const k = kind === 'brute' ? 0.75 : 1;
     const { uOutA: A, uOutB: B, uOutC: C } = this.u;
@@ -453,7 +398,6 @@ export class ZombieLook {
     this.next = 0;
   }
 
-  /** Herida en el punto `bind` (espacio de reposo del modelo, cm) de radio `r` cm. */
   addWound(bind, r) {
     const w = this.u.uWounds.value[this.next];
     w.set(bind.x, bind.y, bind.z, r);

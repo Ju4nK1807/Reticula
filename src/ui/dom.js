@@ -1,4 +1,3 @@
-// Mini helper para construir DOM sin frameworks: h('div', { class: 'x', onclick }, ...hijos)
 export function h(tag, props = {}, ...children) {
   const el = document.createElement(tag);
   for (const [key, value] of Object.entries(props ?? {})) {

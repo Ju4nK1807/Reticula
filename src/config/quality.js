@@ -1,11 +1,3 @@
-// Presets de calidad gráfica. `renderScale` reduce la resolución interna de render (la interfaz se
-// sigue viendo nítida); `maxPixelRatio` limita el trabajo en pantallas de alta densidad (4K, portátiles).
-// Es el ajuste que más FPS gana en equipos modestos.
-// `detail` fija texturas, sombras y efectos (ver gfx/surfaces.js y gfx/lighting.js):
-//   alta  = texturas 1K + sombras suaves 2048 + bloom y antialiasing MSAA
-//   media = texturas 512 + sombras 1024
-//   baja  = texturas 512 solo de color, sin sombras ni efectos
-
 export const QUALITY_PRESETS = {
   alta: { label: 'Alta', renderScale: 1, maxPixelRatio: 2, detail: 'alta' },
   media: { label: 'Media', renderScale: 0.85, maxPixelRatio: 1.5, detail: 'media' },
@@ -18,18 +10,12 @@ export const QUALITY_OPTIONS = {
   ...Object.fromEntries(Object.entries(QUALITY_PRESETS).map(([k, v]) => [k, v.label])),
   custom: 'Personalizada',
 };
-// En automática la resolución máxima se limita a 1.5× (pantallas 4K / alta densidad): la resolución
-// dinámica parte de ahí.
 const AUTO_MAX_PIXEL_RATIO = 1.5;
 
 export const RENDER_SCALE = { min: 0.5, max: 1, step: 0.05 };
 
-// Sombras: "auto" las decide el detalle (baja = sin sombras); "on" las fuerza (1024 en detalle bajo);
-// "off" las quita en cualquier detalle.
 export const SHADOW_OPTIONS = { auto: 'Según el detalle', on: 'Activadas', off: 'Desactivadas' };
 
-// Resolución y detalle efectivos a partir de la configuración de video: { quality, renderScale, detail }.
-// En "Personalizada" el detalle es el elegido (por defecto, medio).
 export function resolveQuality(video, devicePixelRatio = 1) {
   if (video?.quality === 'auto') {
     const scale = clampScale(video.autoScale ?? 1);

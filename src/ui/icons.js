@@ -1,4 +1,3 @@
-// Íconos de la interfaz: trazo de 1.75 px en una cuadrícula de 24, mismo estilo para todos.
 const PATHS = {
   target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
   reticle: '<circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/>',
@@ -28,7 +27,6 @@ export function icon(name, size = 20) {
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name] ?? ''}</svg>`;
 }
 
-// Ícono de cada modo del menú.
 export const MODE_ICONS = {
   'evaluation-targets': 'target',
   'evaluation-bots': 'enemy',

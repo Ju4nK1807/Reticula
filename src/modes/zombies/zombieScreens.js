@@ -9,7 +9,6 @@ const DIFF_COLORS = { facil: '#00f5a0', normal: '#36d6ff', dificil: '#ffb020', l
 
 const fmt = (n) => Math.round(n).toLocaleString('es');
 
-// Controles de la pantalla de inicio (es lo único que muestra: nada de reglas).
 function controls(keys) {
   const k = (id) => keyLabel(keys, id);
   return [
@@ -29,7 +28,6 @@ function controls(keys) {
   ];
 }
 
-// En táctil: los botones de la pantalla.
 const TOUCH_CONTROLS = [
   ['Izquierda', 'Joystick: moverse'],
   ['Derecha', 'Arrastrar: mirar'],
@@ -51,7 +49,6 @@ function records(record) {
   );
 }
 
-// Tarjetas de dificultad (con la mejor oleada en cada una).
 function difficultyPicker(record, current, onPick) {
   return h(
     'div',
@@ -94,17 +91,11 @@ export function zombieIntroScreen(game, { record, variant = 'survival', difficul
       h('dl', { class: 'controls compact' }, (game.touchMode ? TOUCH_CONTROLS : controls(game.settings.keys)).map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h('div', { class: 'row' }, button('Comenzar', onStart, { variant: 'primary' }), button('Configuración', onSettings), button('Volver', onBack, { variant: 'ghost' })),
-      // Parte de las animaciones son CC-BY: el crédito va a la vista, donde se usan.
       h('p', { class: 'zh-credit' }, 'Zombi: medicinestorm (OpenGameArt, CC0). Animaciones extra: bachosoftdesign (Poly Pizza, CC-BY 3.0).'),
     ),
   );
 }
 
-/**
- * Armería: compra entre oleadas. state = { cash, owned, perks, bag, health, maxHealth, reserveFull }.
- * onBuy(item) compra (y vuelve a dibujar); onClose vuelve al combate. Las armas están en las paredes
- * del mapa y las mejoras en las máquinas de bebidas.
- */
 export function zombieShopScreen({ state, onBuy, onClose }) {
   const kinds = [
     ['Suministros', SHOP.filter((i) => ['ammo', 'heal'].includes(i.kind) || (i.kind === 'restock' && state.defense))],
@@ -112,8 +103,6 @@ export function zombieShopScreen({ state, onBuy, onClose }) {
   ];
   const bag = state.bag ?? {};
   const nades = Object.entries(GRENADE_MAX).map(([t, max]) => `${bag[t] ?? 0}/${max}`).join(' · ');
-  // Cabecera fija al desplazarse: los puntos y "Continuar combate" siempre a la vista (en teléfonos la
-  // lista no cabe en la pantalla).
   return h(
     'div',
     { class: 'screen zh-shop' },

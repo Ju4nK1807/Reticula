@@ -21,7 +21,7 @@ describe('casquillos', () => {
   it('se quedan sobre una mesa y no atraviesan sus costados', () => {
     const table = new THREE.Box3(new THREE.Vector3(-1, 0, -1), new THREE.Vector3(1, 0.9, 1));
     const c = casing(1.5);
-    c.vel.set(0.3, 1, 0.2); // cae sobre la mesa (con 2 m/s pasaría de largo el borde)
+    c.vel.set(0.3, 1, 0.2);
     for (let t = 0; t < 2; t += 1 / 120) stepCasing(c, 1 / 120, [table]);
     expect(c.pos.y).toBeGreaterThanOrEqual(0.9);
     const side = { pos: new THREE.Vector3(-1.5, 0.4, 0), vel: new THREE.Vector3(6, 0, 0), angle: 0, spin: 0, radius: 0.005, resting: false };
@@ -43,12 +43,11 @@ describe('casquillos', () => {
     cs.eject('rifle');
     expect(cs.pool.brass.filter((c) => c.active)).toHaveLength(1);
     cs.eject('shotgun');
-    expect(cs.pool.shell.filter((c) => c.active)).toHaveLength(0); // todavía no: corredera
+    expect(cs.pool.shell.filter((c) => c.active)).toHaveLength(0);
     for (let t = 0; t < CASINGS.shotgun.delay + 0.05; t += 1 / 60) cs.update(1 / 60);
     expect(cs.pool.shell.filter((c) => c.active)).toHaveLength(1);
     for (let t = 0; t < 2; t += 1 / 60) cs.update(1 / 60);
     expect(sounds).toContain('brass');
-    // A la derecha de la cámara (mira hacia -z).
     expect(cs.pool.brass[0].pos.x).toBeGreaterThan(0.2);
     cs.clear();
     expect(cs.pool.brass.some((c) => c.active)).toBe(false);

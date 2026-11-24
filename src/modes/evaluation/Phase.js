@@ -7,7 +7,6 @@ import { clock, pct } from '../../utils/format.js';
 import { DEG, rand } from '../../utils/math.js';
 import { EVAL_DEFAULTS, scaleBehavior } from './evalConfig.js';
 
-// Puntos por defecto. Cada fallo resta: la evaluación es estricta a propósito.
 export const DEFAULT_POINTS = { head: 150, body: 60, legs: 40, kill: 100, miss: -80, escaped: -120 };
 
 const _v = new THREE.Vector3();
@@ -17,7 +16,6 @@ const _to = new THREE.Vector3();
 const _side = new THREE.Vector3();
 const _aim = new THREE.Vector3();
 
-// Base de las fases de evaluación: bots, conteo de disparos, puntos, vida del jugador y spawns.
 export class Phase {
   static info = { id: 'phase', name: 'Fase', desc: '', auto: false, health: false };
 
@@ -36,10 +34,9 @@ export class Phase {
     this.health = 100;
     this.died = false;
     this.stats = { shots: 0, hits: 0, head: 0, body: 0, legs: 0, kills: 0, escaped: 0, damageTaken: 0 };
-    this.shotTime = 0; // instante (ms, reloj real) del último disparo; lo usan las fases de reacción
-    this.bodies = []; // colisionadores de los bots vivos, reutilizados cada cuadro
-    this.hitList = []; // mallas golpeables, reutilizadas en cada consulta
-    // Enlazar ANTES de guardarlo en ctx: los bots lo llaman como función suelta.
+    this.shotTime = 0;
+    this.bodies = [];
+    this.hitList = [];
     this.onBotFire = this.onBotFire.bind(this);
     this.ctx = {
       playerPos: null,
@@ -61,7 +58,6 @@ export class Phase {
 
   begin() {}
 
-  // Contexto que reciben los bots en cada update (un solo objeto reutilizado: sin basura por cuadro).
   botContext() {
     const p = this.game.player;
     const c = this.ctx;
@@ -78,9 +74,6 @@ export class Phase {
     const bots = this.bots;
     for (let i = 0; i < bots.length; i++) bots[i].update(dt, ctx);
 
-    // Compactación en el sitio (sin crear un arreglo nuevo cada cuadro). Los avisos (onEscape,
-    // onRemoved) se llaman DESPUÉS de compactar: pueden crear bots nuevos (p. ej. la siguiente diana
-    // en Flicking) y, si se llamaran durante el recorrido, esos bots se perderían.
     let removed = null;
     let n = 0;
     for (let i = 0; i < bots.length; i++) {
@@ -101,7 +94,6 @@ export class Phase {
     if (this.elapsed >= this.duration) this.finished = true;
   }
 
-  // Cuerpos que bloquean al jugador: bots vivos (las dianas flotan y no bloquean).
   bodyColliders() {
     let n = 0;
     for (const bot of this.bots) {
@@ -113,7 +105,6 @@ export class Phase {
     return this.bodies;
   }
 
-  // Mallas que pueden recibir balas. Devuelve siempre el mismo arreglo (no guardarlo: cambia).
   hitMeshes() {
     const out = this.hitList;
     out.length = 0;
@@ -124,15 +115,13 @@ export class Phase {
     return out;
   }
 
-  // Configuración de la evaluación (evalConfig.js): tamaño, velocidad, cantidad, color…
   get evalCfg() {
-    return this.ev?.evalCfg ?? EVAL_DEFAULTS; // solo la Evaluación lo tiene: los demás modos, la estándar
+    return this.ev?.evalCfg ?? EVAL_DEFAULTS;
   }
 
   spawnBot(opts) {
     const { size, speed, enemyFire } = this.evalCfg;
     const o = { color: this.game.settings.enemyColor, ...opts };
-    // Disparos enemigos: puntería y daño según la configuración (0 = no disparan).
     if (o.shooter && enemyFire !== 1) o.shooter = enemyFire > 0 ? { ...o.shooter, accuracy: Math.min(0.95, o.shooter.accuracy * enemyFire), damage: o.shooter.damage * enemyFire } : null;
     if (size !== 1) o.scale = (o.scale ?? 1) * size;
     if (speed !== 1) {
@@ -157,8 +146,6 @@ export class Phase {
     return target;
   }
 
-  // Punto visible para una diana, en ángulos respecto al frente del mapa (-Z) desde el ojo del jugador.
-  // minSep: separación mínima (grados) con `avoid`; minAim: separación mínima con la mira actual.
   sphereSpot({ yaw, pitch, dist, avoid = [], minSep = 0, minAim = 0 }) {
     const eye = this.game.player.eye;
     let fallback = null;
@@ -175,13 +162,10 @@ export class Phase {
     return fallback ?? { pos: pointFromAngles(0, 4, 12, eye), angles: { yaw: 0, pitch: 4 } };
   }
 
-  // Daño de una bala (o perdigón) del arma actual en esa zona.
   damageFor(part) {
     return this.game.weapon.stats.damage[part];
   }
 
-  // Recibe cada disparo del jugador (hit = resultado de Ballistics.cast o null).
-  // `time`: instante del clic en ms (misma base que performance.now()).
   handleShot(hit, time = performance.now()) {
     const s = this.stats;
     const { hud, sfx } = this.game;
@@ -195,7 +179,6 @@ export class Phase {
     const { bot, part } = hit;
     s.hits++;
     s[part]++;
-    // Con perdigones (escopeta), el daño se multiplica por los que dieron en este objetivo.
     const dmg = this.damageFor(part, bot) * (hit.pelletHits ?? 1);
     const { killed } = dmg > 0 ? bot.damage(dmg) : { killed: false };
     this.score += this.points[part];
@@ -211,7 +194,6 @@ export class Phase {
     }
   }
 
-  // Golpe cuerpo a cuerpo (combat/Melee.js): como un disparo que acierta, sin contar como disparo.
   handleMelee(hit, damage) {
     const { bot, part } = hit;
     if (!bot?.alive) return;
@@ -240,7 +222,6 @@ export class Phase {
     this.game.hud.flash('Se escapó', 'bad');
   }
 
-  // Un bot disparó al jugador: bala visible que pasa junto a la cámara y daño si acierta.
   onBotFire(bot, hit, damage) {
     const g = this.game;
     bot.gunTip.getWorldPosition(_from);
@@ -279,7 +260,6 @@ export class Phase {
     return los.lineOfSight(eye, bot.headPosition(_head)) || los.lineOfSight(eye, bot.chestPosition(_head));
   }
 
-  // Ángulo (grados) entre la mira actual y un punto.
   angleFromAim(point) {
     const cam = this.game.engine.camera;
     _v.set(0, 0, -1).applyQuaternion(cam.quaternion);
@@ -287,8 +267,6 @@ export class Phase {
     return Math.acos(Math.min(1, _v.dot(_aim))) / DEG;
   }
 
-  // Posición aleatoria en terreno abierto (o en el balcón) visible desde donde está el jugador.
-  // `scale`: tamaño del bot que va a aparecer (la cabeza de un bot pequeño está más abajo).
   randomOpenSpot({ minDist = 8, maxDist = 38, maxYaw = 70, highChance = 0.15, minSep = 0, scale = 1 } = {}) {
     const w = this.world;
     const eye = this.game.player.eye;
@@ -312,7 +290,6 @@ export class Phase {
     return new THREE.Vector3(rand(-6, 6), 0, -16);
   }
 
-  // Escondite libre cuyo punto de asomo es visible y cuyo escondite no lo es (desde la posición actual).
   pickCoverSpot(areas, scale = 1) {
     const eye = this.game.player.eye;
     const los = this.game.ballistics;

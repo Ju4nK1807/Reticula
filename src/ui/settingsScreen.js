@@ -7,14 +7,12 @@ import { FOV_PRESETS, GAMES, cmPer360, convertSens, formatSens, roundTo, valueFo
 import { QUALITY_OPTIONS, QUALITY_PRESETS, RENDER_SCALE, SHADOW_OPTIONS, resolveQuality } from '../config/quality.js';
 import { ACTIONS, DEFAULT_KEYS, isReservedCode, keyLabel, rebind } from '../config/keybinds.js';
 
-// Teclas en uso (las fija Game.applySettings): las listas de controles muestran las del jugador.
 let activeKeys = DEFAULT_KEYS;
 export const setActiveKeys = (keys) => {
   activeKeys = keys;
 };
 export const currentKey = (id) => keyLabel(activeKeys, id);
 
-/** Controles de teclado y mouse con las teclas que eligió el jugador. */
 export function keyboardControls() {
   const k = currentKey;
   return [
@@ -36,7 +34,6 @@ export function keyboardControls() {
   ];
 }
 
-/** Controles en pantalla del modo táctil (teléfonos y tabletas). */
 export const TOUCH_CONTROLS = [
   ['Joystick', 'Moverse: apoya el dedo en la mitad izquierda'],
   ['Arrastrar', 'Apuntar: desliza el dedo en la mitad derecha'],
@@ -48,17 +45,13 @@ export const TOUCH_CONTROLS = [
   ['Pausa', 'Botón de arriba a la izquierda o el botón Atrás del teléfono'],
 ];
 
-/** True si el juego corre con controles táctiles. */
 export const isTouchUI = () => typeof document !== 'undefined' && !!document.querySelector('.touch-mode');
 
-/** Lista de controles que corresponde al dispositivo actual. */
 export const controlList = () => (isTouchUI() ? TOUCH_CONTROLS : keyboardControls());
 
-// Pestaña de controles: cada acción con su tecla; clic en la tecla y pulsar la nueva. Si la tecla ya
-// la usaba otra acción, se intercambian.
 function keybindsPanel(game) {
   const s = game.settings;
-  let listening = null; // { id, btn }
+  let listening = null;
   const buttons = new Map();
   const refresh = () => {
     for (const [id, btn] of buttons) btn.textContent = keyLabel(s.keys, id);
@@ -69,7 +62,6 @@ function keybindsPanel(game) {
     listening = null;
     refresh();
   };
-  // Se escucha en window y en captura: va antes que Esc/Retroceso de la interfaz.
   function onCapture(e) {
     if (!listening?.btn.isConnected) return stop();
     e.preventDefault();
@@ -129,7 +121,6 @@ function keybindsPanel(game) {
   return panel;
 }
 
-// Bloque de sensibilidad reutilizable (también aparece en la pausa).
 export function sensitivityPanel(game, { compact = false } = {}) {
   const s = game.settings.sens;
   const commit = () => {
@@ -171,7 +162,6 @@ export function sensitivityPanel(game, { compact = false } = {}) {
     Object.fromEntries(Object.entries(GAMES).map(([id, g]) => [id, g.label])),
     s.game,
     (to) => {
-      // Al cambiar de juego se convierte el valor para conservar la misma sensación (cm/360).
       s.value = roundTo(convertSens(s.game, s.value, to), GAMES[to].decimals);
       s.game = to;
       valueInput.step = GAMES[to].step;
@@ -226,7 +216,6 @@ export function sensitivityPanel(game, { compact = false } = {}) {
   );
 }
 
-// Pestaña de la mira: vista previa y acceso al editor de retícula (ui/crosshairScreen.js).
 function crosshairPanel(game, onBack) {
   const s = game.settings;
   const xh = game.activeCrosshair();
@@ -247,20 +236,15 @@ function crosshairPanel(game, onBack) {
   );
 }
 
-// Última pestaña abierta (se recuerda durante la sesión).
 let lastTab = 'sens';
 
-// opts.tab: abre directamente esa pestaña (p. ej. 'datos' desde el botón de ayuda del menú).
 const DETAIL_OPTIONS = { alta: 'Alta', media: 'Media', baja: 'Baja' };
 
-// "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A7A8) Direct3D11 vs_5_0 ps_5_0, D3D11)" → "Intel(R) UHD Graphics".
 export function shortGpuName(name = '') {
   const m = /^ANGLE \([^,]+, (.+?)(?: \(0x[0-9a-f]+\))?(?: Direct3D| OpenGL| Vulkan|,|\)$)/i.exec(name);
   return (m ? m[1] : name).trim();
 }
 
-// En un portátil con gráfica integrada (Intel, Radeon de APU) el juego puede ir mucho mejor con la
-// dedicada, pero quien elige la GPU es Windows. Se explica cómo, solo en escritorio.
 function integratedGpuHint(game) {
   const name = game.engine.gpuName ?? '';
   if (game.touchMode || !/intel|uhd|iris|radeon\(tm\) graphics|vega/i.test(name)) return null;
@@ -298,8 +282,6 @@ export function settingsScreen(game, onBack, opts = {}) {
     ),
   );
 
-  // Calidad: elegir un preset ajusta resolución y detalle; mover cualquiera de los dos a mano pasa a
-  // "Personalizada" (conservando el otro valor). En "Automática" se ven los valores que está usando.
   if (s.video.quality === 'auto') s.video.renderScale = s.video.autoScale ?? 1;
   const gpu = shortGpuName(game.engine.gpuName);
   const autoInfo = h('p', { class: 'muted small' });
@@ -361,7 +343,6 @@ export function settingsScreen(game, onBack, opts = {}) {
     ? 'Tu navegador no admite raw input: desactiva "Mejorar precisión del puntero" en Windows para una conversión exacta.'
     : 'Se usa raw input (sin aceleración) cuando el navegador lo admite: Chrome, Edge y la app de escritorio.');
 
-  // Cada pestaña construye su contenido al mostrarse (los controles leen el valor actual).
   const TABS = {
     sens: ['Sensibilidad', () => [
       h('section', { class: 'panel' },

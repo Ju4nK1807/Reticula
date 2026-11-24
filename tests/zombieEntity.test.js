@@ -41,7 +41,6 @@ describe('zombi', () => {
     expect(attacks).toHaveLength(0);
     step(z.stats.attackEvery * 0.25);
     expect(attacks).toHaveLength(1);
-    // Segundo golpe: el jugador retrocede a tiempo y lo esquiva.
     step(z.stats.attackEvery * 0.5);
     player.set(0, 0, -6);
     step(z.stats.attackEvery * 0.6);
@@ -53,7 +52,6 @@ describe('zombi', () => {
     const { make, step } = setup({ colliders: [wall] });
     const z = make(0, 9);
     step(6);
-    // Sin campo de flujo va directo y queda pegado al muro, pero nunca dentro.
     expect(z.position.z).toBeGreaterThanOrEqual(5 + z.radius - 1e-6);
   });
 
@@ -83,10 +81,7 @@ describe('zombi', () => {
       }
       prev = ang;
     }
-    expect(z.state).toBe('attack'); // llegó al jugador rodeando el muro
-    // Nunca medias vueltas entre cuadros (antes llegaba a ~π al deslizar por la esquina). Con la ronda 1
-    // lenta, el empuje del muro pesa más en cada paso: según el ritmo al azar (pace) el peor cuadro ronda
-    // 0.22–0.45 rad (~13–26°), así que el tope (~34°) deja margen sin depender del azar.
+    expect(z.state).toBe('attack');
     expect(maxTurn).toBeLessThan(0.6);
   });
 
@@ -124,9 +119,9 @@ describe('zombi', () => {
     const z0 = z.position.z;
     step(2);
     expect(z.alive).toBe(true);
-    expect(z.position.z).toBeLessThan(z0 - 1); // sigue caminando
+    expect(z.position.z).toBeLessThan(z0 - 1);
     step(8);
-    expect(z.alive).toBe(false); // se desangró
+    expect(z.alive).toBe(false);
     expect(bled.length).toBeGreaterThan(0);
   });
 
@@ -154,7 +149,7 @@ describe('zombi', () => {
     const z = make(0, 20);
     expect(z.damage(9999, 'head').killed).toBe(true);
     expect(z.alive).toBe(false);
-    expect(z.damage(10).killed).toBe(false); // ya muerto
+    expect(z.damage(10).killed).toBe(false);
     step(2);
     expect(z.removable).toBe(false);
     step(1.2);

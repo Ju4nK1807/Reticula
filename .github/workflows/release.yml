@@ -1,9 +1,3 @@
-# Apps descargables: al crear una etiqueta v* (p. ej. v1.0.0), o a mano desde la pestaña Actions,
-# se compilan el APK de Android, el instalador de Windows y la app de macOS y se adjuntan a un GitHub Release.
-#
-# APK firmado (opcional): si el repositorio tiene los secretos ANDROID_KEYSTORE_BASE64,
-# ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS y ANDROID_KEY_PASSWORD, se publica el APK de release
-# firmado. Si no, se publica el APK de depuración (se instala igual, pero no sirve para Google Play).
 name: Apps
 
 on:
@@ -51,7 +45,6 @@ jobs:
 
       - name: Compilar el juego y copiarlo al proyecto Android
         run: |
-          # La versión de la etiqueta también en el juego (el menú la muestra).
           npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
           npm run android:sync
 
@@ -117,8 +110,6 @@ jobs:
           name: windows
           path: release/*.exe
 
-  # macOS: DMG (instalar arrastrando a Aplicaciones) y ZIP, para Intel (x64) y Apple Silicon (arm64).
-  # Sin firma de Apple: la primera vez se abre con clic derecho → Abrir.
   mac:
     name: App de macOS
     runs-on: macos-latest

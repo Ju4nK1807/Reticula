@@ -4,19 +4,13 @@ import { boxWorldUV, planeWorldUV, tileOf } from '../gfx/surfaces.js';
 const _box = new THREE.Box3();
 const _pad = new THREE.Vector3();
 
-// Base de los mapas. Cada mapa expone:
-// - solids: mallas que bloquean balas y línea de visión.
-// - colliders: cajas que bloquean el movimiento del jugador y los bots.
-// - playerBlockers: cajas invisibles solo para el jugador (barandales, puertas).
-// - playerZone: límites donde puede moverse el jugador.
-// - coverSpots / highSpots / openArea: lugares donde pueden aparecer bots.
 export class World {
   constructor({ name, background, fogNear, fogFar, spawn, playerZone }) {
     this.name = name;
     this.spawn = spawn;
     this.playerZone = playerZone;
     this.openArea = null;
-    this.groundY = 0; // altura del piso (física de utilería, casquillos y granadas)
+    this.groundY = 0;
     this.solids = [];
     this.colliders = [];
     this.playerBlockers = [];
@@ -29,8 +23,6 @@ export class World {
     this.scene.fog = new THREE.Fog(bg, fogNear, fogFar);
   }
 
-  // Caja con base en y0. `solid` = bloquea balas y movimiento.
-  // Con un material de superficie (texturas), las UVs van en metros: la textura no se estira.
   block(w, h, d, mat, x, z, y0 = 0, solid = true) {
     const geo = new THREE.BoxGeometry(w, h, d);
     const tile = tileOf(mat);
@@ -54,7 +46,7 @@ export class World {
     const tile = tileOf(mat);
     if (tile) planeWorldUV(geo, width, depth, tile);
     const ground = new THREE.Mesh(geo, mat);
-    ground.userData.ground = true; // recibe sombras pero no las proyecta
+    ground.userData.ground = true;
     ground.rotation.x = -Math.PI / 2;
     ground.position.z = centerZ;
     this.scene.add(ground);
@@ -62,7 +54,6 @@ export class World {
     return ground;
   }
 
-  // ¿Cabe un cilindro de radio r con base en y0 y altura h en (x, z) sin chocar con colliders?
   isFree(x, z, r = 0.45, y0 = 0, h = 1.8) {
     _pad.set(r, 0, r);
     for (const b of this.colliders) {

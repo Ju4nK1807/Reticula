@@ -56,7 +56,7 @@ describe('datos de la campaña', () => {
       const [a, b] = [botProfile(d - 1), botProfile(d)];
       expect(b.scale).toBeLessThanOrEqual(a.scale);
       expect(b.strafe.speed[1]).toBeGreaterThanOrEqual(a.strafe.speed[1]);
-      expect(b.strafe.change[0]).toBeLessThanOrEqual(a.strafe.change[0]); // cambia de dirección más seguido
+      expect(b.strafe.change[0]).toBeLessThanOrEqual(a.strafe.change[0]);
       expect(b.jiggleChance).toBeGreaterThanOrEqual(a.jiggleChance);
       expect(b.shooter.reaction).toBeLessThanOrEqual(a.shooter.reaction);
       expect(b.shooter.accuracy).toBeGreaterThanOrEqual(a.shooter.accuracy);

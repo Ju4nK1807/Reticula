@@ -4,35 +4,20 @@ import { glow, planeWorldUV, surface, tileOf } from '../../gfx/surfaces.js';
 import { World } from '../../scenes/World.js';
 import { Props, autoPropSpawns } from '../../physics/Props.js';
 
-// Medidas del recinto (metros). El patio va de -HALF a HALF en X y en Z.
 const HALF = 24;
 const WALL_H = 4.5;
 const WALL_T = 1;
-const GATE_OFFSET = 10; // las puertas están a ±10 m del centro de cada muro
+const GATE_OFFSET = 10;
 const GATE_W = 3.2;
 const GATE_H = 3.2;
-const SPAWN_OUT = 3.5; // dónde aparece el bot, fuera del muro
-const ENTRY_IN = 4.5; // primer punto dentro del patio
+const SPAWN_OUT = 3.5;
+const ENTRY_IN = 4.5;
 const PLAYER_LIMIT = 21.3;
 const BOT_LIMIT = 20.5;
 
 const LAMP_IDLE = new THREE.Color('#ffe9b0');
 const LAMP_WARN = new THREE.Color('#ff2a3d');
 
-/*
-  Bastión: patio cuadrado de 48 m con 8 puertas (dos por muro). Mapa del modo infinito: los enemigos
-  pueden llegar desde cualquier lado, así que el jugador tiene que vigilar 360°.
-
-  Diseño:
-  - Los carriles que van de cada puerta hacia el centro están libres: los bots entran caminando en
-    línea recta y nunca se atascan en la entrada.
-  - Las coberturas están entre carriles, en tres anillos: pilares junto al centro, muros bajos a 12 m
-    y muros altos y cajas a 16-17 m.
-  - Cada puerta tiene una lámpara que se pone roja y parpadea antes de que entre un enemigo.
-
-  Expone además de World: gates (puertas con spawn, entry, dir y lámpara), botArea (zona donde los
-  bots eligen a dónde avanzar), warnGate(gate, s) y clearWarnings().
-*/
 export class BastionMap extends World {
   constructor() {
     super({
@@ -48,7 +33,6 @@ export class BastionMap extends World {
 
     const scene = this.scene;
     scene.add(new THREE.HemisphereLight('#d9e2ff', '#3b2f26', 1.75));
-    // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
     scene.add(createSky({ ...SKIES.night, horizon: '#191e2b' }));
     const sun = new THREE.DirectionalLight('#ffd9b0', 1.7);
     sun.position.set(14, 22, 9);
@@ -72,7 +56,6 @@ export class BastionMap extends World {
     this.materials = M;
     const block = this.block.bind(this);
 
-    // --- Suelo -------------------------------------------------------------------
     this.ground(170, 170, 0, M.ground);
     const yard = new THREE.Mesh(planeWorldUV(new THREE.PlaneGeometry(HALF * 2, HALF * 2), HALF * 2, HALF * 2, tileOf(M.yard)), M.yard);
     yard.userData.ground = true;
@@ -81,16 +64,14 @@ export class BastionMap extends World {
     scene.add(yard);
     const grid = new THREE.GridHelper(HALF * 2, 24, '#4c5465', '#444b59');
     grid.material.transparent = true;
-    grid.material.opacity = 0.3; // guía tenue sobre el suelo con textura
+    grid.material.opacity = 0.3;
     grid.position.y = 0.012;
     scene.add(grid);
-    // Círculo central: referencia visual de dónde está el centro del patio.
     const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 2.85, 40), M.accentDim);
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.02;
     scene.add(ring);
 
-    // --- Muros con puertas -------------------------------------------------------------
     const gateEdge = GATE_OFFSET - GATE_W / 2;
     const gateFar = GATE_OFFSET + GATE_W / 2;
     const end = HALF + WALL_T / 2;
@@ -99,15 +80,14 @@ export class BastionMap extends World {
       [-gateEdge, gateEdge],
       [gateFar, end],
     ];
-    // side: dirección hacia dentro del patio (norte = +Z hacia dentro, etc.).
     const sides = [
-      { axis: 'x', fixed: -HALF, inward: new THREE.Vector3(0, 0, 1) }, // norte
-      { axis: 'x', fixed: HALF, inward: new THREE.Vector3(0, 0, -1) }, // sur
-      { axis: 'z', fixed: -HALF, inward: new THREE.Vector3(1, 0, 0) }, // oeste
-      { axis: 'z', fixed: HALF, inward: new THREE.Vector3(-1, 0, 0) }, // este
+      { axis: 'x', fixed: -HALF, inward: new THREE.Vector3(0, 0, 1) },
+      { axis: 'x', fixed: HALF, inward: new THREE.Vector3(0, 0, -1) },
+      { axis: 'z', fixed: -HALF, inward: new THREE.Vector3(1, 0, 0) },
+      { axis: 'z', fixed: HALF, inward: new THREE.Vector3(-1, 0, 0) },
     ];
     for (const side of sides) {
-      const along = side.axis; // eje a lo largo del muro
+      const along = side.axis;
       const place = (a, b, h, y0, mat, depth = WALL_T) => {
         const len = b - a;
         const mid = (a + b) / 2;
@@ -121,15 +101,13 @@ export class BastionMap extends World {
       }
       for (const sign of [-1, 1]) {
         const c = sign * GATE_OFFSET;
-        place(c - GATE_W / 2, c + GATE_W / 2, WALL_H - GATE_H, GATE_H, M.wall); // dintel
-        // Marco de la puerta y línea de acento en el piso.
+        place(c - GATE_W / 2, c + GATE_W / 2, WALL_H - GATE_H, GATE_H, M.wall);
         for (const e of [-1, 1]) place(c + e * (GATE_W / 2) - 0.2, c + e * (GATE_W / 2) + 0.2, GATE_H, 0, M.trim, WALL_T + 0.3);
-        place(c - GATE_W / 2, c + GATE_W / 2, 0.02, 0.01, M.accentDim, 0.25); // umbral
+        place(c - GATE_W / 2, c + GATE_W / 2, 0.02, 0.01, M.accentDim, 0.25);
         this.addGate(c, side);
       }
     }
 
-    // Torres de las esquinas (decoración sólida).
     for (const x of [-HALF, HALF]) {
       for (const z of [-HALF, HALF]) {
         block(3.4, 7.5, 3.4, M.tower, x, z);
@@ -138,29 +116,24 @@ export class BastionMap extends World {
       }
     }
 
-    // --- Coberturas (fuera de los carriles de las puertas, que quedan en x/z = ±10) -------
-    // Pilares junto al centro.
     for (const x of [-5, 5]) {
       for (const z of [-5, 5]) {
         block(1.2, 3.2, 1.2, M.concrete, x, z);
         block(1.26, 0.12, 1.26, M.accentDim, x, z, 1.4, false);
       }
     }
-    // Muros bajos a 12 m (se puede disparar por encima de pie; agachado cubren).
     for (const s of [-1, 1]) {
       block(5, 1.3, 0.6, M.concrete, 0, s * 12);
       block(0.6, 1.3, 5, M.concrete, s * 12, 0);
       block(5.02, 0.05, 0.62, M.trim, 0, s * 12, 1.3, false);
       block(0.62, 0.05, 5.02, M.trim, s * 12, 0, 1.3, false);
     }
-    // Muros altos a 17 m.
     for (const a of [-5, 5]) {
       for (const s of [-1, 1]) {
         block(4, 2.6, 0.6, M.concrete, a, s * 17);
         block(0.6, 2.6, 4, M.concrete, s * 17, a);
       }
     }
-    // Pilas de cajas en las diagonales.
     for (const x of [-16, 16]) {
       for (const z of [-16, 16]) {
         block(2.4, 2.4, 2.4, M.crate, x, z);
@@ -169,7 +142,6 @@ export class BastionMap extends World {
       }
     }
 
-    // --- Decoración lejana --------------------------------------------------------------
     const hillGeo = new THREE.ConeGeometry(1, 1, 5);
     for (let i = 0; i < 16; i++) {
       const hill = new THREE.Mesh(hillGeo, M.hill);
@@ -181,12 +153,10 @@ export class BastionMap extends World {
       scene.add(hill);
     }
 
-    // Utilería con física dentro del bastión (cajas, barriles, munición y latas sobre las coberturas).
     this.props = new Props(this, autoPropSpawns(this, { cans: 6, crates: 4, barrels: 3, ammo: 2, cones: 2 }));
     scene.updateMatrixWorld(true);
   }
 
-  // Puerta en la posición `c` a lo largo del muro `side`.
   addGate(c, side) {
     const { axis, fixed, inward } = side;
     const at = (depth) =>
@@ -211,7 +181,6 @@ export class BastionMap extends World {
     });
   }
 
-  // Lámpara roja intermitente durante `seconds` (aviso de entrada).
   warnGate(gate, seconds) {
     gate.warnT = Math.max(gate.warnT, seconds);
   }

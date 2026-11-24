@@ -3,9 +3,8 @@ import * as THREE from 'three';
 import { GRENADE, Grenades, explosionDamage, stepGrenade } from '../src/combat/Grenades.js';
 
 const DT = 1 / 60;
-const BALL = 0.07; // radio de la granada (el mismo que Grenades.js)
+const BALL = 0.07;
 
-// Igual que Grenades.update: subpasos de 0.2 m como máximo.
 function simulate(pos, vel, seconds, colliders = []) {
   let bounces = 0;
   for (let t = 0; t < seconds; t += DT) {
@@ -57,10 +56,10 @@ describe('física de la granada', () => {
       minY = Math.min(minY, pos.y);
     }
     expect(bounces).toBeGreaterThan(0);
-    expect(minY).toBeGreaterThanOrEqual(BALL - 1e-9); // nunca se hunde en el suelo
+    expect(minY).toBeGreaterThanOrEqual(BALL - 1e-9);
     expect(pos.y).toBeCloseTo(BALL, 3);
     expect(vel.length()).toBeLessThan(0.05);
-    expect(pos.z).toBeLessThan(-8); // avanzó en la dirección del lanzamiento
+    expect(pos.z).toBeLessThan(-8);
   });
 
   it('no atraviesa un muro fino aunque vaya rápido: rebota hacia atrás', () => {
@@ -98,12 +97,12 @@ describe('lanzar granadas', () => {
     const { grenades, mode, calls, step } = fakeGame({ count: 2 });
     expect(grenades.throw()).toBe(true);
     expect(mode.grenades).toBe(1);
-    expect(grenades.throw()).toBe(false); // todavía en espera
+    expect(grenades.throw()).toBe(false);
     step(GRENADE.cooldown + 0.05);
     expect(grenades.throw()).toBe(true);
     expect(mode.grenades).toBe(0);
     step(GRENADE.cooldown + 0.05);
-    expect(grenades.throw()).toBe(false); // sin granadas
+    expect(grenades.throw()).toBe(false);
     expect(calls.sounds.filter((s) => s === 'throw')).toHaveLength(2);
 
     const closed = fakeGame({ allowed: false });
@@ -127,12 +126,12 @@ describe('lanzar granadas', () => {
     expect(calls.explosions).toHaveLength(1);
     const { point, radius, los } = calls.explosions[0];
     expect(radius).toBe(GRENADE.radius);
-    expect(point.z).toBeLessThan(-6); // la cámara mira hacia -z
+    expect(point.z).toBeLessThan(-6);
     expect(typeof los).toBe('function');
     expect(los(new THREE.Vector3(0, 1, 0))).toBe(true);
     expect(calls.sounds).toContain('boom');
     expect(grenades.active).toHaveLength(0);
-    expect(grenades.shake).toBeGreaterThan(0); // cerca: sacude la cámara
+    expect(grenades.shake).toBeGreaterThan(0);
   });
 
   it('el destello se apaga solo y clear() lo limpia todo', () => {

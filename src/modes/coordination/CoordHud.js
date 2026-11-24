@@ -1,6 +1,5 @@
 import { h } from '../../ui/dom.js';
 
-// Silueta SVG de cada forma (misma que en 3D), para el indicador de regla del ejercicio de color.
 export const SHAPE_ICONS = {
   sphere: '<circle cx="12" cy="12" r="9"/>',
   cube: '<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/>',
@@ -12,15 +11,6 @@ export function shapeIcon(shape, color, size = 22) {
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" style="fill:${color};stroke:rgba(0,0,0,.55);stroke-width:1.2">${SHAPE_ICONS[shape] ?? SHAPE_ICONS.sphere}</svg>`;
 }
 
-/*
-  Capa de HUD propia de los ejercicios de coordinación (se monta en la capa de juego del HUD general).
-  Cada ejercicio describe qué mostrar con overlay():
-    sequence   → "Siguiente: N" y la serie actual
-    color      → regla actual (forma + color + nombre); destella al cambiar
-    peripheral → aviso para volver la mirada al aro central
-    dual       → anillo alrededor de la mira: verde si estás sobre la esfera
-  Solo toca el DOM cuando cambia algo.
-*/
 export class CoordHud {
   constructor(hud) {
     this.panel = h('div', { class: 'ch-panel', hidden: true });

@@ -1,5 +1,3 @@
-// Rangos ordenados de menor a mayor. `min` = puntuación global mínima (0-100).
-
 export const RANKS = [
   { id: 'bronce', name: 'Bronce', min: 0, color: '#c8814f' },
   { id: 'plata', name: 'Plata', min: 30, color: '#b9c6d3' },

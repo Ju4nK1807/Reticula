@@ -40,16 +40,12 @@ const _v = new THREE.Vector3();
 const NO_BODIES = [];
 const WEAPON_KEYS = Object.fromEntries(WEAPON_ORDER.map((id) => [`Digit${WEAPONS[id].key}`, id]));
 const DIGITS = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5, Digit7: 6, Digit8: 7, Digit9: 8 };
-const ZOOM_SPEED = 14; // qué tan rápido entra y sale la mira telescópica
+const ZOOM_SPEED = 14;
 
-// Orquestador: conecta motor, entrada, jugador, arma, audio, guardado, UI y el modo activo.
-// La interfaz de un modo está en modes/Mode.js; los modos se registran en modes/registry.js y los
-// mapas en scenes/registry.js, así que un modo nuevo no necesita editar este archivo.
-// Soldados que se dejan creados en el menú (los primeros enemigos aparecen sin coste).
 const SKIN_PREFILL = 6;
-const MENU_WORLD = 'armory'; // escenario de la pantalla de título (scenes/ArmoryMenu.js)
-const PLAYER_PUSH = { r: 0.38, h: 1.75 }; // cilindro con el que el jugador empuja la utilería
-const movers = []; // quienes empujan la utilería este cuadro (jugador + enemigos), reutilizado
+const MENU_WORLD = 'armory';
+const PLAYER_PUSH = { r: 0.38, h: 1.75 };
+const movers = [];
 
 export class Game {
   constructor(root) {
@@ -59,26 +55,24 @@ export class Game {
     this.player = new PlayerController(this.engine.camera, this.input);
     this.ballistics = new Ballistics();
     this.weapon = new Weapon(this);
-    this.melee = new Melee(this); // golpe cuerpo a cuerpo (V)
-    this.grenades = new Grenades(this); // granadas (G), en los modos que las dan
-    this.casings = new Casings(this); // vainas que expulsan las armas
+    this.melee = new Melee(this);
+    this.grenades = new Grenades(this);
+    this.casings = new Casings(this);
     this.viewmodel = new Viewmodel();
     this.effects = new Effects();
-    this.ambience = new Ambience(); // polvo y chispas de la pantalla de título
-    this.showcase = new MenuShowcase(); // soldados de la pantalla de título
-    this.menuCamera = new MenuCamera(); // planos de cámara del menú
+    this.ambience = new Ambience();
+    this.showcase = new MenuShowcase();
+    this.menuCamera = new MenuCamera();
     this.sfx = new Sfx();
     this.hud = new HUD(root.querySelector('#hud'));
     this.ui = new UI(root.querySelector('#ui'), root.querySelector('#toast'));
     this.ui.onBack = () => this.sfx.uiBack();
     this.engine.setOverlay(this.viewmodel);
-    // Armas 3D: reflejos del mismo entorno que los mapas y descarga anticipada de los modelos.
     this.viewmodel.scene.environment = environment(this.engine.renderer);
     this.viewmodel.scene.environmentIntensity = 0.6;
     this.viewmodel.preload().then(() => this.warmWeapons());
     this.weapon.onChange = () => this.onWeaponChange();
 
-    // Modo táctil (teléfonos y tabletas): sin Pointer Lock, con joystick y botones en pantalla.
     this.touchMode = resolveTouchMode(this.store.data.settings.touch?.mode);
     this.input.touch = this.touchMode;
     this.touch = null;
@@ -97,8 +91,6 @@ export class Game {
     this.time = 0;
     this.perf = new PerfMeter();
 
-    // Calidad automática: la primera vez (o con otra GPU) parte de un nivel según la GPU y el tipo
-    // de dispositivo; después retoma lo que aprendió en este equipo.
     const video = this.settings.video;
     this.autoQuality = null;
     this.autoSaveT = 0;
@@ -108,7 +100,6 @@ export class Game {
       video.autoScale = 1;
       this.store.persist();
     }
-    // La calidad se aplica antes de crear el primer mapa: sus texturas ya cargan en el tamaño justo.
     this.engine.setQuality(video);
     this.worlds = {};
     this.useWorld(MENU_WORLD);
@@ -124,12 +115,9 @@ export class Game {
     this.input.on('lockerror', () =>
       this.ui.toast('No se pudo capturar el mouse. Espera un segundo y vuelve a hacer clic.'),
     );
-    // Botón Atrás de Android (lo envía MainActivity): pausa en partida, vuelve al menú fuera de ella.
     window.addEventListener('reticula-back', () => this.handleBack());
-    // El audio solo puede iniciar tras un gesto del usuario.
     window.addEventListener('pointerdown', () => this.sfx.unlock());
     window.addEventListener('keydown', () => this.sfx.unlock());
-    // Pérdida del contexto WebGL: soltar el mouse (pausa si hay partida) y avisar.
     this.engine.onContextLost = () => {
       this.input.unlock();
       this.ui.toast('La tarjeta gráfica se reinició. Restaurando gráficos…', 6000);
@@ -145,7 +133,6 @@ export class Game {
     return !!this.mode && !this.paused && this.input.locked;
   }
 
-  // Activa un mapa registrado (scenes/registry.js); se construye la primera vez y se reutiliza.
   useWorld(key) {
     this.worlds[key] ??= createWorld(key);
     if (this.world !== this.worlds[key]) this.setWorld(this.worlds[key], key);
@@ -166,19 +153,14 @@ export class Game {
     this.menuCamera.setShots(world.menuShots ?? null);
     this.player.setWorld(world);
     this.ballistics.setWorld(world);
-    // Utilería con física: suena al chocar (según su material y lo fuerte del golpe).
     if (world.props) world.props.onImpact = (it, speed) => this.sfx.propHit(it.def.material, this.panFor(it.body.position), speed / 6);
     this.player.reset(world.spawn);
-    // Sombreadores y texturas del mapa listos antes de jugar (sin tirones al girar la cámara). Las
-    // texturas llegan un momento después: al terminar de cargar se suben a la GPU de una vez.
     this.engine.warmup(world.scene, this.engine.camera);
     whenSurfacesReady().then(() => {
       if (this.world === world) this.engine.warmup(world.scene, this.engine.camera);
     });
   }
 
-  // Compila los sombreadores de las 5 armas en primera persona (copias diminutas, el arma actual se
-  // oculta ese instante): sacar un arma por primera vez ya no da un tirón.
   warmWeapons() {
     const vm = this.viewmodel;
     const extras = [...vm.loaded.values()].map(({ object }) => object.clone()).concat(vm.warmupObjects?.() ?? []);
@@ -193,9 +175,6 @@ export class Game {
     vm.gun.visible = visible;
   }
 
-  // Precarga el soldado (modelo, animaciones y arma) y compila sus sombreadores mientras el jugador
-  // está en el menú: el primer enemigo ya no congela la partida. La muestra se conserva fuera de la
-  // escena porque sus materiales mantienen vivos los sombreadores compilados.
   async warmSoldier() {
     const color = this.settings.enemyColor;
     const template = await loadSoldier(color);
@@ -203,13 +182,11 @@ export class Game {
     this.warmedColor = color;
     const skin = acquireSkin(template, color);
     const cam = this.engine.camera;
-    // Delante de la cámara pero diminuto (una fracción de píxel): se dibuja, no se ve.
     skin.root.position.set(0, 0, -3).applyQuaternion(cam.quaternion).add(cam.position);
     skin.root.scale.setScalar(0.002);
     skin.update(1 / 60, { lateral: 0, forward: 0, speed: 0, crouch: 0, shotT: 9, dying: false, flash: 0 });
     this.engine.warmup(this.world.scene, cam, [skin.root]);
     releaseSkin(skin);
-    // Reserva inicial: unos cuantos soldados más, de a uno por vez para no trabar el menú.
     const fill = () => {
       if (pooledSkins(color) >= SKIN_PREFILL || this.settings.enemyColor !== color) return;
       releaseSkin(new BotSkin(template, color));
@@ -230,7 +207,6 @@ export class Game {
     setShadowMode(s.video.shadows);
     this.engine.setQuality(s.video);
     if (this.world) applyShadowQuality(this.world, this.engine.detail);
-    // La calidad automática solo existe en el modo "auto"; elegir otro modo la descarta.
     if (s.video.quality === 'auto') {
       this.autoQuality ??= new AutoQuality({ detail: s.video.autoDetail, scale: s.video.autoScale });
     } else this.autoQuality = null;
@@ -238,7 +214,6 @@ export class Game {
     this.sfx.setMusicVolume(s.audio.music ?? 0.5);
   }
 
-  // Ajusta la sensibilidad un porcentaje (atajos [ y ]).
   nudgeSensitivity(factor) {
     const sens = this.settings.sens;
     sens.value = roundTo(sens.value * factor, GAMES[sens.game]?.decimals ?? 3);
@@ -247,27 +222,21 @@ export class Game {
     this.hud.flash(`Sensibilidad ${formatSens(sens.game, sens.value)}`, 'info');
   }
 
-  // --- Armas ----------------------------------------------------------------------------
-
-  // Mira del arma actual (o la global si "mira por arma" está desactivado).
   activeCrosshair() {
     const s = this.settings;
     return s.crosshairPerWeapon ? s.weaponCrosshairs[this.weapon.id] ?? s.crosshair : s.crosshair;
   }
 
-  // Motivo por el que el modo no deja cambiar de arma (o null). La evaluación usa la de su configuración.
   weaponLock() {
     return this.mode?.weaponLocked?.() ?? null;
   }
 
-  // Equipa el arma elegida en el arsenal con todo cargado (al empezar una partida o fase).
   equipLoadout() {
     this.weapon.setWeapon(getWeapon(this.settings.weapon).id, { force: true });
     this.weapon.refill();
     this.onWeaponChange();
   }
 
-  // Cambio de arma en partida (teclas 1-9 o rueda) o desde el arsenal. Se recuerda como arma elegida.
   selectWeapon(id) {
     if (!WEAPONS[id]) return;
     const locked = this.mode ? this.weaponLock() : null;
@@ -275,8 +244,6 @@ export class Game {
       this.hud.flash(locked, 'info');
       return;
     }
-    // Modos con armas propias (zombi: se compran): solo se puede sacar lo que se tiene, y la elección
-    // no cambia el arma guardada del arsenal.
     const owned = this.mode?.ownsWeapon?.(id);
     if (owned === false) {
       this.hud.flash(`${WEAPONS[id].name}: cómprala en la armería`, 'bad');
@@ -289,15 +256,12 @@ export class Game {
     if (this.weapon.setWeapon(id)) this.hud.flash(WEAPONS[id].name, 'info');
   }
 
-  // Armas que el jugador tiene, en orden. Los modos con inventario limitado (zombi) dan sus espacios
-  // (mode.weaponSlots: la tecla 1 es el primero); en los demás, las del arsenal con su tecla de siempre.
   availableWeapons() {
     const slots = this.mode?.weaponSlots?.();
     if (slots) return slots.map((id, i) => ({ id, key: String(i + 1) }));
     return WEAPON_ORDER.filter((id) => this.mode?.ownsWeapon?.(id) !== false).map((id) => ({ id, key: WEAPONS[id].key }));
   }
 
-  // Rueda del mouse (o botón táctil): la siguiente (o anterior) arma que se tiene.
   cycleWeapon(dir) {
     if (this.weaponLock() || !this.weapon.enabled) return;
     const list = this.availableWeapons();
@@ -309,7 +273,6 @@ export class Game {
   onWeaponChange() {
     const w = this.weapon;
     this.hud.setCrosshair(this.activeCrosshair());
-    // En táctil no hay teclas: se omiten los atajos (la mira tiene su propio botón).
     const keys = !this.touchMode;
     const modeKey = keys ? ` [${keyLabel(this.settings.keys, 'fireMode')}]` : '';
     const mode = w.stats.fireModes.length > 1 ? ` · ${w.modeLabel}${modeKey}` : w.stats.fireModes[0] === 'burst' ? ' · RÁFAGA' : w.stats.zoom && keys ? ' · clic der. = mira' : '';
@@ -317,12 +280,9 @@ export class Game {
     this.hud.setWeaponSlots(this.availableWeapons(), w.id, !!this.weaponLock());
   }
 
-  // Teclas en partida: cada código se traduce a su acción según los controles del jugador
-  // (config/keybinds.js). Las armas (1-9) son fijas.
   onKey(e) {
     if (!this.playing) return;
-    if (this.mode?.captureKey?.(e)) return; // el modo se queda la tecla (zombi: teclado de la caja fuerte)
-    // Números: en los modos con espacios de armas, el espacio (1 = el primero); si no, el arma de esa tecla.
+    if (this.mode?.captureKey?.(e)) return;
     const slots = this.mode?.weaponSlots?.();
     if (slots ? e.code in DIGITS : WEAPON_KEYS[e.code]) {
       const id = slots ? slots[DIGITS[e.code]] : WEAPON_KEYS[e.code];
@@ -330,7 +290,7 @@ export class Game {
       return;
     }
     const action = actionFor(this.settings.keys, e.code);
-    if (action && action !== 'restart') e.preventDefault(); // p. ej. Tab o Alt asignados
+    if (action && action !== 'restart') e.preventDefault();
     const once = !e.repeat;
     switch (action) {
       case 'sensDown':
@@ -366,7 +326,7 @@ export class Game {
         }
         break;
       default:
-        this.mode?.onKey?.(e, action); // acciones propias del modo (zombi: usar / comprar)
+        this.mode?.onKey?.(e, action);
     }
   }
 
@@ -382,7 +342,6 @@ export class Game {
 
     this.player.bodies = this.mode?.bodyColliders?.() ?? NO_BODIES;
     this.player.update(dt, playing);
-    // Menú: la cámara la llevan los planos del escenario (Armería) con su lente; en otro mapa, paneo lento.
     const menuView = !this.mode && !!this.world.menuShots;
     const fov = menuView ? MENU_VFOV : null;
     if (this.engine.fovOverride !== fov) {
@@ -391,7 +350,6 @@ export class Game {
     }
     if (menuView) this.menuCamera.update(dt, this.time, this.engine.camera);
     else if (!this.mode) this.player.look(Math.sin(this.time * 0.12) * 0.35, 0.04 + Math.sin(this.time * 0.2) * 0.03);
-    // Sacudida de cámara de las explosiones cercanas (no se acumula: el jugador fija la mirada cada cuadro).
     const shake = this.grenades.shakeOffset(this.time);
     if (shake) {
       this.engine.camera.rotation.x += shake;
@@ -414,7 +372,6 @@ export class Game {
       this.mode.update(dt);
       this.updateProps(dt);
     }
-    // Mira dinámica: se abre exactamente lo que se desvían las balas (movimiento, salto, ráfaga).
     if (this.activeCrosshair().dynamic) {
       const spread = this.weapon.enabled ? this.weapon.currentSpread() : 0;
       this.hud.setSpread(spreadToPixels(spread, this.engine.camera.fov, window.innerHeight));
@@ -433,9 +390,7 @@ export class Game {
         return `${w.ammoBy[id]}${r === null || r === undefined ? '' : ` / ${r}`}`;
       });
     }
-    // El arma se oculta solo dentro de la mira telescópica (con las miras de hierro se sigue viendo).
     this.engine.showOverlay = this.settings.gameplay.viewmodel && !!this.mode && this.input.locked && !(this.weapon.scoped && this.zoomLevel > 1.15);
-    // El detalle puede cambiar en cualquier momento (calidad automática): el mapa ajusta sus luces.
     if (this.world.detail !== this.engine.detail) {
       this.world.detail = this.engine.detail;
       this.world.setDetail?.(this.engine.detail);
@@ -446,14 +401,9 @@ export class Game {
     const perf = this.perf.tick(now);
     if (perf) this.hud.setFps(perf);
     this.updateAutoQuality(now);
-    // Con un menú opaco encima (pausa, configuración, progreso…) la escena no se ve: no se dibuja.
-    // Además el desenfoque del menú no tiene que recalcularse cada cuadro (mucho trabajo en GPUs
-    // integradas). La pantalla de título sí muestra la escena en vivo.
     this.engine.frozen = this.ui.el.classList.contains('active') && !this.ui.el.querySelector('.title-screen');
   }
 
-  // Resolución dinámica: se adapta jugando y en la pantalla de título (la armería se dibuja en vivo);
-  // con otro menú encima la escena no se dibuja y los cuadros no cuentan.
   updateAutoQuality(now) {
     const last = this.lastFrameAt ?? now;
     this.lastFrameAt = now;
@@ -467,16 +417,11 @@ export class Game {
       video.autoScale = change.scale;
       this.engine.setQuality(video);
       applyShadowQuality(this.world, this.engine.detail);
-      this.autoSaveT = 3; // se guarda unos segundos después (sin escribir en cada ajuste)
+      this.autoSaveT = 3;
     }
     if (this.autoSaveT > 0 && (this.autoSaveT -= (now - last) / 1000) <= 0) this.store.persist();
   }
 
-  // Mira telescópica: clic derecho con un arma con zoom. Entra y sale suave; baja la sensibilidad en
-  // proporción al zoom (multiplicada por el ajuste "sensibilidad con zoom").
-  // Clic derecho: con el francotirador, mira telescópica; con las demás armas, apuntar con las miras
-  // (ADS: algo de aumento, menos dispersión y caminar más lento). El ADS no está en la evaluación, que
-  // fija el arma para que los rangos sean comparables.
   updateScope(dt, playing) {
     const w = this.weapon;
     const ready = playing && this.input.aimDown && w.enabled && !w.reloading && !w.drawing && !this.melee?.busy;
@@ -485,12 +430,11 @@ export class Game {
     const target = w.scoped ? w.stats.zoom : w.aiming ? w.stats.ads.zoom : 1;
     this.zoomLevel += (target - this.zoomLevel) * Math.min(1, dt * ZOOM_SPEED);
     if (Math.abs(target - this.zoomLevel) < 0.01) this.zoomLevel = target;
-    this.engine.setZoom(this.zoomLevel * (this.mode?.viewZoom ?? 1)); // el modo puede cerrar la cámara
+    this.engine.setZoom(this.zoomLevel * (this.mode?.viewZoom ?? 1));
     this.player.sensScale = this.zoomLevel > 1 ? (1 / this.zoomLevel) * this.settings.gameplay.zoomSensitivity : 1;
     this.player.speedScale = w.aiming ? w.stats.ads.speed : w.scoped ? 0.7 : 1;
     this.viewmodel.aimTarget = w.aiming ? 1 : 0;
     this.hud.setScoped(!!w.stats.zoom && this.zoomLevel > w.stats.zoom * 0.85 && w.scoped);
-    // Con el arma ya casi en la cara, la retícula sobra (y se ve la mira del arma).
     this.hud.setAds(this.viewmodel.aim > 0.55);
   }
 
@@ -498,14 +442,12 @@ export class Game {
     return !this.mode?.weaponLocked?.();
   }
 
-  // Paneo estéreo (-1…1) de un punto del mundo respecto a la cámara.
   panFor(point) {
     _v.copy(point).applyMatrix4(this.engine.camera.matrixWorldInverse);
     const len = Math.hypot(_v.x, _v.z) || 1;
     return THREE.MathUtils.clamp(_v.x / len, -1, 1);
   }
 
-  // Ángulo horizontal (rad) de un punto respecto a hacia dónde mira el jugador; positivo = izquierda.
   angleTo(point) {
     const eye = this.player.eye;
     const yawTo = Math.atan2(-(point.x - eye.x), -(point.z - eye.z));
@@ -514,11 +456,8 @@ export class Game {
     return rel;
   }
 
-  // --- Pointer lock / pausa ----------------------------------------------------
-
   onLock() {
     this.sfx.unlock();
-    // En táctil: pantalla completa y horizontal al entrar en partida (necesita el gesto del toque).
     if (this.touchMode && !document.fullscreenElement) {
       document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
     }
@@ -555,13 +494,10 @@ export class Game {
     this.ui.hide();
   }
 
-  // --- Navegación ----------------------------------------------------------------
-
   handleBack() {
-    if (this.mode && this.input.locked) return this.input.unlock(); // en partida → pausa
-    if (this.mode?.onBack?.()) return; // el modo lo resolvió (p. ej. cerrar la armería)
+    if (this.mode && this.input.locked) return this.input.unlock();
+    if (this.mode?.onBack?.()) return;
     if (this.mode && this.paused) return this.quitToMenu();
-    // Igual que Esc: lo atienden el submenú abierto o el botón Volver de la pantalla (UI.js).
     const esc = new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true, cancelable: true });
     document.dispatchEvent(esc);
     if (esc.defaultPrevented) return;
@@ -587,7 +523,6 @@ export class Game {
     this.ui.show(settingsScreen(this, onBack, opts));
   }
 
-  // Editor de retícula. `weapon`: abre editando la de esa arma (desde el Arsenal).
   showCrosshair(onBack, { weapon = null } = {}) {
     this.ui.show(crosshairScreen(this, { onBack, weapon }));
   }
@@ -609,10 +544,9 @@ export class Game {
     this.paused = false;
     this.mode = mode;
     mode.start();
-    this.world.props?.reset(); // la utilería vuelve a su lugar en cada partida
+    this.world.props?.reset();
   }
 
-  // Física de la utilería del mapa: el jugador y los enemigos la empujan al pasar.
   updateProps(dt) {
     const props = this.world.props;
     if (!props) return;
@@ -623,7 +557,6 @@ export class Game {
     props.update(dt, movers);
   }
 
-  // Inicia un modo del registro (lo usa el menú). Respeta su condición de bloqueo.
   startModeById(id) {
     const entry = getMode(id);
     if (!entry) {
@@ -636,7 +569,7 @@ export class Game {
       return;
     }
     const mode = entry.create(this);
-    mode.title ??= entry.title; // lo muestra la pausa
+    mode.title ??= entry.title;
     this.startMode(mode);
   }
 
@@ -653,7 +586,6 @@ export class Game {
     this.showMenu();
   }
 
-  /** La pantalla de título avisa qué opción está enfocada: la cámara del menú va a su plano. */
   focusMenu(id) {
     this.menuCamera.focus(id);
   }

@@ -1,7 +1,3 @@
-// Datos de la campaña: mapas, niveles y perfil de los bots según la dificultad.
-// Sin Three.js ni DOM: se prueban en tests/campaign.test.js.
-
-// Un mapa por tramo de rango. `ranks`: rangos (config/ranks.js) para los que es el mapa recomendado.
 export const CAMPAIGN_MAPS = [
   {
     id: 'bodega',
@@ -37,13 +33,6 @@ export const CAMPAIGN_MAPS = [
 
 export const LEVELS_PER_MAP = 4;
 
-/*
-  Plantillas de nivel (iguales en estructura para cada mapa; la dificultad sube con el mapa y el nivel).
-  encounters: se juegan en orden; el siguiente empieza cuando no queda nadie del anterior.
-    type: 'flick' (aparece en terreno abierto) | 'strafe' (duelo en movimiento) | 'peek' (desde cobertura)
-          | 'mixed' (cualquiera de los tres)
-    count: bots del encuentro · concurrent: máximo a la vez · areas: zonas de cobertura para los peeks
-*/
 export const LEVEL_TEMPLATES = [
   {
     key: 'recon',
@@ -85,15 +74,10 @@ export const LEVEL_TEMPLATES = [
   },
 ];
 
-// Dificultad continua de toda la campaña: 0 (Bodega 1) … 11 (Arena 4).
 export function difficultyOf(map, index) {
   return map.tier * LEVELS_PER_MAP + index;
 }
 
-// Metas de estrellas (puntuación 0-100 del nivel). La 1ª desbloquea el siguiente nivel.
-// Suben nivel a nivel dentro de un mapa. Al pasar a un mapa nuevo la meta baja (Bodega 4 = 57,
-// Ciudad 1 = 48) a propósito: los bots ya son más difíciles, y exigir además más nota sería un salto
-// doble. Entre mapas, la meta inicial sí sube (45 → 48 → 51).
 export function goalsFor(map, index) {
   const base = 45 + 4 * index + 3 * map.tier;
   return [base, base + 15, Math.min(97, base + 27)];
@@ -134,8 +118,6 @@ const lin = (start, perLevel, limit, d) => {
 };
 const r2 = (v) => Math.round(v * 100) / 100;
 
-// Perfil de los bots para una dificultad d (0-11). "Impredecible" = cambios de dirección más
-// frecuentes, más amagos, más asomadas abiertas, más agacharse y saltar.
 export function botProfile(d) {
   return {
     scale: r2(lin(1, -0.025, 0.72, d)),
@@ -154,8 +136,6 @@ export function botProfile(d) {
       jumpChance: r2(lin(0, 0.02, 0.22, d)),
       stopChance: r2(lin(0.25, -0.012, 0.08, d)),
     },
-    // Daño por segundo de un bot ≈ accuracy × damage / interval: de ~3.6 (Bodega 1) a ~14 (Arena 4).
-    // Con 3 a la vez en el último nivel ya es muy exigente; más que eso no dejaría asomarse a nadie.
     shooter: {
       reaction: r2(lin(0.75, -0.04, 0.3, d)),
       interval: r2(lin(0.45, -0.012, 0.32, d)),

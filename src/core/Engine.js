@@ -3,37 +3,31 @@ import { resolveQuality } from '../config/quality.js';
 import { setGlowBloom, setSurfaceDetail } from '../gfx/surfaces.js';
 import { shadowSizeFor } from '../gfx/lighting.js';
 
-// Renderer, cámara y loop. La escena activa la aporta el mapa cargado.
-// `overlay` ({ scene, camera, resize }) se dibuja encima sin depth del mundo: el arma en primera persona.
 export class Engine {
   constructor(canvas) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.video = null; // configuración de calidad (setQuality)
+    this.video = null;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.autoClear = false;
-    // Tono neutro (Khronos PBR Neutral): comprime solo las luces altas y respeta los colores
-    // (las dianas y los enemigos se ven del color que deben).
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.enabled = false;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.detail = null; // alta | media | baja (texturas, sombras y efectos)
-    this.frozen = false; // true = no dibujar (hay un menú opaco encima): ahorra GPU y batería
+    this.detail = null;
+    this.frozen = false;
     this.gpuName = detectGpu(this.renderer);
-    this.composer = null; // postproceso (bloom), solo en calidad alta
+    this.composer = null;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 400);
     this.camera.rotation.order = 'YXZ';
     this.horizontalFov = 103;
-    this.zoom = 1; // aumento de la mira telescópica (1 = sin zoom)
-    this.fovOverride = null; // FOV vertical fijo (grados) para la cámara del menú; null = el del jugador
+    this.zoom = 1;
+    this.fovOverride = null;
     this.overlay = null;
     this.showOverlay = true;
 
-    // Si el driver reinicia la GPU se pierde el contexto. preventDefault permite que Three.js
-    // lo restaure solo; Game decide qué mostrar.
     this.onContextLost = null;
     this.onContextRestored = null;
     canvas.addEventListener('webglcontextlost', (e) => {
@@ -47,13 +41,11 @@ export class Engine {
     this.resize();
   }
 
-  // Los shooters definen el FOV en horizontal; Three.js lo usa en vertical.
   setHorizontalFov(deg) {
     this.horizontalFov = deg;
     this.applyFov();
   }
 
-  // Zoom de mira telescópica: reduce el FOV efectivo (×2 = mitad de campo de visión en tangente).
   setZoom(z) {
     if (z === this.zoom) return;
     this.zoom = z;
@@ -77,7 +69,6 @@ export class Engine {
     overlay?.resize(this.camera.aspect);
   }
 
-  // Calidad gráfica: resolución interna, texturas, sombras y efectos (ver config/quality.js).
   setQuality(video) {
     this.video = video;
     const { detail } = resolveQuality(video, window.devicePixelRatio);
@@ -91,12 +82,10 @@ export class Engine {
         if (this.composer) this.disposeComposer();
       }
     }
-    // Sombras: según el detalle o la opción "Sombras" de la configuración.
     this.renderer.shadowMap.enabled = shadowSizeFor(detail) > 0;
     this.resize();
   }
 
-  // El postproceso se descarga solo si hace falta (calidad alta). Mientras llega se dibuja sin él.
   createComposer() {
     if (this.composerLoading) return;
     this.composerLoading = import('../gfx/postfx.js')
@@ -110,21 +99,10 @@ export class Engine {
         this.resize();
       })
       .catch(() => {
-        this.composerLoading = null; // sin postproceso: el juego sigue igual, sin bloom
+        this.composerLoading = null;
       });
   }
 
-  /*
-    Precalentamiento: compila los sombreadores de una escena, sube sus texturas a la GPU y la dibuja
-    una vez de verdad (a la pantalla o al postproceso, con su pase de sombras). En Windows, ANGLE
-    (Direct3D 11) termina de compilar cada sombreador y su estado de canalización recién en el primer
-    dibujo al destino real: si eso pasara en partida congelaría cientos de ms. Se llama al cargar un
-    mapa (suele haber un menú encima) o con objetos de muestra diminutos que no se llegan a ver.
-    - `extras`: objetos que se agregan solo durante el precalentamiento (p. ej. un soldado de muestra).
-    - Los objetos invisibles marcados con userData.warm (reservas de efectos) se muestran un instante.
-  */
-  // `direct`: dibuja con el renderer aunque haya postproceso (la escena del arma va encima, directa).
-  // `clear`: false para no borrar lo que ya hay en pantalla (escena superpuesta).
   warmup(scene, camera, extras = [], { direct = false, clear = true } = {}) {
     const r = this.renderer;
     const shown = [];
@@ -136,7 +114,7 @@ export class Engine {
     });
     for (const e of extras) scene.add(e);
     try {
-      r.compile(scene, camera); // todo lo visible, esté o no en el encuadre
+      r.compile(scene, camera);
       scene.traverse((o) => {
         for (const m of [].concat(o.material ?? [])) {
           for (const t of [m.map, m.normalMap, m.aoMap, m.roughnessMap, m.metalnessMap]) if (t?.image) r.initTexture(t);
@@ -183,9 +161,9 @@ export class Engine {
       const dt = Math.min(this.timer.getDelta(), 0.05);
       onFrame(dt);
       const r = this.renderer;
-      if (this.frozen) return; // el lienzo conserva el último cuadro
+      if (this.frozen) return;
       if (this.composer) {
-        this.renderPass.scene = this.scene; // el mapa activo puede cambiar
+        this.renderPass.scene = this.scene;
         this.renderPass.camera = this.camera;
         this.composer.render(dt);
       } else {
@@ -201,8 +179,6 @@ export class Engine {
   }
 }
 
-// Nombre de la GPU (p. ej. "ANGLE (Intel, Intel(R) UHD Graphics … Direct3D11)"). Algunos navegadores
-// lo ocultan: entonces se usa el genérico y la calidad automática parte de un nivel medio.
 function detectGpu(renderer) {
   try {
     const gl = renderer.getContext();

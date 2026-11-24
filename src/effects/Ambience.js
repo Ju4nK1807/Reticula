@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 
-// Ambiente del menú: polvo en suspensión y chispas que suben por delante de la cámara.
-// Un solo THREE.Points (una draw call); solo se ve en la pantalla de título.
-const COUNT = 260; // por defecto (menú)
-const SPARK_SHARE = 0.28; // proporción de chispas (ámbar, más rápidas) frente al polvo (verde frío)
+const COUNT = 260;
+const SPARK_SHARE = 0.28;
 const BOX = { x: 13, yMin: 0.2, yMax: 6.5, zNear: 3, zFar: 30 };
 
 function dotTexture() {
@@ -23,8 +21,6 @@ function dotTexture() {
 }
 
 export class Ambience {
-  // opts: { spark, dust, count } — colores de chispas y polvo y cuántas partículas (el modo zombi usa
-  // ceniza gris y brasas).
   constructor({ spark: sparkColor = '#ffb54d', dust: dustColor = '#7de8c4', count = COUNT } = {}) {
     this.count = count;
     this.positions = new Float32Array(count * 3);
@@ -63,7 +59,6 @@ export class Ambience {
     this.scene = null;
   }
 
-  // Posición aleatoria dentro de la caja (relativa al punto de aparición del mundo).
   respawn(i, anyHeight = false) {
     const y = anyHeight ? BOX.yMin + Math.random() * (BOX.yMax - BOX.yMin) : BOX.yMin;
     this.positions[i * 3] = (Math.random() * 2 - 1) * BOX.x;
@@ -93,7 +88,6 @@ export class Ambience {
     this.points.geometry.attributes.position.needsUpdate = true;
   }
 
-  // Para las instancias de un modo (la del menú vive todo el juego).
   dispose() {
     this.points.removeFromParent();
     this.points.geometry.dispose();

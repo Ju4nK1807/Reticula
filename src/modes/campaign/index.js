@@ -5,7 +5,6 @@ import { CityMap } from './maps/CityMap.js';
 import { ArenaMap } from './maps/ArenaMap.js';
 import { Campaign, MODE_ID } from './Campaign.js';
 
-// Campaña: un mapa por rango (Bodega, Ciudad, Arena) con 4 niveles cada uno.
 registerWorld('warehouse', () => new WarehouseMap());
 registerWorld('city', () => new CityMap());
 registerWorld('arena', () => new ArenaMap());

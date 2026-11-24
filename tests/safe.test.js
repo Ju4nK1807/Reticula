@@ -1,4 +1,3 @@
-// Caja fuerte (código del Jefe), rondas del Jefe y acabados de las armas.
 import { describe, expect, it } from 'vitest';
 import { SAFE, SafeLock, makeSafeCode } from '../src/modes/zombies/safe.js';
 import { isBossRound, waveConfig, waveRoster } from '../src/modes/zombies/zombieData.js';
@@ -25,7 +24,7 @@ describe('código de la caja fuerte', () => {
     for (const d of '48') s.press(d);
     s.back();
     expect(s.entry).toBe('4');
-    for (const d of '81799') s.press(d); // no pasa de 4 cifras
+    for (const d of '81799') s.press(d);
     expect(s.entry).toBe('4817');
     expect(s.submit()).toBe('open');
     expect(s.unlocked).toBe(true);

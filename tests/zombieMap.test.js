@@ -1,5 +1,3 @@
-// Auditoría del mapa zombi por secciones, con su geometría y navegación reales: puertas que de verdad
-// separan las secciones, entradas de zombis con camino hasta el jugador y compras alcanzables.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { BOX_SPOTS, ZombieMap } from '../src/modes/zombies/ZombieMap.js';
@@ -9,16 +7,12 @@ import { DOORS, PERKS, WALL_BUYS, doorSection } from '../src/modes/zombies/zombi
 
 const world = new ZombieMap();
 const navFor = () => new NavGrid({ ...world.nav, cell: 1, radius: 0.45, colliders: world.colliders });
-// ¿Hay camino por la navegación desde (x, z) hasta el jugador en `to`?
 const reachable = (nav, from, to) => {
   nav.build(to.x, to.z);
   return nav.pathDistance(from.x, from.z) < Infinity;
 };
 const spawn = world.spawn;
 
-// Secciones a las que la horda NO llega con su puerta cerrada (la plaza rodea al vestíbulo: sus zombis
-// entran por las ventanas; lo que la puerta de la plaza encierra es al jugador). En este orden cada una
-// queda conectada al abrir su puerta (el Hospital, por la Subestación; la Feria, por la Estación).
 const WALLED = ['mercado', 'estacion', 'iglesia', 'subestacion', 'hospital', 'feria'];
 const SECTIONS = [...new Set(Object.keys(DOORS).map(doorSection))];
 
@@ -30,7 +24,6 @@ describe('mapa zombi por secciones', () => {
     for (const id of SECTIONS) {
       expect(world.entries.filter((e) => e.section === id).length, id).toBeGreaterThanOrEqual(3);
     }
-    // Cada entrada tiene su barricada completa.
     expect(world.entries.every((e) => e.barricade?.boards === e.barricade?.max && e.barricade.max > 0)).toBe(true);
   });
 
@@ -81,7 +74,6 @@ describe('mapa zombi por secciones', () => {
     expect(price('plaza')).toBe(Math.min(...all));
     expect(price('feria')).toBe(Math.max(...all));
     expect(price('feria-iglesia')).toBe(price('feria'));
-    // Las que salen del circo, más baratas que las que salen de la plaza; esas, más que las del fondo.
     expect(price('iglesia')).toBeLessThan(price('mercado'));
     for (const id of ['mercado', 'estacion', 'subestacion']) expect(price(id)).toBeLessThan(price('hospital'));
     expect(price('hospital')).toBeLessThan(price('feria'));
@@ -157,9 +149,9 @@ describe('barricadas', () => {
       z.update(1 / 60, ctx);
       if (b.boards > 0) maxInsideWithBoards = Math.max(maxInsideWithBoards, inside());
     }
-    expect(torn).toHaveLength(BARRICADE.boards); // arrancó todos
-    expect(maxInsideWithBoards).toBeLessThan(0); // con tablones nunca cruzó
-    expect(z.state).toBe('attack'); // y después llegó al jugador
+    expect(torn).toHaveLength(BARRICADE.boards);
+    expect(maxInsideWithBoards).toBeLessThan(0);
+    expect(z.state).toBe('attack');
     world.resetBarricades();
     expect(b.boards).toBe(b.max);
   });
@@ -201,7 +193,6 @@ describe('suavidad de la horda en el mapa real', () => {
     let jumps = 0;
     let frames = 0;
     const prev = new Map();
-    // Salen a ~30 m del jugador: a ~1.4 m/s (ronda 3) necesitan unos 22 s.
     for (let f = 0; f < 60 * 40; f++) {
       for (const z of zombies) {
         const x0 = z.position.x;
@@ -218,7 +209,6 @@ describe('suavidad de la horda en el mapa real', () => {
         prev.set(z, a);
       }
     }
-    // Todos llegan hasta el jugador (ninguno queda atascado en un callejón o una cobertura).
     const far = zombies.filter((z) => z.position.distanceTo(player) > 3).map((z) => z.position.toArray().map((v) => v.toFixed(1)).join(','));
     world.resetBarricades();
     expect(far).toEqual([]);
@@ -239,9 +229,8 @@ describe('segundo piso (terraza de la Feria)', () => {
       maxStep = Math.max(maxStep, f - y);
       y = f;
     }
-    expect(y).toBeCloseTo(3.6, 5); // terminó arriba, en la terraza
+    expect(y).toBeCloseTo(3.6, 5);
     expect(maxStep).toBeLessThan(0.1);
-    // Desde el suelo, en el mismo punto de la terraza, no se "sube" (no hay escalera ahí).
     expect(world.floorAt(52, 52, 0)).toBe(0);
     expect(world.floorAt(52, 52, 3.6)).toBeCloseTo(3.6, 5);
     expect(world.floorAt(0, 16, 0)).toBe(0);
@@ -251,7 +240,6 @@ describe('segundo piso (terraza de la Feria)', () => {
     for (const id of Object.keys(DOORS)) world.openDoor(id);
     const nav = navFor();
     expect(reachable(nav, { x: 52, z: 52 }, spawn)).toBe(true);
-    // Desde el suelo junto al muro de la terraza hay que dar la vuelta: el camino es más largo que la recta.
     nav.build(52, 52);
     expect(nav.pathDistance(42.5, 47)).toBeGreaterThan(Math.hypot(52 - 42.5, 52 - 47) + 4);
     world.resetDoors();
@@ -310,14 +298,12 @@ describe('electricidad, caja misteriosa y Forja', () => {
     const p = world.box.group.position;
     expect(BOX_SPOTS[0]).toBe(RELICARIO_BOX);
     expect(p.x > R.minX && p.x < R.maxX && p.z > R.minZ && p.z < R.maxZ).toBe(true);
-    // Recorrido por el muro sur: libre solo en el hueco de la puerta.
     const zWall = R.maxZ - R.t / 2;
     const open = [];
     for (let x = R.minX + 0.6; x < R.maxX - 0.3; x += 0.25) if (world.isFree(x, zWall, 0.3)) open.push(x);
     expect(open.length).toBeGreaterThan(0);
     expect(Math.min(...open)).toBeGreaterThanOrEqual(R.door[0]);
     expect(Math.max(...open)).toBeLessThanOrEqual(R.door[1]);
-    // Y el muro oeste, cerrado de punta a punta.
     for (let z = R.minZ + 0.3; z < R.maxZ; z += 0.25) expect(world.isFree(R.minX + R.t / 2, z, 0.3)).toBe(false);
   });
 
@@ -329,7 +315,6 @@ describe('electricidad, caja misteriosa y Forja', () => {
       const it = world.box.it;
       expect(world.isFree(it.pos.x, it.pos.z, 0.32), BOX_SPOTS[i].where).toBe(true);
       expect(reachable(nav, it.pos, spawn), BOX_SPOTS[i].where).toBe(true);
-      // El colisionador viaja con la caja.
       expect(world.box.collider.containsPoint(new THREE.Vector3(BOX_SPOTS[i].x, 0.4, BOX_SPOTS[i].z))).toBe(true);
     }
     world.moveBox(0);

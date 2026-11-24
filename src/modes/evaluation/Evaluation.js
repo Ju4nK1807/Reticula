@@ -14,7 +14,6 @@ import { WEAPONS } from '../../combat/weapons.js';
 import { evalConfigScreen, evalIntroScreen, evalPracticeScreen, evalResultsScreen } from '../../ui/evaluationScreens.js';
 import { evalConfig, isRanked, stagesFor } from './evalConfig.js';
 
-// Dos evaluaciones independientes, cada una con su mapa y su rango.
 export const VARIANTS = {
   targets: {
     id: 'targets',
@@ -34,15 +33,12 @@ export const VARIANTS = {
   },
 };
 
-const BRIEF_TIME = 5; // segundos de instrucciones + cuenta regresiva antes de cada fase
+const BRIEF_TIME = 5;
 
-// Modo Evaluación: encadena las fases de una variante, calcula el rango y lo guarda.
-// Estados: intro → brief → running → (brief → running)… → done
 export class Evaluation extends Mode {
   constructor(game, variantId = 'targets') {
     super(game);
     this.variant = VARIANTS[variantId];
-    // Configuración elegida (evalConfig.js). Con la estándar da rango; si no, es una práctica.
     this.evalCfg = evalConfig(game.store?.data.settings.evaluation);
     this.stages = stagesFor(this.variant, this.evalCfg);
     this.ranked = isRanked(this.variant, this.evalCfg);
@@ -81,7 +77,6 @@ export class Evaluation extends Mode {
     );
   }
 
-  // Personalizar: se guarda al cambiar y se aplica al volver a la pantalla de inicio.
   showConfig() {
     const g = this.game;
     g.ui.show(
@@ -101,7 +96,6 @@ export class Evaluation extends Mode {
     );
   }
 
-  // Game solo pausa si el modo necesita el mouse capturado.
   wantsLock() {
     return this.state === 'brief' || this.state === 'running';
   }
@@ -114,9 +108,6 @@ export class Evaluation extends Mode {
     return true;
   }
 
-  // Durante las instrucciones se puede disparar para calentar (no cuenta).
-  // Entrenamiento: munición infinita y sin recargas (una recarga a destiempo dejaba escapar
-  // enemigos y restaba puntos). Las armas se sienten igual: solo no se vacían.
   infiniteAmmo() {
     return true;
   }
@@ -146,13 +137,11 @@ export class Evaluation extends Mode {
     this.index = index;
     const Stage = this.stages[index];
     this.phase = new Stage(this);
-    // Duración elegida (la estándar es 30 s; el combate dura proporcionalmente más).
     if (Number.isFinite(this.phase.duration)) this.phase.duration *= this.evalCfg.duration / 30;
     this.state = 'brief';
     this.briefT = BRIEF_TIME;
     this.lastBeep = null;
     g.player.reset(g.world.spawn);
-    // El arma elegida (el rifle en la estándar) y el modo de disparo de la fase.
     g.weapon.setWeapon(this.evalCfg.weapon, { force: true });
     g.weapon.setMode(Stage.info.auto);
     g.weapon.refill();
@@ -187,7 +176,6 @@ export class Evaluation extends Mode {
       if (this.briefT <= 0) {
         hud.brief(null);
         sfx.beep(true);
-        // Lo disparado durante el calentamiento no cuenta: empieza con el cargador lleno.
         this.game.weapon.refill();
         this.game.effects.clear();
         this.state = 'running';
@@ -218,7 +206,6 @@ export class Evaluation extends Mode {
 
     g.input.unlock();
     g.hud.setVisible(false);
-    // Práctica (configuración personalizada): resultados de cada fase, sin rango ni guardado.
     if (!this.ranked) {
       g.ui.show(
         evalPracticeScreen({

@@ -1,11 +1,5 @@
 import * as THREE from 'three';
 
-/*
-  Texturas dibujadas en un canvas (sin descargar nada): tablero perforado, pantallas holográficas,
-  franjas de seguridad, el abanico del láser y siluetas de blanco. Se generan una vez y se comparten.
-  Sin navegador (pruebas en Node) devuelven null y el mapa usa colores planos.
-*/
-
 const hasCanvas = () => typeof document !== 'undefined' && typeof document.createElement === 'function';
 const cache = new Map();
 
@@ -29,19 +23,16 @@ function make(key, w, h, draw, { repeat = null, srgb = true } = {}) {
   return tex;
 }
 
-/** Tablero perforado de taller con herramientas colgadas (siluetas). */
 export function pegboardTexture() {
   return make('pegboard', 512, 256, (ctx, w, h) => {
     ctx.fillStyle = '#2f3a3f';
     ctx.fillRect(0, 0, w, h);
-    // Agujeros en cuadrícula.
     ctx.fillStyle = '#11171a';
     for (let y = 8; y < h; y += 16) for (let x = 8; x < w; x += 16) {
       ctx.beginPath();
       ctx.arc(x, y, 2.4, 0, Math.PI * 2);
       ctx.fill();
     }
-    // Herramientas: llaves, destornilladores, alicates (formas simples con sombra).
     const tool = (x, y, draw) => {
       ctx.save();
       ctx.translate(x, y);
@@ -85,7 +76,6 @@ export function pegboardTexture() {
     tool(232, 36, () => driver('#c4532f'));
     tool(290, 30, pliers);
     tool(330, 30, pliers);
-    // Silueta de un arma colgada.
     tool(380, 70, () => {
       ctx.fillStyle = '#1a1f23';
       ctx.fillRect(0, 0, 110, 14);
@@ -93,16 +83,11 @@ export function pegboardTexture() {
       ctx.fillRect(70, 14, 10, 18);
       ctx.fillRect(-24, 2, 30, 18);
     });
-    // Etiquetas de cinta.
     ctx.fillStyle = '#d8d2b8';
     for (const x of [30, 176, 286, 380]) ctx.fillRect(x, 200, 60, 12);
   });
 }
 
-/**
- * Pantalla holográfica (HUD verde azulado). kind: 'scan' (arma en cuadrícula), 'stats' (barras y
- * gráfica) o 'map' (plano de blancos).
- */
 export function holoTexture(kind = 'scan') {
   return make(`holo-${kind}`, 512, 320, (ctx, w, h) => {
     const C = '#36f5c4';
@@ -111,7 +96,6 @@ export function holoTexture(kind = 'scan') {
     ctx.strokeStyle = 'rgba(54,245,196,0.85)';
     ctx.lineWidth = 3;
     ctx.strokeRect(6, 6, w - 12, h - 12);
-    // Esquinas marcadas.
     ctx.lineWidth = 6;
     for (const [x, y, dx, dy] of [[6, 6, 1, 1], [w - 6, 6, -1, 1], [6, h - 6, 1, -1], [w - 6, h - 6, -1, -1]]) {
       ctx.beginPath();
@@ -122,7 +106,6 @@ export function holoTexture(kind = 'scan') {
     }
     ctx.font = '600 22px monospace';
     ctx.fillStyle = C;
-    // Cuadrícula tenue.
     ctx.strokeStyle = 'rgba(54,245,196,0.12)';
     ctx.lineWidth = 1;
     for (let x = 20; x < w; x += 24) {
@@ -141,7 +124,6 @@ export function holoTexture(kind = 'scan') {
     ctx.fillStyle = C;
     if (kind === 'scan') {
       ctx.fillText('ANÁLISIS · RIFLE', 26, 44);
-      // Contorno de un rifle.
       ctx.lineWidth = 3;
       ctx.beginPath();
       const pts = [[60, 170], [150, 160], [170, 150], [330, 150], [340, 140], [440, 140], [440, 156], [350, 160], [345, 178], [300, 182], [290, 215], [262, 215], [258, 186], [190, 186], [175, 210], [140, 210], [150, 186], [60, 196]];
@@ -192,7 +174,6 @@ export function holoTexture(kind = 'scan') {
   });
 }
 
-/** Franjas de seguridad amarillas y negras (repetibles a lo largo). */
 export function hazardTexture() {
   return make(
     'hazard',
@@ -216,7 +197,6 @@ export function hazardTexture() {
   );
 }
 
-/** Degradado del abanico del láser: intenso en el origen y desvanecido hacia el borde. */
 export function laserTexture() {
   return make('laser', 64, 256, (ctx, w, h) => {
     const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -228,7 +208,6 @@ export function laserTexture() {
   });
 }
 
-/** Silueta de blanco de tiro con anillos (para el fondo del campo). */
 export function silhouetteTexture() {
   return make('silhouette', 256, 512, (ctx, w, h) => {
     ctx.clearRect(0, 0, w, h);
@@ -236,7 +215,7 @@ export function silhouetteTexture() {
     ctx.strokeStyle = '#3dffc9';
     ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.arc(w / 2, 90, 52, 0, Math.PI * 2); // cabeza
+    ctx.arc(w / 2, 90, 52, 0, Math.PI * 2);
     ctx.moveTo(40, h - 20);
     ctx.quadraticCurveTo(30, 190, w / 2, 170);
     ctx.quadraticCurveTo(w - 30, 190, w - 40, h - 20);
@@ -252,7 +231,6 @@ export function silhouetteTexture() {
   });
 }
 
-/** Resplandor radial (luces, halos): blanco al centro y transparente al borde. */
 export function haloTexture() {
   return make('halo', 128, 128, (ctx, w, h) => {
     const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
@@ -264,7 +242,6 @@ export function haloTexture() {
   });
 }
 
-/** Haz de luz de una lámpara (cono volumétrico falso): brillante arriba, se apaga hacia abajo y los bordes. */
 export function beamTexture() {
   return make('beam', 128, 256, (ctx, w, h) => {
     const v = ctx.createLinearGradient(0, 0, 0, h);
@@ -273,7 +250,6 @@ export function beamTexture() {
     v.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = v;
     ctx.fillRect(0, 0, w, h);
-    // Bordes laterales más tenues (el cono se ve como un volumen, no como una lámina).
     ctx.globalCompositeOperation = 'destination-in';
     const hz = ctx.createLinearGradient(0, 0, w, 0);
     hz.addColorStop(0, 'rgba(0,0,0,0.25)');
@@ -284,7 +260,6 @@ export function beamTexture() {
   });
 }
 
-/** Letrero luminoso (texto en mayúsculas sobre panel oscuro, con marco). */
 export function signTexture(text, color = '#36f5c4') {
   return make(`sign-${text}-${color}`, 1024, 160, (ctx, w, h) => {
     ctx.fillStyle = 'rgba(4, 10, 12, 0.92)';
@@ -299,7 +274,6 @@ export function signTexture(text, color = '#36f5c4') {
     ctx.shadowBlur = 18;
     ctx.fillStyle = color;
     ctx.fillText(text.toUpperCase().split('').join(' '), w / 2, h / 2 + 4);
-    // Flechas laterales.
     ctx.shadowBlur = 0;
     for (const [x, d] of [[70, 1], [w - 70, -1]]) {
       ctx.beginPath();

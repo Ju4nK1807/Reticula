@@ -4,9 +4,7 @@ import { clock } from '../../utils/format.js';
 import { CHAPTERS, SPEAKERS, isUnlocked, nextChapter } from './storyData.js';
 import { speakNumbers, stopVoice } from './StoryHud.js';
 
-const TYPE_SPEED = 42; // caracteres por segundo
-
-// --- Lista de capítulos -------------------------------------------------------------------------
+const TYPE_SPEED = 42;
 
 export function storyChaptersScreen({ rec, onPlay, onBack }) {
   const next = nextChapter(rec);
@@ -51,13 +49,6 @@ export function storyChaptersScreen({ rec, onPlay, onBack }) {
   );
 }
 
-// --- Escena (diálogo entre misiones) -----------------------------------------------------------------
-
-/*
-  Escena cinemática: cabecera con lugar y fecha, y las líneas una a una con efecto de máquina de
-  escribir. Clic, Espacio o Enter: completa la línea o pasa a la siguiente. «Saltar» termina la escena.
-  Al final, el botón principal (`action`) llama a onDone (un clic: sirve para capturar el mouse).
-*/
 export function storySceneScreen({ eyebrow, title, subtitle, lines, action = 'Continuar', onDone, onSkip, extra = [] }) {
   const log = h('div', { class: 'st-log', 'aria-live': 'polite' });
   const done = button(action, () => onDone(), { variant: 'primary' });
@@ -74,7 +65,7 @@ export function storySceneScreen({ eyebrow, title, subtitle, lines, action = 'Co
   );
 
   let i = -1;
-  let typing = null; // { el, text, shown }
+  let typing = null;
   let timer = null;
   let last = 0;
 
@@ -137,7 +128,7 @@ export function storySceneScreen({ eyebrow, title, subtitle, lines, action = 'Co
 
   const onKey = (e) => {
     if (e.code !== 'Space' && e.code !== 'Enter') return;
-    if (!done.hidden) return; // al final, Enter / Espacio activan el botón con foco
+    if (!done.hidden) return;
     e.preventDefault();
     advance();
   };
@@ -156,8 +147,6 @@ export function storySceneScreen({ eyebrow, title, subtitle, lines, action = 'Co
   else end();
   return root;
 }
-
-// --- Caída en combate ------------------------------------------------------------------------------
 
 export function storyFailedScreen({ chapter, onRetry, onChapters }) {
   return h(

@@ -3,7 +3,6 @@ import { registerMode, requiresRank } from '../registry.js';
 import { BastionMap } from './BastionMap.js';
 import { Endless, MODE_ID, WORLD_ID } from './Endless.js';
 
-// Modo infinito: oleadas de bots cada vez más rápidos, numerosos y pequeños hasta caer.
 registerWorld(WORLD_ID, () => new BastionMap());
 
 registerMode({

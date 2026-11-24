@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AUTO_SCALE, AutoQuality, guessDetail } from '../src/gfx/AutoQuality.js';
 
-// Alimenta `seconds` de cuadros de `ms` y devuelve los cambios que pidió.
 function feed(aq, ms, seconds) {
   const changes = [];
   const n = Math.round((seconds * 1000) / ms);
@@ -15,16 +14,16 @@ function feed(aq, ms, seconds) {
 describe('calidad automática (resolución dinámica)', () => {
   it('si va lento baja la escala de a poco; si va muy lento, más rápido', () => {
     const aq = new AutoQuality({ detail: 'alta', scale: 1 });
-    const [first] = feed(aq, 19.5, 0.8); // ~51 FPS: algo lento
+    const [first] = feed(aq, 19.5, 0.8);
     expect(first).toEqual({ detail: 'alta', scale: 0.95 });
     const aq2 = new AutoQuality({ detail: 'alta', scale: 1 });
-    const [big] = feed(aq2, 30, 0.8); // ~33 FPS: muy lento
+    const [big] = feed(aq2, 30, 0.8);
     expect(big.scale).toBeCloseTo(0.9);
   });
 
   it('en la escala mínima, si sigue lento varias ventanas, baja el detalle y recupera algo de escala', () => {
     const aq = new AutoQuality({ detail: 'alta', scale: AUTO_SCALE.min });
-    const [c] = feed(aq, 25, 2.4); // 3 ventanas lentas seguidas
+    const [c] = feed(aq, 25, 2.4);
     expect(c.detail).toBe('media');
     expect(c.scale).toBeCloseTo(AUTO_SCALE.min + 0.15);
   });
@@ -32,7 +31,7 @@ describe('calidad automática (resolución dinámica)', () => {
   it('un momento lento (una tanda de enemigos) no baja el detalle: recompilar sería peor', () => {
     const aq = new AutoQuality({ detail: 'alta', scale: AUTO_SCALE.min });
     expect(feed(aq, 25, 0.8)).toEqual([]);
-    feed(aq, 16, 0.8); // se recupera
+    feed(aq, 16, 0.8);
     expect(feed(aq, 25, 0.8)).toEqual([]);
     expect(aq.detail).toBe('alta');
   });
@@ -46,10 +45,8 @@ describe('calidad automática (resolución dinámica)', () => {
     const aq = new AutoQuality({ detail: 'media', scale: 0.8 });
     const up = feed(aq, 16.7, 4.6);
     expect(up.at(-1)).toEqual({ detail: 'media', scale: 0.85 });
-    // Tras subir va lento: vuelve a 0.8.
     const back = feed(aq, 20, 0.8);
     expect(back[0]).toEqual({ detail: 'media', scale: 0.8 });
-    // Ahora necesita 8 s estables (no 4) para volver a probar.
     expect(feed(aq, 16.7, 5)).toEqual([]);
     expect(feed(aq, 16.7, 3.5).at(-1)?.scale).toBeCloseTo(0.85);
   });

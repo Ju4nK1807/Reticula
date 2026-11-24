@@ -18,20 +18,11 @@ import {
   wavePoints,
 } from './waves.js';
 
-const FIRST_SPAWN_DELAY = 0.6; // s desde que empieza la oleada hasta el primer aviso de puerta
-const GATE_JITTER = 0.6; // m de variación lateral al entrar, para que no sigan todos la misma línea
-const OUT_OF_VIEW_ANGLE = Math.PI / 3; // 60°: una puerta "a la espalda" está más allá de esto
+const FIRST_SPAWN_DELAY = 0.6;
+const GATE_JITTER = 0.6;
+const OUT_OF_VIEW_ANGLE = Math.PI / 3;
 const _side = new THREE.Vector3();
 
-/*
-  Una partida del modo infinito. Extiende Phase para reutilizar disparos, puntos, vida del jugador,
-  daño direccional, estadísticas y colisiones con los bots.
-
-  Estados: idle → wave → clear → wave → … (el modo controla las pausas entre oleadas).
-  Avisa al modo de lo que pasa con `listener(tipo, datos)`:
-    waveStart { wave, count } · gate { gate } · kill { streak, bonus, part } · streakLost { streak }
-    waveClear { wave, bonus, heal, perfect } · medkit { heal } · medkitDrop
-*/
 export class EndlessRun extends Phase {
   static info = { id: 'endless', name: 'Infinito', desc: '', auto: true, health: true };
 
@@ -44,7 +35,7 @@ export class EndlessRun extends Phase {
     this.cfg = null;
     this.toSpawn = 0;
     this.spawnTimer = 0;
-    this.pending = []; // bots anunciados en una puerta: { gate, t }
+    this.pending = [];
     this.lastGate = null;
     this.medkits = [];
     this.streak = 0;
@@ -52,7 +43,7 @@ export class EndlessRun extends Phase {
     this.waveStartedAt = 0;
     this.waveDamage = 0;
     this.waveKills = 0;
-    this.waveLog = []; // { wave, time, kills, damage, bonus, perfect }
+    this.waveLog = [];
   }
 
   emit(type, data = {}) {
@@ -65,7 +56,6 @@ export class EndlessRun extends Phase {
     return n;
   }
 
-  // Enemigos que faltan para terminar la oleada (por aparecer, anunciados y vivos).
   get remaining() {
     return this.state === 'wave' ? this.toSpawn + this.pending.length + this.aliveCount : 0;
   }
@@ -84,14 +74,12 @@ export class EndlessRun extends Phase {
   }
 
   update(dt) {
-    super.update(dt); // bots, retirada de muertos, tiempo
+    super.update(dt);
     this.updateMedkits(dt);
     if (this.state !== 'wave' || this.died) return;
     this.updateSpawns(dt);
     if (this.toSpawn === 0 && this.pending.length === 0 && this.aliveCount === 0) this.clearWave();
   }
-
-  // --- Apariciones -------------------------------------------------------------------
 
   updateSpawns(dt) {
     for (let i = this.pending.length - 1; i >= 0; i--) {
@@ -113,8 +101,6 @@ export class EndlessRun extends Phase {
     }
   }
 
-  // Puerta aleatoria, sin repetir la anterior ni una ya anunciada. En oleadas altas se prefieren
-  // las puertas fuera de la vista del jugador: obliga a vigilar los flancos y la espalda.
   pickGate() {
     const busy = new Set(this.pending.map((p) => p.gate));
     let options = this.world.gates.filter((g) => g !== this.lastGate && !busy.has(g));
@@ -149,8 +135,6 @@ export class EndlessRun extends Phase {
     this.bots.push(bot);
   }
 
-  // --- Oleada superada -----------------------------------------------------------------
-
   clearWave() {
     const perfect = this.waveDamage === 0;
     const bonus = waveClearBonus(this.wave, this.waveDamage);
@@ -175,8 +159,6 @@ export class EndlessRun extends Phase {
     this.game.hud.setHealth(this.health / MAX_HEALTH);
   }
 
-  // --- Puntuación y racha -----------------------------------------------------------------
-
   onKill(bot, part) {
     this.waveKills++;
     this.streak++;
@@ -196,8 +178,6 @@ export class EndlessRun extends Phase {
     this.streak = 0;
   }
 
-  // --- Botiquines ------------------------------------------------------------------------
-
   maybeDropMedkit(position) {
     if (this.medkits.length >= MEDKIT_MAX || Math.random() >= medkitChance(this.health)) return;
     this.medkits.push(new Medkit(this.root, position, MEDKIT_HEAL));
@@ -208,7 +188,6 @@ export class EndlessRun extends Phase {
     const player = this.game.player.position;
     this.medkits = this.medkits.filter((m) => {
       m.update(dt);
-      // Con la vida llena no se recoge: se queda en el piso para cuando haga falta.
       if (!this.died && this.health < MAX_HEALTH && m.touches(player)) {
         const heal = Math.min(m.heal, MAX_HEALTH - this.health);
         this.heal(heal);
@@ -223,8 +202,6 @@ export class EndlessRun extends Phase {
       return true;
     });
   }
-
-  // --- HUD y resultados ---------------------------------------------------------------------
 
   hudStats() {
     return {

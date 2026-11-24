@@ -1,18 +1,9 @@
 import * as THREE from 'three';
 
-/*
-  Cámara de la pantalla de título (solo en mapas con `menuShots`, como la Armería):
-  - Pasa de un plano a otro según la opción enfocada del menú, con un resorte críticamente amortiguado
-    (arranca y frena suave, sin rebote) y sin cortes aunque se cambie de opción a mitad de camino.
-  - Respira: una deriva lenta de pocos centímetros, para que la escena nunca esté quieta del todo.
-  - Paralaje: se inclina un poco hacia donde está el mouse (en táctil no).
-*/
-
-export const MENU_VFOV = 44; // campo de visión vertical del menú (grados): lente "de cine", no de juego
-const SMOOTH_TIME = 0.85; // s que tarda en llegar a un plano nuevo (aprox.)
+export const MENU_VFOV = 44;
+const SMOOTH_TIME = 0.85;
 const PARALLAX = { x: 0.08, y: 0.045, look: 0.35 };
 
-/** Un paso de amortiguación crítica (como SmoothDamp). Devuelve [valor, velocidad]. */
 export function smoothDamp(current, target, velocity, smoothTime, dt) {
   const omega = 2 / Math.max(1e-4, smoothTime);
   const x = omega * dt;
@@ -21,7 +12,6 @@ export function smoothDamp(current, target, velocity, smoothTime, dt) {
   const temp = (velocity + omega * change) * dt;
   const v = (velocity - omega * temp) * exp;
   let out = target + (change + temp) * exp;
-  // Sin pasarse del objetivo.
   if (target - current > 0 === out > target) return [target, 0];
   return [out, v];
 }
@@ -52,7 +42,6 @@ export class MenuCamera {
     }
   }
 
-  /** Planos del mapa activo ({ main, …: { pos, look } }) o null si el mapa no tiene. */
   setShots(shots) {
     if (this.shots === shots) return;
     this.shots = shots;
@@ -60,12 +49,10 @@ export class MenuCamera {
     this.shot = 'main';
   }
 
-  /** Cambia al plano de una opción del menú (si el mapa no lo tiene, al principal). */
   focus(id) {
     this.shot = this.shots?.[id] ? id : 'main';
   }
 
-  /** Coloca la cámara. `time` en s (para la deriva). */
   update(dt, time, camera) {
     const s = this.shots?.[this.shot] ?? this.shots?.main;
     if (!s) return;

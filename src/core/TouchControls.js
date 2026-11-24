@@ -1,13 +1,10 @@
 import '../ui/touch.css';
 import { icon } from '../ui/icons.js';
 
-export const JOYSTICK_RADIUS = 56; // px que recorre la palanca
-export const JOYSTICK_DEADZONE = 0.14; // zona muerta (fracción del radio)
-export const TOUCH_DEG_PER_PX = 0.16; // grados que gira la cámara por píxel arrastrado con sensibilidad 1
+export const JOYSTICK_RADIUS = 56;
+export const JOYSTICK_DEADZONE = 0.14;
+export const TOUCH_DEG_PER_PX = 0.16;
 
-// ¿Usar controles táctiles? mode: 'auto' (sin mouse y con pantalla táctil) | 'on' | 'off'.
-// ¿Corre dentro de la app nativa de Android (Capacitor)? Ahí 'auto' siempre es táctil, aunque el
-// sistema anuncie un puntero fino (emuladores, teléfonos con lápiz o mouse Bluetooth conectado).
 export function isNativeAndroid(cap = globalThis.Capacitor) {
   return !!cap?.isNativePlatform?.() && cap.getPlatform?.() === 'android';
 }
@@ -20,8 +17,6 @@ export function resolveTouchMode(mode, media = globalThis.matchMedia?.bind(globa
   return media('(any-pointer: coarse)').matches && !media('(any-pointer: fine)').matches;
 }
 
-// Eje del joystick a partir del desplazamiento del dedo: x derecha, y adelante (pantalla hacia arriba).
-// Zona muerta y reescalado para que el borde de la zona muerta empiece en 0 (sin saltos).
 export function joystickAxis(dx, dy, radius = JOYSTICK_RADIUS, deadzone = JOYSTICK_DEADZONE) {
   const len = Math.hypot(dx, dy);
   if (len === 0) return { x: 0, y: 0, mag: 0 };
@@ -30,27 +25,16 @@ export function joystickAxis(dx, dy, radius = JOYSTICK_RADIUS, deadzone = JOYSTI
   return { x: (dx / len) * mag, y: (-dy / len) * mag, mag };
 }
 
-// Píxeles arrastrados → "counts" de mouse equivalentes, para que la mirada táctil no dependa de la
-// sensibilidad del mouse (radPerCount): solo de la sensibilidad táctil.
 export function touchLookCounts(px, touchSensitivity, radPerCount) {
   return (px * TOUCH_DEG_PER_PX * touchSensitivity * (Math.PI / 180)) / radPerCount;
 }
 
-/*
-  Controles táctiles para teléfonos y tabletas (APK y navegador móvil):
-  - Mitad izquierda: joystick flotante (aparece donde se apoya el dedo) → movimiento analógico.
-  - Mitad derecha: arrastrar para apuntar.
-  - Botones: disparar (también apunta al arrastrar, como en los shooters móviles), mira telescópica,
-    recargar, saltar, agacharse, cambiar de arma y pausa.
-  Multitáctil: cada dedo se sigue por su identificador; un dedo nuevo no "roba" el joystick.
-  Solo se muestra en partida.
-*/
 export class TouchControls {
   constructor(game, root) {
     this.game = game;
     this.input = game.input;
-    this.stick = null; // { id, x0, y0 }
-    this.lookers = new Map(); // id → { x, y }
+    this.stick = null;
+    this.lookers = new Map();
     this.visible = null;
     this.crouched = false;
 
@@ -87,7 +71,6 @@ export class TouchControls {
     this.el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
-  // Mostrar solo en partida (mouse "capturado" y sin pausa). Llamar cada cuadro: solo toca el DOM al cambiar.
   setVisible(on) {
     if (on === this.visible) return;
     this.visible = on;
@@ -97,17 +80,13 @@ export class TouchControls {
 
   update() {
     const w = this.game.weapon;
-    // Botón de apuntar: mira telescópica o, en las demás armas, las miras (salvo en la evaluación).
     this.el.classList.toggle('has-zoom', !!w.stats.zoom || (!!w.stats.ads && this.game.adsAllowed()));
     this.el.classList.toggle('aiming', this.input.aimDown);
     this.el.classList.toggle('crouched', this.crouched);
-    // Botones que dependen del modo: golpe, granada (si quedan) y armería (entre oleadas).
     const m = this.game.mode;
     this.el.classList.toggle('can-melee', !!m?.meleeAllowed?.());
     this.el.classList.toggle('can-grenade', !!m?.grenadesAllowed?.() && (m.grenades ?? 0) > 0);
-    // Botón de usar: armería entre oleadas o lo comprable que hay delante (puerta, arma, bebida).
     this.el.classList.toggle('can-shop', (m?.state === 'intermission' && !!m.openShop) || !!m?.near || !!m?.nearBarricade);
-    // Linterna (modo zombi): el botón se ve encendido mientras alumbra.
     this.el.classList.toggle('can-light', !!m?.flashlight);
     this.el.classList.toggle('light-on', !!m?.flashlight?.on);
     if (this.weaponKey.textContent !== w.stats.key) this.weaponKey.textContent = w.stats.key;
@@ -126,7 +105,7 @@ export class TouchControls {
   }
 
   onDown(e) {
-    if (e.pointerType === 'mouse') return; // con mouse se juega con Pointer Lock normal
+    if (e.pointerType === 'mouse') return;
     e.preventDefault();
     this.el.setPointerCapture?.(e.pointerId);
     const action = e.target.closest('[data-action]')?.dataset.action;
@@ -154,7 +133,6 @@ export class TouchControls {
         else inp.keys.delete(inp.codeFor('crouch'));
         return;
       case 'weapon': {
-        // Siguiente arma que se tiene (en el modo zombi, sus espacios).
         this.game.cycleWeapon(1);
         return;
       }
@@ -168,7 +146,6 @@ export class TouchControls {
         this.game.mode?.toggleFlashlight?.();
         return;
       case 'shop':
-        // Junto a una barricada, mantener el botón repara (como mantener la tecla de usar).
         if (this.game.mode?.nearBarricade) {
           inp.keys.add(inp.codeFor('interact'));
           this.lookers.set(e.pointerId, { x: e.clientX, y: e.clientY, jump: true, interact: true });

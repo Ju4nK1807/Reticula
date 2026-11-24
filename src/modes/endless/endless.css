@@ -1,7 +1,3 @@
-/* Estilos propios del modo infinito (se cargan con el modo; no tocan style.css). */
-
-/* ---------- HUD ---------- */
-
 .eh-root { position: absolute; inset: 0; pointer-events: none; }
 
 .eh-panel {
@@ -40,8 +36,6 @@
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
 }
 .eh-arrow.threat { background: var(--danger); }
-
-/* ---------- Pantallas ---------- */
 
 .eh-records { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 4px; }
 .eh-records div { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); }

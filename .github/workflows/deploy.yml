@@ -1,6 +1,3 @@
-# Publicación: en cada push a main (y a mano desde la pestaña Actions) se prueba, se compila y se
-# publica el juego en GitHub Pages. Si Pages aún no está activado en el repositorio
-# (Settings → Pages → Source: GitHub Actions), se deja un aviso y no se publica (sin fallar).
 name: Publicar
 
 on:
@@ -13,7 +10,6 @@ permissions:
   pages: write
   id-token: write
 
-# Nunca cancelar una publicación a medias; la siguiente espera su turno.
 concurrency:
   group: pages
   cancel-in-progress: false

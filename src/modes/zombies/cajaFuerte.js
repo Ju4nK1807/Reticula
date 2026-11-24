@@ -2,23 +2,13 @@ import * as THREE from 'three';
 import { glow, glowScale, paint } from '../../gfx/surfaces.js';
 import { signTexture } from '../../gfx/canvasTextures.js';
 
-/*
-  Caja fuerte (modelo 3D): reemplaza a la caja misteriosa. Cuerpo de acero blindado sobre un zócalo,
-  puerta con bisagras, rueda de apertura, dial y un teclado con pantalla. La luz de estado, el haz que se
-  ve desde lejos y el cartel van en rojo con la caja cerrada y en verde cuando se abre (el código del
-  Jefe). Al abrirse, la puerta gira sobre sus bisagras.
-
-  Mide lo mismo que la caja de antes por abajo (1.7 × 0.85 m como máximo): cabe en todos sus lugares.
-  El frente mira hacia +Z del grupo (ZombieMap.moveBox lo gira según su lugar).
-*/
-
-const W = 1.2; // ancho del cuerpo
-const H = 1.3; // alto del cuerpo (sin el zócalo)
-const D = 0.82; // fondo
-const BASE = 0.12; // zócalo
+const W = 1.2;
+const H = 1.3;
+const D = 0.82;
+const BASE = 0.12;
 const LOCKED = '#ff3030';
 const OPEN = '#3dff8a';
-const DOOR_OPEN = -1.25; // rad: cuánto se abre la puerta
+const DOOR_OPEN = -1.25;
 const _c = new THREE.Color();
 
 let mats = null;
@@ -35,7 +25,6 @@ function materials() {
   return mats;
 }
 
-/** Arma el modelo. Devuelve { group, body, setLocked(bool), update(dt), beam, led }. */
 export function buildSafeModel() {
   const m = materials();
   const g = new THREE.Group();
@@ -46,14 +35,11 @@ export function buildSafeModel() {
     parent.add(mesh);
     return mesh;
   };
-  // Zócalo y cuerpo (el cuerpo es el sólido que bloquea balas y paso).
   part(new THREE.BoxGeometry(W + 0.1, BASE, D + 0.08), m.base, 0, BASE / 2, 0);
   const body = part(new THREE.BoxGeometry(W, H, D), m.steel, 0, BASE + H / 2, 0);
-  // Refuerzos de las esquinas y franja superior.
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) part(new THREE.BoxGeometry(0.06, H + 0.02, 0.06), m.trim, sx * (W / 2 - 0.02), BASE + H / 2, sz * (D / 2 - 0.02));
   part(new THREE.BoxGeometry(W + 0.02, 0.05, D + 0.02), m.trim, 0, BASE + H - 0.03, 0);
 
-  // Interior (se ve con la puerta abierta): hueco oscuro con dos estantes y una luz verde.
   const inner = new THREE.Group();
   inner.position.set(0, BASE + H / 2, D / 2 + 0.003);
   g.add(inner);
@@ -62,7 +48,6 @@ export function buildSafeModel() {
   const innerLight = glow(LOCKED);
   part(new THREE.BoxGeometry(W - 0.3, 0.02, 0.01), innerLight, 0, H / 2 - 0.14, 0.004, inner);
 
-  // Puerta: gira sobre las bisagras del lado izquierdo (visto de frente).
   const hinge = new THREE.Group();
   hinge.position.set(-W / 2 + 0.07, BASE + H / 2, D / 2 + 0.005);
   g.add(hinge);
@@ -70,9 +55,8 @@ export function buildSafeModel() {
   const DH = H - 0.16;
   part(new THREE.BoxGeometry(DW, DH, 0.07), m.door, DW / 2, 0, 0.035, hinge);
   for (const y of [-DH / 2 + 0.18, DH / 2 - 0.18]) {
-    part(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 10), m.trim, -0.02, y, 0.04, hinge); // bisagra
+    part(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 10), m.trim, -0.02, y, 0.04, hinge);
   }
-  // Rueda de apertura (tres rayos con perillas) y dial con su anillo.
   const wheel = new THREE.Group();
   wheel.position.set(DW / 2 + 0.16, -0.08, 0.1);
   hinge.add(wheel);
@@ -87,16 +71,13 @@ export function buildSafeModel() {
   const dial = part(new THREE.CylinderGeometry(0.11, 0.12, 0.05, 24), m.brass, DW / 2 - 0.14, 0.2, 0.085, hinge);
   dial.rotation.x = Math.PI / 2;
   part(new THREE.TorusGeometry(0.135, 0.012, 6, 24), m.trim, DW / 2 - 0.14, 0.2, 0.08, hinge);
-  // Teclado con pantalla (a la derecha del dial) y la luz de estado encima.
   part(new THREE.BoxGeometry(0.22, 0.3, 0.03), m.pad, DW / 2 + 0.18, 0.26, 0.085, hinge);
   for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) part(new THREE.BoxGeometry(0.045, 0.035, 0.02), m.keys, DW / 2 + 0.12 + c * 0.06, 0.18 + (3 - r) * 0.045 - 0.06, 0.105, hinge);
   const led = glow(LOCKED);
   part(new THREE.BoxGeometry(0.17, 0.05, 0.02), led, DW / 2 + 0.18, 0.37, 0.105, hinge);
-  // Cartel de bronce: CAJA FUERTE.
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.15), new THREE.MeshBasicMaterial({ map: signTexture('CAJA FUERTE', '#e6c27a'), transparent: true, toneMapped: false }));
   sign.position.set(DW / 2 - 0.1, -DH / 2 + 0.14, 0.075);
   hinge.add(sign);
-  // Haz de luz que se ve desde lejos (como el de la caja de antes): rojo cerrada, verde abierta.
   const beamMat = new THREE.MeshBasicMaterial({ color: LOCKED, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 40, 12, 1, true), beamMat);
   beam.position.y = 20;
@@ -114,7 +95,6 @@ export function buildSafeModel() {
     get color() {
       return target ? OPEN : LOCKED;
     },
-    /** Cerrada (rojo) o abierta (verde, y la puerta gira). */
     setLocked(locked) {
       target = locked ? 0 : 1;
       const col = locked ? LOCKED : OPEN;
@@ -128,7 +108,6 @@ export function buildSafeModel() {
         hinge.rotation.y = 0;
       }
     },
-    /** Anima la puerta (y gira la rueda al abrirse). */
     update(dt) {
       if (open === target) return;
       open = Math.min(target, open + dt * 0.9);

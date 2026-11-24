@@ -2,19 +2,6 @@ import * as THREE from 'three';
 import { RigidBody, boxInertia, boxPoints, conePoints, cylinderInertia, cylinderPoints, separate, stepBody } from './RigidBody.js';
 import { boxWorldUV, surface, tileOf } from '../gfx/surfaces.js';
 
-/*
-  Utilería con física de un mapa: cajas, barriles, botes de basura, latas y conos que reaccionan a las
-  balas (en el punto del impacto), a las granadas y a quien los empuja (jugador, bots, zombis).
-
-  - Cada objeto es una malla (o un grupo) en la escena y en world.solids: frena las balas y tapa la
-    línea de visión como cualquier cobertura, pero se mueve. No entra en la geometría unida
-    (userData.dynamic) ni en world.colliders: el jugador y los enemigos lo empujan en vez de chocar.
-  - reset() los devuelve a su lugar al empezar cada partida.
-  - Solo se usan en los modos de acción (zombi, infinito, campaña): la evaluación no tiene, para que
-    los rangos sigan siendo comparables.
-*/
-
-// shape: box | cylinder | cone · medidas en m · mass en kg · material: sonido del golpe
 export const PROP_TYPES = {
   crate: { shape: 'box', size: [0.62, 0.62, 0.62], mass: 16, restitution: 0.12, friction: 0.75, material: 'wood' },
   crateSmall: { shape: 'box', size: [0.46, 0.36, 0.46], mass: 6, restitution: 0.14, friction: 0.75, material: 'wood' },
@@ -27,11 +14,10 @@ export const PROP_TYPES = {
   cone: { shape: 'cone', radius: 0.17, height: 0.52, mass: 1.4, restitution: 0.22, friction: 0.65, material: 'plastic', color: '#ff6a1a' },
 };
 
-const IMPACT_SOUND = 1.6; // m/s: choques más suaves no suenan
-const SOUND_GAP = 0.12; // s mínimos entre sonidos del mismo objeto
-const PUSH_KICK = 1.15; // el empujón deja al objeto algo más rápido que quien empuja
+const IMPACT_SOUND = 1.6;
+const SOUND_GAP = 0.12;
+const PUSH_KICK = 1.15;
 
-// --- Aspecto (geometrías y materiales compartidos por tipo) -----------------------------------------
 const looks = new Map();
 function lookFor(type) {
   if (looks.has(type)) return looks.get(type);
@@ -45,7 +31,6 @@ function lookFor(type) {
     if (tile) boxWorldUV(geo, w, h, d, tile);
     parts.push([geo, mat]);
     if (t.material === 'wood') {
-      // Listones oscuros en los cantos: se lee como caja de madera y no como un cubo.
       const dark = new THREE.MeshStandardMaterial({ color: '#3b2d1f', roughness: 0.85 });
       const band = new THREE.BoxGeometry(w + 0.012, 0.06, d + 0.012);
       parts.push([band.clone().translate(0, h / 2 - 0.03, 0), dark], [band.clone().translate(0, -h / 2 + 0.03, 0), dark]);
@@ -62,7 +47,6 @@ function lookFor(type) {
     if (can) {
       parts.push([new THREE.CylinderGeometry(r * 0.92, r * 0.92, 0.006, 14).translate(0, h / 2, 0), rim]);
     } else {
-      // Aros de refuerzo (barril) o tapa (bote de basura).
       for (const y of [-h * 0.22, h * 0.22]) parts.push([new THREE.CylinderGeometry(r + 0.012, r + 0.012, 0.035, 22).translate(0, y, 0), rim]);
       parts.push([new THREE.CylinderGeometry(r * 0.98, r * 0.98, 0.02, 22).translate(0, h / 2, 0), rim]);
     }
@@ -95,15 +79,10 @@ const _dir = new THREE.Vector3();
 const _p = new THREE.Vector3();
 
 export class Props {
-  /**
-   * @param {import('../scenes/World.js').World} world
-   * @param {{ type: string, x: number, z: number, y?: number, ry?: number, rx?: number, rz?: number }[]} spawns
-   *   y = altura de la base (0 = el suelo; sobre una barrera, su altura).
-   */
   constructor(world, spawns = []) {
     this.world = world;
     this.items = [];
-    this.onImpact = null; // (item, speed) → sonido (lo conecta Game)
+    this.onImpact = null;
     this.time = 0;
     for (const s of spawns) this.add(s);
   }
@@ -123,8 +102,6 @@ export class Props {
       group.add(mesh);
       this.world.solids.push(mesh);
     }
-    // Sobre el suelo del mapa (algunos tienen el piso un poco por encima de 0, o pisos con altura:
-    // world.floorAt) o sobre lo que se indique.
     body.position.set(x, Math.max(y, this.floorAt(x, z, y)) + halfHeight(t), z);
     body.quaternion.setFromEuler(new THREE.Euler(rx, ry, rz));
     const item = { type, def: t, body, group, home: { p: body.position.clone(), q: body.quaternion.clone() }, soundT: 0 };
@@ -141,7 +118,6 @@ export class Props {
     item.group.updateMatrixWorld(true);
   }
 
-  /** Todo a su lugar, quieto (al empezar una partida). */
   reset() {
     for (const it of this.items) {
       it.body.position.copy(it.home.p);
@@ -160,13 +136,11 @@ export class Props {
     return n;
   }
 
-  /** Balazo: impulso (N·s) en la dirección de la bala, aplicado en el punto del impacto. */
   hit(body, point, dir, impulse) {
     body.applyImpulse(_dir.copy(dir).normalize().multiplyScalar(impulse), point);
     this.onImpact?.(body.item, 2.5 + impulse);
   }
 
-  /** Explosión: empuja hacia fuera (y algo hacia arriba) todo lo que está dentro del radio. */
   explode(point, radius, strength) {
     for (const it of this.items) {
       const b = it.body;
@@ -176,25 +150,18 @@ export class Props {
       _dir.subVectors(b.position, point);
       _dir.y = Math.max(0, _dir.y) + 0.6 * Math.max(0.3, _dir.length());
       _dir.normalize().multiplyScalar(strength * k);
-      // Un poco fuera del centro: además de salir volando, gira.
       _p.copy(b.position).addScaledVector(_dir, -0.0001).add(new THREE.Vector3((Math.random() - 0.5) * b.radius, (Math.random() - 0.5) * b.radius, 0));
       b.applyImpulse(_dir, _p);
     }
   }
 
-  // Piso bajo (x, z) para algo a la altura y: el del mapa (veredas, pisos altos) o groundY.
   floorAt(x, z, y = 0) {
     return Math.max(this.world.groundY ?? 0, this.world.floorAt?.(x, z, y) ?? 0);
   }
 
-  /**
-   * movers: cilindros que empujan ({ x, z, r, y0, h }): el jugador y los enemigos. Avanza la física de
-   * lo que está despierto y separa lo que se toca.
-   */
   update(dt, movers = []) {
     this.time += dt;
     const colliders = this.world.colliders;
-    // Empujones: el objeto sale del cilindro de quien camina y se lleva parte de su velocidad.
     for (const m of movers) {
       for (const it of this.items) {
         const b = it.body;
@@ -230,7 +197,6 @@ export class Props {
         this.onImpact?.(it, b.lastImpact);
       }
     }
-    // Choques entre objetos (esferas): solo si al menos uno se mueve.
     for (let i = 0; i < this.items.length; i++) {
       const a = this.items[i].body;
       for (let j = i + 1; j < this.items.length; j++) {
@@ -250,7 +216,6 @@ export class Props {
   }
 }
 
-// Generador pseudoaleatorio con semilla (la misma utilería en el mismo lugar cada vez).
 function seeded(seed) {
   let a = seed >>> 0 || 1;
   return () => {
@@ -264,12 +229,6 @@ function seeded(seed) {
 
 export const hashSeed = (text) => [...String(text)].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
 
-/**
- * Reparte utilería en un mapa a partir de sus coberturas: latas encima de las coberturas bajas y
- * cajas, barriles y conos a su lado, dentro de la zona del jugador, sin tapar el punto de aparición y
- * sin pisar nada. Devuelve la lista de apariciones (para Props).
- * counts: { cans, crates, barrels, cones, trash, ammo }
- */
 export function autoPropSpawns(world, counts = {}, seed = hashSeed(world.name)) {
   const rng = seeded(seed);
   const zone = world.playerZone ?? world.openArea;
@@ -282,7 +241,6 @@ export function autoPropSpawns(world, counts = {}, seed = hashSeed(world.name)) 
     (!spawn || Math.hypot(x - spawn.x, z - spawn.z) > 2.5) &&
     taken.every(([tx, tz, tr]) => Math.hypot(x - tx, z - tz) > r + tr + 0.4) &&
     world.isFree(x, z, r + 0.12, 0.05, 1.6);
-  // Coberturas bajas apoyadas en el suelo (no muros ni plataformas enormes).
   const covers = world.colliders.filter((b) => {
     const w = b.max.x - b.min.x;
     const h = b.max.y - b.min.y;
@@ -296,7 +254,6 @@ export function autoPropSpawns(world, counts = {}, seed = hashSeed(world.name)) 
   let ci = 0;
   const nextCover = () => (covers.length ? covers[ci++ % covers.length] : null);
 
-  // Latas sobre las coberturas (de a dos o tres por cobertura).
   let cans = counts.cans ?? 0;
   for (let guard = 0; cans > 0 && guard < covers.length * 2; guard++) {
     const b = nextCover();
@@ -313,7 +270,6 @@ export function autoPropSpawns(world, counts = {}, seed = hashSeed(world.name)) 
     }
     cans -= n;
   }
-  // Objetos en el suelo junto a las coberturas.
   const ground = [];
   for (const [type, key] of [['crate', 'crates'], ['crateSmall', 'crates'], ['barrel', 'barrels'], ['barrelRed', 'barrels'], ['cone', 'cones'], ['trash', 'trash'], ['ammo', 'ammo']]) {
     const n = counts[key] ?? 0;
@@ -328,7 +284,6 @@ export function autoPropSpawns(world, counts = {}, seed = hashSeed(world.name)) 
     for (let attempt = 0; attempt < 24 && !placed; attempt++) {
       const b = nextCover();
       if (!b) break;
-      // Un lado al azar de la cobertura, pegado a ella.
       const side = Math.floor(rng() * 4);
       const u = rng();
       let x;
@@ -345,7 +300,6 @@ export function autoPropSpawns(world, counts = {}, seed = hashSeed(world.name)) 
       out.push({ type, x, z, ry: rng() * Math.PI * 2 });
       placed = true;
     }
-    // Sin coberturas a mano: contra los bordes de la zona (los costados y el fondo, no delante).
     for (let attempt = 0; attempt < 30 && !placed && zone; attempt++) {
       const edge = Math.floor(rng() * 3);
       const x = edge === 0 ? zone.minX + r + 0.6 : edge === 1 ? zone.maxX - r - 0.6 : zone.minX + (zone.maxX - zone.minX) * rng();

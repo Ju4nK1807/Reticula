@@ -5,17 +5,10 @@ import { CoordTarget } from '../coordination/CoordTarget.js';
 import { clock } from '../../utils/format.js';
 import { missionTotal } from './storyData.js';
 
-const REGEN_DELAY = 4; // s sin recibir daño antes de recuperar vida
-const REGEN_RATE = 22; // vida por segundo
+const REGEN_DELAY = 4;
+const REGEN_RATE = 22;
 const _c = new THREE.Vector3();
 
-/*
-  Fases de la Historia. Todas avisan al modo con `phase.events` (cola que el modo vacía cada cuadro):
-    { type: 'kill', kills } · { type: 'encounter', index } · { type: 'round', index, seq }
-  así el modo dispara los diálogos de radio sin que las fases sepan de la historia.
-*/
-
-// Vida que se recupera sola tras unos segundos sin daño (estilo de las campañas de shooter).
 function regen(phase, dt) {
   if (phase.died || phase.health >= 100) return;
   phase.sinceHit += dt;
@@ -24,7 +17,6 @@ function regen(phase, dt) {
   phase.game.hud.setHealth(phase.health / 100);
 }
 
-// Explosión de granada: daño a los enemigos que la ven, con caída por distancia.
 function explode(phase, point, radius, los, damageAt) {
   for (const bot of phase.bots) {
     if (!bot.alive) continue;
@@ -40,8 +32,6 @@ function explode(phase, point, radius, los, damageAt) {
   }
 }
 
-// --- Misión con soldados -------------------------------------------------------------------------
-
 export class StoryMission extends MissionPhase {
   static info = { id: 'story-mission', name: 'Misión', desc: '', auto: false, health: true };
 
@@ -49,7 +39,7 @@ export class StoryMission extends MissionPhase {
     super(mode, {
       encounters: chapter.encounters,
       total: missionTotal(chapter),
-      time: Infinity, // sin límite de tiempo: la historia no se juega contra el reloj
+      time: Infinity,
       difficulty: chapter.difficulty ?? 3,
       goals: [0, 0, 0],
     });
@@ -78,7 +68,6 @@ export class StoryMission extends MissionPhase {
     explode(this, point, radius, los, damageAt);
   }
 
-  // Los que se van no restan nada: en la historia no hay puntuación que castigar.
   onEscape() {}
 
   progressText() {
@@ -89,8 +78,6 @@ export class StoryMission extends MissionPhase {
     return { score: this.stats.kills, scoreLabel: 'Bajas', accLabel: 'Quedan', accText: String(this.remaining), time: clock(this.elapsed) };
   }
 }
-
-// --- Campo de tiro: dianas -----------------------------------------------------------------------
 
 export class StoryTargets extends Phase {
   static info = { id: 'story-targets', name: 'Dianas', desc: '', auto: false, health: false };
@@ -143,23 +130,16 @@ export class StoryTargets extends Phase {
   }
 }
 
-// --- La Cúpula: secuencias de números ----------------------------------------------------------------
-
-const LISTEN_BASE = 1.4; // s de escucha antes de que aparezcan los números
+const LISTEN_BASE = 1.4;
 const LISTEN_PER_DIGIT = 0.75;
-const DECOYS = 2; // números de más que no están en la secuencia
+const DECOYS = 2;
 const ROUND_GAP = 1.6;
 
-/**
- * Siguiente estado de una secuencia al disparar a `digit`.
- * Devuelve { ok, next, done }: si falla, vuelve al principio (next = 0).
- */
 export function sequenceStep(seq, next, digit) {
   if (seq[next] !== digit) return { ok: false, next: 0, done: false };
   return { ok: true, next: next + 1, done: next + 1 >= seq.length };
 }
 
-/** Números que aparecen en una ronda: los de la secuencia más `decoys` que no están (sin repetir). */
 export function roundDigits(seq, decoys = DECOYS, random = Math.random) {
   const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((d) => !seq.includes(d));
   const extra = [];
@@ -179,7 +159,7 @@ export class StoryNumbers extends Phase {
     this.errors = 0;
     this.events = [];
     this.waitT = 0.8;
-    this.stage = 'gap'; // gap → listen → shoot
+    this.stage = 'gap';
     this.completed = false;
   }
 
@@ -209,7 +189,6 @@ export class StoryNumbers extends Phase {
     }
   }
 
-  // Coloca los números de la ronda (mezclados) delante del jugador.
   layout() {
     for (const t of this.bots) t.remove();
     this.next = 0;
@@ -235,9 +214,8 @@ export class StoryNumbers extends Phase {
       t.flashWrong();
       const g = this.game;
       g.sfx.error();
-      g.hud.damage(0); // destello: «tu cabeza te lo va a recordar»
+      g.hud.damage(0);
       g.hud.flash('Secuencia rota: otra vez desde el principio', 'bad');
-      // La transmisión se repite y los números vuelven a aparecer en otro orden.
       this.stage = 'listen';
       this.waitT = LISTEN_BASE + LISTEN_PER_DIGIT * this.seq.length;
       this.events.push({ type: 'round', index: this.round, seq: this.seq, retry: true });

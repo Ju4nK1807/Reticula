@@ -6,16 +6,16 @@ import { missionRating, starsFor } from './progress.js';
 import { clock } from '../../utils/format.js';
 import { DEG, rand } from '../../utils/math.js';
 
-const FIRST_SPAWN = 0.8; // s desde el inicio hasta el primer enemigo
-const SPAWN_GAP = [0.6, 1.6]; // s entre apariciones dentro de un encuentro
-const ENCOUNTER_GAP = 1.4; // s de respiro entre encuentros
+const FIRST_SPAWN = 0.8;
+const SPAWN_GAP = [0.6, 1.6];
+const ENCOUNTER_GAP = 1.4;
 const MIXED_WEIGHTS = [
   ['peek', 0.45],
   ['strafe', 0.3],
   ['flick', 0.25],
 ];
 const OPEN_TRIES = 60;
-const MAX_YAW = 75; // grados: no aparecen en terreno abierto a la espalda (para eso están las puertas)
+const MAX_YAW = 75;
 const _head = new THREE.Vector3();
 
 function pickWeighted(list) {
@@ -24,13 +24,6 @@ function pickWeighted(list) {
   return list[0][0];
 }
 
-/*
-  Una misión de campaña: encuentros en orden (flicks, duelos en movimiento, peeks desde coberturas o
-  mezcla), con la dificultad del nivel (botProfile). Extiende Phase: disparos, puntos, vida del jugador,
-  daño con indicador de dirección, estadísticas y colisión con los bots.
-
-  Termina cuando no quedan enemigos (completada), al acabarse el tiempo o al morir.
-*/
 export class MissionPhase extends Phase {
   static info = { id: 'mission', name: 'Misión', desc: '', auto: false, health: true };
 
@@ -54,7 +47,6 @@ export class MissionPhase extends Phase {
     return this.encounters[this.encIndex] ?? null;
   }
 
-  // Enemigos que faltan: los que aún no salieron más los vivos.
   get remaining() {
     const pending = this.encounters.slice(this.encIndex).reduce((s, e) => s + (e.count - e.spawned), 0);
     return pending + this.bots.filter((b) => b.alive).length;
@@ -86,7 +78,6 @@ export class MissionPhase extends Phase {
   spawn(enc) {
     const type = enc.type === 'mixed' ? pickWeighted(MIXED_WEIGHTS) : enc.type;
     const ok = type === 'peek' ? this.spawnPeek(enc) : type === 'strafe' ? this.spawnStrafe() : this.spawnFlick();
-    // Si no hubo sitio (todos los escondites ocupados), se intenta con una aparición en abierto.
     if (!ok) this.spawnFlick();
     enc.spawned++;
   }
@@ -120,7 +111,6 @@ export class MissionPhase extends Phase {
     const spot = this.pickCoverSpot(areas, p.scale);
     if (!spot) return false;
     const jiggles = Math.random() < p.jiggleChance ? 1 + Math.floor(Math.random() * 2) : 0;
-    // En posiciones altas no se hace strafing al salir (caería del balcón o la plataforma).
     const then = spot.area !== 'high' && Math.random() < 0.5 ? 'strafe' : 'hide';
     this.spawnBot({
       ...this.common(),
@@ -145,7 +135,6 @@ export class MissionPhase extends Phase {
     return true;
   }
 
-  // Punto en terreno abierto (o en una posición alta exacta del mapa) visible desde el jugador.
   openSpot({ minDist, maxDist, highChance }) {
     const w = this.world;
     const eye = this.game.player.eye;
@@ -167,7 +156,7 @@ export class MissionPhase extends Phase {
       _head.set(pos.x, pos.y + BOT_DIMENSIONS.headCenter * s, pos.z);
       if (!this.game.ballistics.lineOfSight(eye, _head)) continue;
       fallback ??= pos;
-      if (this.angleFromAim(_head) < 6) continue; // que no aparezca justo bajo la mira
+      if (this.angleFromAim(_head) < 6) continue;
       return pos;
     }
     return fallback ?? new THREE.Vector3(0, 0, (a.minZ + a.maxZ) / 2);

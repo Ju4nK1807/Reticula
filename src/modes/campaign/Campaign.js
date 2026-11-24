@@ -9,16 +9,10 @@ import { campaignLevelsScreen, campaignMapsScreen, campaignResultsScreen } from 
 
 export const MODE_ID = 'campaign';
 
-const BRIEF_TIME = 5; // s de instrucciones y cuenta regresiva
-const DEATH_TIME = 1.4; // s de cámara lenta al caer
+const BRIEF_TIME = 5;
+const DEATH_TIME = 1.4;
 const DEATH_SLOWMO = 0.3;
 
-/*
-  Campaña: un mapa por rango con 4 niveles cada uno. Estados:
-    maps → levels → (captura del mouse) → brief → running → (dying) → done
-  La lógica de cada misión vive en MissionPhase; el progreso (estrellas, desbloqueos, sugerencia de
-  bajar de mapa) en progress.js, guardado en store.data.campaign.
-*/
 export class Campaign extends Mode {
   constructor(game) {
     super(game);
@@ -47,14 +41,11 @@ export class Campaign extends Mode {
     this.showMaps();
   }
 
-  // --- Pantallas -----------------------------------------------------------------------------
-
   showMaps() {
     const g = this.game;
     this.state = 'maps';
     this.pending = null;
     g.hud.setVisible(false);
-    // El mapa recomendado se ve de fondo.
     g.useWorld((this.map ?? recommendedMap(this.rankId)).world);
     g.ui.show(
       campaignMapsScreen({
@@ -86,20 +77,15 @@ export class Campaign extends Mode {
     );
   }
 
-  // Desde un clic (gesto del usuario): elige el nivel y captura el mouse.
   prepare(levelId) {
     this.pending = getLevel(levelId);
     this.game.input.lock();
   }
 
-  // --- Interfaz de modo --------------------------------------------------------------------
-
   wantsLock() {
     return this.state === 'brief' || this.state === 'running';
   }
 
-  // Entrenamiento: munición infinita y sin recargas (una recarga a destiempo dejaba escapar
-  // enemigos y restaba puntos). Las armas se sienten igual: solo no se vacían.
   infiniteAmmo() {
     return true;
   }
@@ -108,7 +94,6 @@ export class Campaign extends Mode {
     return this.wantsLock();
   }
 
-  // Golpe cuerpo a cuerpo (V): permitido en campaña.
   meleeAllowed() {
     return this.state === 'running';
   }
@@ -137,15 +122,13 @@ export class Campaign extends Mode {
     if (this.wantsLock()) this.begin(this.level);
   }
 
-  // --- Misión ----------------------------------------------------------------------------------
-
   begin(level) {
     const g = this.game;
     this.level = level;
     this.map = getMap(level.mapId);
     g.useWorld(this.map.world);
     g.world.scene.add(this.root);
-    g.world.props?.reset(); // la utilería vuelve a su lugar en cada intento
+    g.world.props?.reset();
     this.phase?.dispose();
     this.phase = new MissionPhase(this, level);
     this.state = 'brief';
@@ -153,7 +136,7 @@ export class Campaign extends Mode {
     this.lastBeep = null;
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
-    g.equipLoadout(); // arma elegida en el arsenal (1-9 o la rueda para cambiar, B para el modo de disparo)
+    g.equipLoadout();
     g.effects.clear();
     g.hud.setVisible(true);
     g.hud.setHealth(1);
@@ -184,7 +167,7 @@ export class Campaign extends Mode {
       if (this.briefT <= 0) {
         hud.brief(null);
         sfx.beep(true);
-        g.weapon.refill(); // lo disparado al calentar no cuenta
+        g.weapon.refill();
         g.effects.clear();
         this.state = 'running';
         this.hud.setVisible(true);
@@ -216,7 +199,7 @@ export class Campaign extends Mode {
     const g = this.game;
     this.state = 'done';
     const result = this.phase.results();
-    this.phase.dispose(); // fuera bots y efectos: no quedan congelados detrás de los resultados
+    this.phase.dispose();
     this.phase = null;
     g.effects.clear();
     const progress = this.progress;

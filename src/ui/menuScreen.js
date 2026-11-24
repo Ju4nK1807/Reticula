@@ -1,5 +1,3 @@
-// Pantalla de título: la escena 3D en vivo de fondo, el logo, un menú vertical de texto y un panel
-// que describe la opción enfocada. Submenú "Jugar" con todos los modos.
 import './menu.css';
 import { h } from './dom.js';
 import { LOGO_SVG, rankBadge } from './components.js';
@@ -17,20 +15,16 @@ import { PLANNED_MODES, getMode, listModes } from '../modes/registry.js';
 import { version } from '../../package.json';
 
 const HISTORY_POINTS = 12;
-// Mismos colores (validados para daltonismo sobre la superficie oscura) que las gráficas de Progreso.
 const HISTORY_SERIES = [
   { id: 'targets', label: 'Dianas', color: SERIES_COLORS[0] },
   { id: 'bots', label: 'Enemigos', color: SERIES_COLORS[1] },
 ];
 const QUALITY_LABELS = { alta: 'Alta', media: 'Media', baja: 'Baja', custom: 'Personalizada' };
 
-// Dónde estaba el jugador la última vez (al volver de un modo o de Configuración se reabre ahí).
 const memory = { path: 'main', focus: null, introPlayed: false };
 
-/** True si corre como app de escritorio (Electron sirve el juego desde reticula://). */
 export const isDesktopApp = () => typeof location !== 'undefined' && location.protocol === 'reticula:';
 
-// Mini gráfica de las últimas evaluaciones (0-100), una línea por variante.
 function historyChart(evaluations) {
   const W = 220;
   const H = 54;
@@ -58,7 +52,6 @@ function historyChart(evaluations) {
   );
 }
 
-// Micro-gráfica de barras con las últimas evaluaciones (junto al título del panel). Sin datos, nada.
 function microBars(evaluations) {
   const vals = evaluations.slice(-18).map((e) => e.total);
   if (vals.length < 2) return null;
@@ -74,7 +67,6 @@ function microBars(evaluations) {
   return h('div', { class: 'td-micro', title: 'Últimas evaluaciones', html: `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${bars}</svg>` });
 }
 
-// Tabla de modos: nombre · ícono de estado · estado (los bloqueados con candado y en gris).
 function modeTable(game, data) {
   return h(
     'div',
@@ -93,7 +85,6 @@ function modeTable(game, data) {
   );
 }
 
-// Filas "dato · valor" del panel de detalle.
 function rows(list) {
   return h(
     'dl',
@@ -107,7 +98,6 @@ function variantValue(data) {
   return rank ? [`${rank.name} · ${data.score}`, rank.color] : ['Sin evaluar', null];
 }
 
-// Contenido del panel de detalle para cada opción.
 function detailFor(item, ctx) {
   const { data, rank, step, weapon, settings } = ctx;
   const d = item.detail ?? {};
@@ -197,7 +187,6 @@ export function menuScreen(game, { onMode, onArsenal, onCrosshair, onProgress, o
     memory.focus = focus;
   };
 
-  // --- Opciones ---------------------------------------------------------------
   const hasProgress = profile.evaluations.length > 0;
   const mainItems = [
     {
@@ -301,12 +290,10 @@ export function menuScreen(game, { onMode, onArsenal, onCrosshair, onProgress, o
     { id: 'back', icon: 'back', label: 'Volver', back: true, tone: 'quiet', onSelect: () => openList('main', 'play', 'left'), detail: { title: 'Volver', desc: 'Regresar al menú principal.' } },
   ];
 
-  // --- Estructura -------------------------------------------------------------
   const detail = h('aside', { class: 'ts-detail', 'aria-live': 'polite' });
   const heading = h('div', { class: 'ts-heading' });
   const listSlot = h('div', { class: 'ts-list' });
 
-  // El panel describe la opción y la cámara del escenario va a su plano (en "Jugar", al campo de tiro).
   const showDetail = (item) => {
     detail.replaceChildren(...detailFor(item, ctx));
     game.focusMenu?.(memory.path === 'play' ? (item.back ? 'main' : 'play') : item.id);

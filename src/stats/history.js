@@ -1,5 +1,3 @@
-// Historial y series de progreso a partir del guardado (store.data). Funciones puras: no tocan el DOM
-// ni modifican los datos. Las usa la pantalla de Progreso; se prueban en tests/history.test.js.
 import { getRank } from '../config/ranks.js';
 import { getLevel, getMap, CAMPAIGN_MAPS, levelsOf } from '../modes/campaign/campaignData.js';
 import { WEIGHTS } from '../modes/evaluation/scoring.js';
@@ -26,7 +24,6 @@ const time = (iso) => {
 };
 const pct = (v) => (Number.isFinite(v) ? `${Math.round(v * 100)}%` : '—');
 
-// Puntuación total de cada evaluación, por variante: { targets: [{ t, v }], bots: [...] }
 export function evaluationSeries(data) {
   const out = { targets: [], bots: [] };
   for (const e of data.profile?.evaluations ?? []) {
@@ -37,7 +34,6 @@ export function evaluationSeries(data) {
   return out;
 }
 
-// Sub-puntuación de cada fase de una variante: { flick: [{ t, v }], ... } (en el orden de la evaluación).
 export function phaseSeries(data, variant) {
   const ids = Object.keys(WEIGHTS[variant] ?? {});
   const out = Object.fromEntries(ids.map((id) => [id, []]));
@@ -55,7 +51,6 @@ export function endlessSeries(data) {
   return runs.map((r) => ({ t: time(r.date), v: r.wave, score: r.score })).filter((p) => p.t !== null && Number.isFinite(p.v));
 }
 
-// Coordinación: índice del circuito y puntuación de cada ejercicio a lo largo del tiempo.
 export function coordinationSeries(data) {
   const rec = data.records?.coordination ?? {};
   const pts = (list) => (list ?? []).map((h) => ({ t: time(h.date), v: h.score })).filter((p) => p.t !== null && Number.isFinite(p.v));
@@ -65,7 +60,6 @@ export function coordinationSeries(data) {
   };
 }
 
-// Estrellas por mapa de campaña: [{ id, name, stars, max, completed }]
 export function campaignSummary(data) {
   const best = data.campaign?.best ?? {};
   return CAMPAIGN_MAPS.map((m) => {
@@ -75,11 +69,6 @@ export function campaignSummary(data) {
   });
 }
 
-/*
-  Historial unificado de sesiones de todos los modos, de la más reciente a la más antigua:
-  [{ t, date, mode, title, result, detail }]
-  En coordinación, si un circuito y sus ejercicios comparten fecha, se muestra solo el circuito.
-*/
 export function sessions(data) {
   const out = [];
   const push = (date, mode, title, result, detail = '') => {
@@ -120,7 +109,6 @@ export function sessions(data) {
   return out.sort((a, b) => b.t - a.t);
 }
 
-// Cifras de cabecera de la pantalla de Progreso.
 export function overview(data) {
   const evals = data.profile?.evaluations ?? [];
   const variants = data.profile?.variants ?? {};

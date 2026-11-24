@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import { castsShadow } from '../gfx/lighting.js';
 
-// Proporciones de un personaje de shooter (~1.77 m). Cabeza ≈ 25 cm, como en la mayoría de juegos.
 export const BOT_DIMENSIONS = {
   legHeight: 0.86,
-  headCenter: 1.635, // altura del centro de la cabeza de pie
+  headCenter: 1.635,
   chestCenter: 1.17,
-  crouchDrop: 0.56, // cuánto baja el torso al agacharse (la cabeza queda a ~1.21 m)
+  crouchDrop: 0.56,
 };
 
 const GEO = {
@@ -19,10 +18,8 @@ const GEO = {
   gun: new THREE.BoxGeometry(0.07, 0.1, 0.62),
 };
 
-// Construye el modelo low-poly. Cada malla con userData.part ('head' | 'body' | 'legs') es una hitbox.
 export function buildBotModel(color) {
   const base = new THREE.Color(color);
-  // PBR (como los mapas): semimate con un toque de brillo; emissive se usa para el destello al recibir daño.
   const pbr = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.12, flatShading: true, ...extra });
   const mats = {
     body: pbr(base, { emissive: '#ffffff', emissiveIntensity: 0 }),

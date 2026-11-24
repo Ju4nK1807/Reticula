@@ -1,4 +1,3 @@
-// Linterna del modo zombi: prender y apagar, batería que se gasta prendida y se recarga apagada.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { BATTERY, Flashlight } from '../src/modes/zombies/flashlight.js';
@@ -30,11 +29,11 @@ describe('linterna', () => {
     fl.onEmpty = () => empties++;
     run(fl, BATTERY.drainTime / 2);
     expect(fl.battery).toBeCloseTo(0.5, 1);
-    run(fl, BATTERY.drainTime / 2 + 0.2); // se vacía justo (y apenas empieza a recargar)
+    run(fl, BATTERY.drainTime / 2 + 0.2);
     expect(fl.battery).toBeLessThan(0.01);
     expect(fl.on).toBe(false);
     expect(empties).toBe(1);
-    expect(fl.toggle()).toBe(false); // sin carga no prende
+    expect(fl.toggle()).toBe(false);
     run(fl, BATTERY.rechargeTime / 2);
     expect(fl.battery).toBeCloseTo(0.5, 1);
     expect(fl.toggle()).toBe(true);

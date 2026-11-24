@@ -42,7 +42,7 @@ describe('mira: modelo y validación', () => {
   });
 
   it('migrar un guardado viejo ignora las piezas que vinieron de los valores por defecto', () => {
-    const merged = { ...CROSSHAIR_DEFAULTS, shape: 'circle', gap: 6, size: 10, thickness: 2 }; // lines: true (por defecto)
+    const merged = { ...CROSSHAIR_DEFAULTS, shape: 'circle', gap: 6, size: 10, thickness: 2 };
     upgradeCrosshair(merged);
     expect(merged).toMatchObject({ lines: false, ring: true, ringRadius: 13 });
   });
@@ -84,13 +84,13 @@ describe('mira: códigos para compartir', () => {
 
 describe('mira: dibujo', () => {
   it('cada pieza aparece solo si está activada', () => {
-    expect(rects(crosshairSVG(plain))).toBe(4); // cruz: 4 brazos
-    expect(rects(crosshairSVG({ ...plain, tShape: true }))).toBe(3); // T: sin brazo superior
-    expect(rects(crosshairSVG({ ...plain, dot: true }))).toBe(5); // + punto cuadrado
-    expect(rects(crosshairSVG({ ...plain, outline: true }))).toBe(8); // + contornos
-    expect(rects(crosshairSVG({ ...plain, outer: true }))).toBe(8); // + líneas exteriores
-    expect(circles(crosshairSVG({ ...plain, lines: false, ring: true }))).toBe(1); // anillo
-    expect(circles(crosshairSVG({ ...plain, dot: true, dotRound: true }))).toBe(1); // punto redondo
+    expect(rects(crosshairSVG(plain))).toBe(4);
+    expect(rects(crosshairSVG({ ...plain, tShape: true }))).toBe(3);
+    expect(rects(crosshairSVG({ ...plain, dot: true }))).toBe(5);
+    expect(rects(crosshairSVG({ ...plain, outline: true }))).toBe(8);
+    expect(rects(crosshairSVG({ ...plain, outer: true }))).toBe(8);
+    expect(circles(crosshairSVG({ ...plain, lines: false, ring: true }))).toBe(1);
+    expect(circles(crosshairSVG({ ...plain, dot: true, dotRound: true }))).toBe(1);
     expect(rects(crosshairSVG({ ...plain, lines: false, dot: true }))).toBe(1);
   });
 
@@ -115,7 +115,6 @@ describe('mira: dibujo', () => {
     const small = spreadToPixels(1, 70, 1080);
     expect(small).toBeGreaterThan(0);
     expect(spreadToPixels(4, 70, 1080)).toBeGreaterThan(small * 3.9);
-    // Con más FOV la misma dispersión ocupa menos píxeles.
     expect(spreadToPixels(2, 100, 1080)).toBeLessThan(spreadToPixels(2, 60, 1080));
   });
 });

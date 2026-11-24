@@ -1,4 +1,3 @@
-// Almacenamiento en memoria con la interfaz de localStorage.
 export function memoryStorage(initial = {}) {
   const map = new Map(Object.entries(initial));
   return {

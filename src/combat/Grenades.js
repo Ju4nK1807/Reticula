@@ -1,42 +1,22 @@
 import * as THREE from 'three';
 import { glow } from '../gfx/surfaces.js';
 
-/*
-  Granadas (G lanza, Q cambia de tipo; teclas reasignables).
-
-  - Al pulsar se ve el brazo con la granada en la mano (Viewmodel.throwGrenade) y sale al soltarla
-    (RELEASE s después): el gesto se ve y se siente.
-  - Vuelan con la velocidad del jugador sumada; caen con gravedad y rebotan en el suelo y en los
-    colisionadores del mapa (perdiendo velocidad), hasta detenerse.
-  - Cuatro tipos (GRENADE_TYPES):
-      frag   · fragmentación: explota a los `fuse` s; daño que baja con la distancia.
-      fire   · incendiaria: se rompe al tocar el suelo y deja fuego `burn` s (daño por segundo).
-      stun   · aturdidora: destello que frena a los enemigos cercanos `stun` s (sin daño).
-      decoy  · señuelo: al caer pita y atrae a la horda; al final explota.
-  - El daño no atraviesa paredes: el modo lo aplica con losFn(objetivo) (línea de visión desde la
-    explosión). Hooks del modo: onExplosion(punto, radio, los, { damageAt, type }),
-    onFireTick(punto, radio, daño, los), onStun(punto, radio, segundos, los), setDecoy(punto | null).
-  - Inventario: mode.grenadeBag = { frag, fire, stun, decoy } (cantidades) o, en los modos que solo
-    dan granadas de fragmentación, mode.grenades = cantidad.
-  Física pura en stepGrenade (probada en tests/grenades.test.js).
-*/
-
 export const GRENADE = {
-  fuse: 1.6, // s
-  speed: 15, // m/s del lanzamiento
-  lift: 3.2, // m/s hacia arriba extra
-  gravity: 16, // m/s² (algo más que la real: el arco se siente ágil)
-  restitution: 0.38, // rebote
-  friction: 0.62, // velocidad horizontal que conserva al tocar el suelo
-  radius: 6.5, // m de daño
-  damage: 420, // en el centro
-  shakeRange: 22, // m: más lejos, no sacude la cámara
-  cooldown: 0.8, // s entre lanzamientos
-  propImpulse: 90, // N·s en el centro sobre la utilería con física (una caja salta, una lata vuela lejos)
+  fuse: 1.6,
+  speed: 15,
+  lift: 3.2,
+  gravity: 16,
+  restitution: 0.38,
+  friction: 0.62,
+  radius: 6.5,
+  damage: 420,
+  shakeRange: 22,
+  cooldown: 0.8,
+  propImpulse: 90,
 };
-const RELEASE = 0.16; // s entre pulsar y que la granada salga de la mano
-const BALL = 0.07; // radio físico de la granada (m)
-const VISUAL = 1.35; // se dibujan algo más grandes: en vuelo se ven
+const RELEASE = 0.16;
+const BALL = 0.07;
+const VISUAL = 1.35;
 
 export const GRENADE_TYPES = {
   frag: { name: 'Fragmentación', fuse: GRENADE.fuse, radius: GRENADE.radius, damage: GRENADE.damage },
@@ -46,10 +26,6 @@ export const GRENADE_TYPES = {
 };
 export const GRENADE_ORDER = ['frag', 'fire', 'stun', 'decoy'];
 
-/**
- * Integra un paso de la granada contra el suelo (y = groundY) y cajas sólidas (Box3).
- * Muta pos y vel. Devuelve true si rebotó con fuerza (para el sonido).
- */
 export function stepGrenade(pos, vel, dt, colliders = [], groundY = 0) {
   vel.y -= GRENADE.gravity * dt;
   pos.addScaledVector(vel, dt);
@@ -66,7 +42,6 @@ export function stepGrenade(pos, vel, dt, colliders = [], groundY = 0) {
   }
   for (const b of colliders) {
     if (pos.x < b.min.x - BALL || pos.x > b.max.x + BALL || pos.y < b.min.y - BALL || pos.y > b.max.y + BALL || pos.z < b.min.z - BALL || pos.z > b.max.z + BALL) continue;
-    // Sale por la cara más cercana y refleja esa componente.
     const pens = [
       ['x', b.min.x - BALL - pos.x, -1], ['x', b.max.x + BALL - pos.x, 1],
       ['y', b.min.y - BALL - pos.y, -1], ['y', b.max.y + BALL - pos.y, 1],
@@ -88,12 +63,10 @@ export function stepGrenade(pos, vel, dt, colliders = [], groundY = 0) {
   return bounced;
 }
 
-/** Daño de la explosión a `dist` metros (lineal, 0 fuera del radio). */
 export function explosionDamage(dist, radius = GRENADE.radius, damage = GRENADE.damage) {
   return dist >= radius ? 0 : Math.round(damage * (1 - dist / radius));
 }
 
-// --- Aspecto de cada tipo (en vuelo y en la mano) ------------------------------------------------
 const std = (color, roughness = 0.5, metalness = 0.4, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
 const LOOK = {
   body: { frag: std('#3a4a35', 0.55, 0.4), fire: std('#5a3a1c', 0.15, 0.1, { transparent: true, opacity: 0.85 }), stun: std('#7a8088', 0.35, 0.8), decoy: std('#25282c', 0.5, 0.6) },
@@ -106,7 +79,6 @@ const neck = new THREE.CylinderGeometry(BALL * 0.18, BALL * 0.22, BALL * 0.8, 8)
 const nub = new THREE.BoxGeometry(BALL * 0.42, BALL * 0.42, BALL * 0.42);
 const band = new THREE.CylinderGeometry(BALL * 0.52, BALL * 0.52, BALL * 0.28, 12);
 
-/** Malla de una granada del tipo dado (se usa en vuelo y en la mano del arma en pantalla). */
 export function grenadeMesh(type = 'frag') {
   const g = new THREE.Group();
   const add = (geo, mat, y = 0, x = 0) => {
@@ -119,7 +91,7 @@ export function grenadeMesh(type = 'frag') {
   if (type === 'fire') {
     add(bottle, LOOK.body.fire);
     add(neck, LOOK.body.fire, BALL * 1.3);
-    add(nub, LOOK.light.fire, BALL * 1.8); // trapo encendido
+    add(nub, LOOK.light.fire, BALL * 1.8);
   } else if (type === 'stun') {
     add(can, LOOK.body.stun);
     add(band, LOOK.light.stun, BALL * 0.2);
@@ -129,7 +101,7 @@ export function grenadeMesh(type = 'frag') {
     g.userData.blink = add(nub, LOOK.light.decoy, BALL * 1.0);
   } else {
     add(sphere, LOOK.body.frag);
-    add(nub, LOOK.light.frag, BALL); // espoleta
+    add(nub, LOOK.light.frag, BALL);
   }
   return g;
 }
@@ -143,11 +115,11 @@ const UP = new THREE.Vector3(0, 1, 0);
 export class Grenades {
   constructor(game) {
     this.game = game;
-    this.active = []; // { mesh, vel, t, type, landed }
-    this.blasts = []; // { mesh, t, life, grow }
-    this.fires = []; // { pos, t, radius, group, flames }
-    this.decoy = null; // granada señuelo activa
-    this.pending = null; // lanzamiento en curso (la granada aún está en la mano)
+    this.active = [];
+    this.blasts = [];
+    this.fires = [];
+    this.decoy = null;
+    this.pending = null;
     this.cooldown = 0;
     this.type = 'frag';
     this.root = new THREE.Group();
@@ -159,7 +131,6 @@ export class Grenades {
     scene.add(this.root);
   }
 
-  // --- Inventario del modo ---------------------------------------------------------------------
   count(type = this.type) {
     const m = this.game.mode;
     if (!m) return 0;
@@ -182,7 +153,6 @@ export class Grenades {
     return !!m?.grenadesAllowed?.() && this.game.playing && GRENADE_ORDER.some((t) => this.count(t) > 0);
   }
 
-  // Siguiente tipo que tengas (Q). Devuelve el tipo elegido o null si no hay otro.
   cycleType() {
     const m = this.game.mode;
     if (!m?.grenadesAllowed?.()) return null;
@@ -205,7 +175,6 @@ export class Grenades {
   throw() {
     const g = this.game;
     if (!this.allowed || this.cooldown > 0 || this.pending || g.melee?.busy) return false;
-    // Sin granadas del tipo elegido: la siguiente que tengas.
     if (this.count(this.type) <= 0) this.type = GRENADE_ORDER.find((t) => this.count(t) > 0);
     const type = this.type;
     this.spend(type);
@@ -214,12 +183,11 @@ export class Grenades {
     g.weapon?.cancelReload?.();
     g.sfx.throwGrenade();
     if (g.viewmodel.throwGrenade) g.viewmodel.throwGrenade(type, 0.5);
-    else g.viewmodel.melee?.(0.4); // el arma baja un instante (gesto de lanzar)
+    else g.viewmodel.melee?.(0.4);
     g.mode.onGrenadeThrown?.(type);
     return true;
   }
 
-  // La granada sale de la mano: aparece delante de la cámara con la velocidad del lanzamiento.
   release(type) {
     const g = this.game;
     const cam = g.engine.camera;
@@ -232,7 +200,6 @@ export class Grenades {
     vel.y += GRENADE.lift;
     if (g.player.velocity) vel.add(g.player.velocity);
     this.root.add(mesh);
-    // La mecha cuenta desde que se pulsó (t parte en RELEASE): explota a los `fuse` s del lanzamiento.
     this.active.push({ mesh, vel, t: RELEASE, type, landed: false, trailT: 0, spin: new THREE.Vector3(Math.random() * 8, Math.random() * 8, 0) });
   }
 
@@ -250,24 +217,20 @@ export class Grenades {
       const n = this.active[i];
       const cfg = GRENADE_TYPES[n.type];
       n.t += dt;
-      // Subpasos: a 15 m/s una granada no atraviesa un muro fino entre cuadros.
       const steps = Math.max(1, Math.ceil((n.vel.length() * dt) / 0.2));
       let touched = false;
       for (let s = 0; s < steps; s++) {
         const { x, y, z } = n.vel;
         if (stepGrenade(n.mesh.position, n.vel, dt / steps, colliders, groundY)) g.sfx.bounce(g.panFor(n.mesh.position));
-        // Tocó algo (suelo, muro o techo) si la velocidad cambió más allá de la gravedad.
         if (n.vel.x !== x || n.vel.z !== z || n.vel.y !== y - GRENADE.gravity * (dt / steps)) touched = true;
       }
       const speed = n.vel.length();
       n.mesh.rotation.x += n.spin.x * dt * Math.min(1, speed / 4);
       n.mesh.rotation.y += n.spin.y * dt * Math.min(1, speed / 4);
-      // Estela tenue mientras vuela (se sigue con la vista).
       if (speed > 3 && (n.trailT -= dt) <= 0) {
         n.trailT = 0.035;
         g.effects.burst?.(n.mesh.position, UP, n.type === 'fire' ? '#ff9a4a' : '#9aa0a8', 1, 0.3);
       }
-      // Señuelo: cuando se detiene, empieza a atraer a la horda.
       if (cfg.lure && !n.landed && speed < 0.4) {
         n.landed = true;
         this.decoy = n;
@@ -311,7 +274,6 @@ export class Grenades {
     }
   }
 
-  // Fuego de la incendiaria: daño por segundo dentro del radio y llamas que se apagan al final.
   updateFires(dt) {
     const g = this.game;
     for (let i = this.fires.length - 1; i >= 0; i--) {
@@ -394,7 +356,7 @@ export class Grenades {
     g.effects.burst(point, UP, '#cfeaff', 20, 7);
     const dist = point.distanceTo(g.engine.camera.position);
     g.sfx.stunBang?.(dist, g.panFor(point));
-    if (dist < 7) g.hud?.whiteout?.(1 - dist / 7); // destello en pantalla si estás cerca
+    if (dist < 7) g.hud?.whiteout?.(1 - dist / 7);
     g.mode?.onStun?.(point, cfg.radius, cfg.stun, (target) => g.ballistics.lineOfSight(point.clone().setY(point.y + 0.3), target));
   }
 
@@ -405,7 +367,6 @@ export class Grenades {
     this.blasts.push({ mesh, t: 0, life, grow });
   }
 
-  // Desplazamiento de cámara de la sacudida (lo aplica Game sobre la mirada).
   shakeOffset(time) {
     if (this.shake <= 0) return 0;
     return Math.sin(time * 60) * 0.012 * this.shake;
@@ -415,7 +376,7 @@ export class Grenades {
     for (const n of this.active) n.mesh.removeFromParent();
     for (const b of this.blasts) {
       b.mesh.removeFromParent();
-      b.mesh.material.dispose(); // cada destello tiene su material (la opacidad es propia)
+      b.mesh.material.dispose();
     }
     for (const f of this.fires) {
       f.group.removeFromParent();

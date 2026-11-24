@@ -17,8 +17,6 @@ export function starsRow(n, size = '') {
 
 const rankNames = (ids) => ids.map((id) => getRank(id)?.name ?? id).join(' · ');
 
-// --- Selección de mapa ---------------------------------------------------------------------------
-
 export function campaignMapsScreen({ progress, rankId, onMap, onBack }) {
   const rank = getRank(rankId);
   return h(
@@ -61,8 +59,6 @@ export function campaignMapsScreen({ progress, rankId, onMap, onBack }) {
     ),
   );
 }
-
-// --- Selección de nivel ---------------------------------------------------------------------------
 
 export function campaignLevelsScreen({ map, progress, rankId, suggestion, onLevel, onBack, onSuggested }) {
   const levels = levelsOf(map.id);
@@ -124,8 +120,6 @@ function suggestionBox(map, onSuggested) {
     button(`Ir a ${map.name}`, () => onSuggested(map.id)),
   );
 }
-
-// --- Resultados ---------------------------------------------------------------------------------
 
 function tile(label, value, sub = null) {
   return h('div', { class: 'metric' }, h('span', { class: 'm-value' }, value), h('span', { class: 'm-label' }, label), sub && h('span', { class: 'm-sub' }, sub));

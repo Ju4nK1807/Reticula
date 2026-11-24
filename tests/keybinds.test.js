@@ -29,10 +29,9 @@ describe('controles reasignables', () => {
   it('normaliza guardados viejos o corruptos', () => {
     expect(normalizeKeys(undefined)).toEqual(DEFAULT_KEYS);
     const fixed = normalizeKeys({ reload: 'KeyW', forward: 'KeyW', jump: 'Escape', melee: 42 });
-    // Dos acciones con la misma tecla: la que va primero se la queda y la otra vuelve a la suya.
     expect(fixed.forward).toBe('KeyW');
     expect(fixed.reload).toBe('KeyR');
-    expect(fixed.jump).toBe('Space'); // reservada → por defecto
+    expect(fixed.jump).toBe('Space');
     expect(fixed.melee).toBe('KeyV');
     expect(new Set(Object.values(fixed)).size).toBe(Object.keys(fixed).length);
   });

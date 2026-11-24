@@ -1,4 +1,3 @@
-// Pruebas de Phase (base de las fases de todos los modos) con un juego falso mínimo.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Phase } from '../src/modes/evaluation/Phase.js';
@@ -46,7 +45,6 @@ describe('Phase.update', () => {
   });
 
   it('no pierde los bots creados al retirar otro (regresión)', () => {
-    // Antes, los avisos se llamaban dentro de un filter(): el bot nuevo iba al arreglo viejo y se perdía.
     class Respawn extends Phase {
       onRemoved() {
         this.bots.push(fakeBot({ id: 'nuevo' }));
@@ -59,7 +57,6 @@ describe('Phase.update', () => {
   });
 
   it('los bots pueden disparar al jugador desde su update (regresión)', () => {
-    // Los bots llaman a ctx.onBotFire como función suelta: tiene que estar enlazada a la fase.
     const mode = fakeMode();
     let tracer = 0;
     Object.assign(mode.game, {
@@ -100,6 +97,6 @@ describe('Flicking (dianas)', () => {
     expect(phase.current).not.toBe(first);
     expect(phase.bots).toContain(phase.current);
     expect(phase.current.alive).toBe(true);
-    expect(phase.current.mesh.scale.x).toBeGreaterThan(0.1); // creció: se está actualizando
+    expect(phase.current.mesh.scale.x).toBeGreaterThan(0.1);
   });
 });

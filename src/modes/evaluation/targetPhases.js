@@ -4,7 +4,6 @@ import { pointFromAngles } from '../../targets/spawn.js';
 import { average, clamp, rand, randSign } from '../../utils/math.js';
 import { fixed, ms, pct } from '../../utils/format.js';
 
-// Puntos de las fases con dianas: cada impacto suma, cada fallo resta.
 const SPHERE_POINTS = { head: 0, body: 100, legs: 0, kill: 0, miss: -80, escaped: -100 };
 const toDeg = THREE.MathUtils.radToDeg;
 const _dir = new THREE.Vector3();
@@ -15,15 +14,11 @@ class SpherePhase extends Phase {
     this.points = { ...SPHERE_POINTS };
   }
 
-  // Una diana muere de un impacto (salvo en tracking).
   damageFor() {
     return 1;
   }
 }
 
-// ---------------------------------------------------------------------------
-// 1. Flicking: una diana a la vez en posiciones aleatorias; escapa si tardas.
-// ---------------------------------------------------------------------------
 export class SphereFlickPhase extends SpherePhase {
   static info = {
     id: 'flick',
@@ -74,9 +69,6 @@ export class SphereFlickPhase extends SpherePhase {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 2. Tracking: diana con strafing, cambios de dirección y saltos. Automático.
-// ---------------------------------------------------------------------------
 const TRACK_DIST = 12;
 const YAW_LIMIT = 30;
 const JUMP_TIME = 0.7;
@@ -115,7 +107,7 @@ export class SphereTrackingPhase extends SpherePhase {
     this.origin = this.game.player.eye.clone();
     this.yaw = 0;
     this.pitch = 3;
-    this.vel = randSign() * rand(16, 26) * this.evalCfg.speed; // grados/s
+    this.vel = randSign() * rand(16, 26) * this.evalCfg.speed;
     this.turnIn = rand(0.4, 1.1);
     this.jumpT = -1;
     this.jumpIn = rand(2, 4);
@@ -177,14 +169,11 @@ export class SphereTrackingPhase extends SpherePhase {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 3. Reacción: la diana aparece cerca de la mira tras una espera aleatoria.
-// ---------------------------------------------------------------------------
 const TRIALS = 8;
 const TIMEOUT = 1.5;
 const REACTION_DIST = 10;
 const REACTION_RADIUS = 0.55;
-const REACTION_OFFSET = [2, 5]; // grados desde la mira
+const REACTION_OFFSET = [2, 5];
 const REACTION_TRIES = 30;
 
 export class SphereReactionPhase extends SpherePhase {
@@ -228,8 +217,6 @@ export class SphereReactionPhase extends SpherePhase {
     this.current = null;
   }
 
-  // Punto cerca de la mira que quede sobre el piso y sin muros delante. Si el jugador mira al
-  // suelo o a una pared, la diana aparece al frente del campo de tiro.
   reactionSpot() {
     const p = this.game.player;
     const eye = p.eye;
@@ -257,7 +244,6 @@ export class SphereReactionPhase extends SpherePhase {
       lifetime: TIMEOUT,
     });
     this.state = 'show';
-    // Reloj real: la medición no depende de los FPS ni del límite de dt del motor.
     this.shownAt = performance.now();
   }
 
@@ -298,7 +284,6 @@ export class SphereReactionPhase extends SpherePhase {
     if (target === this.current && target.escaped) this.nextTrial();
   }
 
-  // Si se pausa con la diana visible, el intento se repite.
   onPause() {
     if (this.state === 'show' && this.current?.alive) {
       this.current.state = 'gone';
@@ -326,9 +311,6 @@ export class SphereReactionPhase extends SpherePhase {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 4. Multi-objetivo (estilo Gridshot): tres dianas a la vez, máxima velocidad.
-// ---------------------------------------------------------------------------
 export class SphereMultiPhase extends SpherePhase {
   static info = {
     id: 'multi',
@@ -368,9 +350,6 @@ export class SphereMultiPhase extends SpherePhase {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 5. Precisión: dianas pequeñas y lejanas.
-// ---------------------------------------------------------------------------
 export class SpherePrecisionPhase extends SpherePhase {
   static info = {
     id: 'precision',

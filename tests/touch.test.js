@@ -41,14 +41,13 @@ describe('modo táctil', () => {
   const media = (coarse, fine) => (q) => ({ matches: q.includes('coarse') ? coarse : fine });
   it('automático: solo si hay pantalla táctil y no hay mouse', () => {
     expect(resolveTouchMode('auto', media(true, false))).toBe(true);
-    expect(resolveTouchMode('auto', media(true, true))).toBe(false); // portátil táctil con mouse
+    expect(resolveTouchMode('auto', media(true, true))).toBe(false);
     expect(resolveTouchMode('auto', media(false, true))).toBe(false);
   });
   it('se puede forzar', () => {
     expect(resolveTouchMode('on', media(false, true))).toBe(true);
     expect(resolveTouchMode('off', media(true, false))).toBe(false);
     expect(resolveTouchMode('auto', undefined)).toBe(false);
-    // En la app de Android, 'auto' es táctil aunque se anuncie un puntero fino; 'off' sigue mandando.
     expect(resolveTouchMode('auto', media(false, true), true)).toBe(true);
     expect(resolveTouchMode('off', media(true, false), true)).toBe(false);
     expect(isNativeAndroid({ isNativePlatform: () => true, getPlatform: () => 'android' })).toBe(true);

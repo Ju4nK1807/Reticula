@@ -20,9 +20,8 @@ describe('armería del menú', () => {
     const start = w.drones[0].group.position.clone();
     for (let i = 0; i < 240; i++) w.update(1 / 60);
     expect(w.drones[0].group.position.distanceTo(start)).toBeGreaterThan(0.001);
-    expect(w.drones[0].group.position.distanceTo(start)).toBeLessThan(0.2); // flota en su sitio
+    expect(w.drones[0].group.position.distanceTo(start)).toBeLessThan(0.2);
     expect(w.sparks.alive).toBeGreaterThanOrEqual(0);
-    // El abanico del láser termina sobre la mesa.
     const p = w.fan.geometry.attributes.position;
     expect(p.getY(1)).toBeLessThan(1.0);
     expect(p.getY(0)).toBeGreaterThan(1.5);
@@ -76,7 +75,7 @@ describe('chispas', () => {
       sp.update(1 / 60);
       for (let k = 0; k < 10; k++) minY = Math.min(minY, sp.pos[k * 3 + 1]);
     }
-    expect(minY).toBeGreaterThanOrEqual(0); // nunca atraviesan el suelo
+    expect(minY).toBeGreaterThanOrEqual(0);
     for (let i = 0; i < 30; i++) sp.update(1 / 60);
     expect(sp.alive).toBe(0);
   });

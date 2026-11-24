@@ -15,7 +15,6 @@ const run = (body, seconds, colliders = []) => {
   }
   return maxY;
 };
-// Eje local del cuerpo que quedó más vertical (|dot| con el mundo).
 const upAlignment = (body) => Math.max(...[new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)].map((a) => Math.abs(a.applyQuaternion(body.quaternion).y)));
 
 describe('física de la utilería', () => {
@@ -36,7 +35,6 @@ describe('física de la utilería', () => {
     b.wake();
     run(b, 6);
     expect(upAlignment(b)).toBeGreaterThan(0.98);
-    // Su altura es la mitad de alguno de sus lados (apoyada de plano).
     const halves = [0.3, 0.2, 0.25];
     expect(Math.min(...halves.map((hh) => Math.abs(b.position.y - hh)))).toBeLessThan(0.02);
   });
@@ -90,7 +88,6 @@ describe('física de la utilería', () => {
 
   it('un barril tumbado rueda al empujarlo y termina frenando', () => {
     const b = cylinder();
-    // Tumbado: el eje del cilindro (y local) en horizontal, a lo largo de z.
     b.quaternion.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
     b.position.set(0, 0.3, 0);
     b.velocity.set(2.5, 0, 0);
@@ -100,7 +97,7 @@ describe('física de la utilería', () => {
       stepBody(b, DT);
       maxSpin = Math.max(maxSpin, Math.abs(b.angular.z));
     }
-    expect(maxSpin).toBeGreaterThan(3); // rueda (no solo se desliza)
+    expect(maxSpin).toBeGreaterThan(3);
     expect(b.position.x).toBeGreaterThan(0.5);
     run(b, 12);
     expect(b.velocity.length()).toBeLessThan(0.1);

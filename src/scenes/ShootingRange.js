@@ -2,8 +2,6 @@ import * as THREE from 'three';
 import { World } from './World.js';
 import { glow, surface } from '../gfx/surfaces.js';
 
-// Mapa de la evaluación con dianas: campo de tiro cubierto, sin coberturas que tapen los objetivos.
-// El jugador se mueve detrás del mostrador (z de -0.6 a 5.6); las dianas aparecen entre 10 y 16 m.
 export class ShootingRange extends World {
   constructor() {
     super({
@@ -21,7 +19,6 @@ export class ShootingRange extends World {
     sun.position.set(6, 14, 8);
     scene.add(sun);
 
-    // Superficies PBR con el color medio de la paleta original (ver gfx/surfaces.js).
     const M = {
       floor: surface('concrete_floor', '#232932'),
       wall: surface('concrete_wall', '#333c4a'),
@@ -37,29 +34,25 @@ export class ShootingRange extends World {
     };
     const block = this.block.bind(this);
 
-    // Piso y cuadrícula
     this.ground(80, 90, -20, M.floor);
     const grid = new THREE.GridHelper(80, 40, '#3a4555', '#2b333f');
     grid.material.transparent = true;
-    grid.material.opacity = 0.3; // sobre el concreto texturizado basta una guía tenue
+    grid.material.opacity = 0.3;
     grid.position.set(0, 0.01, -20);
     scene.add(grid);
 
-    // Muros: fondo, laterales y trasero
     block(44, 12, 1, M.wall, 0, -31.5);
     block(44, 0.25, 0.3, M.accent, 0, -30.85, 3.1, false);
     block(1, 10, 42, M.wallDark, -17, -11);
     block(1, 10, 42, M.wallDark, 17, -11);
     block(36, 10, 1, M.wallDark, 0, 7);
 
-    // Vigas del techo con luminarias
     for (const z of [-3, -11, -19, -27]) {
       block(34, 0.5, 0.6, M.trim, 0, z, 8.75, false);
       block(6, 0.08, 0.3, M.lamp, -7, z, 8.68, false);
       block(6, 0.08, 0.3, M.lamp, 7, z, 8.68, false);
     }
 
-    // Columnas laterales
     for (const z of [-4, -14, -24]) {
       for (const x of [-15.6, 15.6]) {
         block(1.2, 10, 1.2, M.concrete, x, z);
@@ -67,16 +60,13 @@ export class ShootingRange extends World {
       }
     }
 
-    // Mostrador de tiro a lo ancho de la zona del jugador, con mamparas laterales
     block(14, 1.0, 0.5, M.trim, 0, -1.15);
     block(14, 0.05, 0.04, M.accent, 0, -1.41, 0.94, false);
     for (const x of [-7.2, 7.2]) block(0.15, 2.6, 7.4, M.wall, x, 2.4);
     this.playerBlocker(-7.3, 7.3, -1.45, -0.85);
 
-    // Marcas de distancia en el piso
     for (const z of [-5, -10, -15, -20, -25]) block(12, 0.02, 0.08, M.accentDim, 0, z, 0.01, false);
 
-    // Cajas y rocas decorativas junto a los muros
     const crates = [
       [-14, -8, 1.4, 0.3], [-13.6, -9.6, 1.0, -0.2], [-14.1, -8.4, 0.9, 0.5, 1.4],
       [14, -18, 1.4, 0.1], [13.4, -16.6, 1.1, 0.6], [14.2, -6, 1.2, -0.4],

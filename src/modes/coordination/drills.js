@@ -6,13 +6,11 @@ import { pointFromAngles } from '../../targets/spawn.js';
 import { fixed, ms, pct } from '../../utils/format.js';
 import { average, clamp, rand, randSign } from '../../utils/math.js';
 
-export const DRILL_TIME = 45; // s por ejercicio
+export const DRILL_TIME = 45;
 const TARGET_DIST = 12;
-// Las dianas no bajan de 0° de inclinación: más abajo, el arma en pantalla (abajo a la derecha) las tapa.
 const toDeg = THREE.MathUtils.radToDeg;
 const _dir = new THREE.Vector3();
 
-// Base de los ejercicios: objetivos CoordTarget que mueren de un impacto y puntuación 0-100.
 class CoordDrill extends Phase {
   constructor(mode) {
     super(mode);
@@ -30,25 +28,21 @@ class CoordDrill extends Phase {
     return t;
   }
 
-  // Los objetivos que caducan no son "enemigos que escapan": cada ejercicio decide qué significa.
   onEscape() {}
 
   aimDirection(out = _dir) {
     return out.set(0, 0, -1).applyQuaternion(this.game.engine.camera.quaternion);
   }
 
-  // ¿La mira está sobre `mesh`? (rayo desde el centro de la cámara, respetando paredes)
   aimingAt(target) {
     const cam = this.game.engine.camera;
     return this.game.ballistics.cast(cam.position, this.aimDirection(), target.hitMeshes)?.bot === target;
   }
 
-  // Datos para el HUD propio del modo (CoordHud). null = nada que mostrar.
   overlay() {
     return null;
   }
 
-  // Métricas específicas del ejercicio (cada subclase), más la puntuación 0-100 (`rating`).
   metrics() {
     return {};
   }
@@ -59,9 +53,6 @@ class CoordDrill extends Phase {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 1. Secuencia: dianas numeradas que se destruyen en orden.
-// ---------------------------------------------------------------------------
 const SEQUENCE_PENALTY = -60;
 const NEXT_SET_DELAY = 0.35;
 
@@ -163,21 +154,17 @@ export class SequenceDrill extends CoordDrill {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 2. Color objetivo: solo se dispara a la figura indicada; la regla cambia sin aviso.
-// ---------------------------------------------------------------------------
-// Cada color tiene su forma: se puede jugar con daltonismo guiándose por la silueta.
 export const COLOR_RULES = [
   { id: 'blue', name: 'Azul', shape: 'sphere', shapeName: 'esfera', color: '#3d8bff' },
   { id: 'yellow', name: 'Amarillo', shape: 'cube', shapeName: 'cubo', color: '#ffd23d' },
   { id: 'magenta', name: 'Magenta', shape: 'pyramid', shapeName: 'pirámide', color: '#ff4fd8' },
   { id: 'green', name: 'Verde', shape: 'diamond', shapeName: 'diamante', color: '#3dffa0' },
 ];
-const COLOR_TARGETS = 6; // figuras a la vez
-const COLOR_MIN_GOALS = 2; // siempre hay al menos 2 figuras correctas
+const COLOR_TARGETS = 6;
+const COLOR_MIN_GOALS = 2;
 const COLOR_GOAL_CHANCE = 0.3;
 const COLOR_LIFETIME = [2.2, 3.4];
-const COLOR_SWITCH = [5, 9]; // s entre cambios de regla
+const COLOR_SWITCH = [5, 9];
 const COLOR_WRONG_PENALTY = -150;
 const COLOR_OMISSION_PENALTY = -30;
 
@@ -262,7 +249,7 @@ export class ColorDrill extends CoordDrill {
       this.stats.shots++;
       this.wrong++;
       this.score += COLOR_WRONG_PENALTY;
-      t.damage(1); // la figura prohibida se destruye igual (con error)
+      t.damage(1);
       this.game.sfx.error();
       this.game.hud.flash('Figura prohibida', 'bad');
       return;
@@ -279,12 +266,11 @@ export class ColorDrill extends CoordDrill {
   }
 
   onEscape(t) {
-    if (t.data.rule !== this.rule.id) return; // dejar ir una figura prohibida es lo correcto
+    if (t.data.rule !== this.rule.id) return;
     this.omissions++;
     this.score += COLOR_OMISSION_PENALTY;
   }
 
-  // Una pausa invalida la medición de reacción al cambio en curso.
   onPause() {
     this.awaitSwitch = false;
   }
@@ -319,15 +305,11 @@ export class ColorDrill extends CoordDrill {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 3. Periferia: con la mirada en el centro, objetivos en los bordes de la pantalla.
-// ---------------------------------------------------------------------------
-const FIX_TOLERANCE = 3; // grados alrededor del punto central
-const FIX_HOLD = 0.25; // s fijando la mirada antes de armar el siguiente objetivo
-const FIX_DELAY = [0.35, 1.3]; // espera aleatoria (impredecible) tras fijar
+const FIX_TOLERANCE = 3;
+const FIX_HOLD = 0.25;
+const FIX_DELAY = [0.35, 1.3];
 const ANCHOR_PITCH = 3;
 const PERIPHERAL_PENALTY = -40;
-// Zonas: offset horizontal y vertical como fracción de la mitad del FOV real.
 const ZONES = [
   { id: 'left', name: 'Izquierda', weight: 0.3, h: [-0.88, -0.55], v: [-0.15, 0.45] },
   { id: 'right', name: 'Derecha', weight: 0.3, h: [0.55, 0.88], v: [-0.15, 0.45] },
@@ -400,7 +382,7 @@ export class PeripheralDrill extends CoordDrill {
     const vHalf = g.engine.camera.fov / 2;
     const zone = pickZone();
     const side = zone.mirror ? randSign() : 1;
-    const yaw = -side * rand(...zone.h) * hHalf; // yaw positivo = izquierda
+    const yaw = -side * rand(...zone.h) * hHalf;
     const pitch = clamp(ANCHOR_PITCH + rand(...zone.v) * vHalf, -4, 34);
     const pos = pointFromAngles(yaw, pitch, TARGET_DIST, g.player.eye);
     this.current = this.spawnTarget({
@@ -440,7 +422,6 @@ export class PeripheralDrill extends CoordDrill {
     this.holdT = 0;
   }
 
-  // Si se pausa con un objetivo visible, ese intento no cuenta.
   onPause() {
     if (this.phase === 'target' && this.current?.alive) {
       this.zones[this.current.data.zone].total--;
@@ -499,14 +480,11 @@ export class PeripheralDrill extends CoordDrill {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 4. Doble tarea: seguir una esfera con la mira y reaccionar a dianas que aparecen.
-// ---------------------------------------------------------------------------
 const TRACK_YAW = 30;
-const TRACK_SPEED = [12, 28]; // grados/s
+const TRACK_SPEED = [12, 28];
 const REACT_EVERY = [1.4, 2.8];
 const REACT_LIFETIME = 1.6;
-const REACT_OFFSET = [12, 32]; // grados desde la esfera
+const REACT_OFFSET = [12, 32];
 const DUAL_PENALTY = -25;
 
 export class DualTaskDrill extends CoordDrill {
@@ -610,7 +588,7 @@ export class DualTaskDrill extends CoordDrill {
   }
 
   onPause() {
-    this.returnFrom = null; // el reloj real siguió corriendo
+    this.returnFrom = null;
     if (this.current?.alive) {
       this.current.remove();
       this.spawned--;

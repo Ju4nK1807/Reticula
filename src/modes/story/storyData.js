@@ -1,23 +1,3 @@
-/*
-  Historia «ECO» — campaña con trama, inspirada en las campañas de la Guerra Fría de los shooters
-  clásicos (historia y personajes propios). Lógica pura, sin Three.js ni DOM: ver tests/story.test.js.
-
-  Estructura de cada capítulo:
-    id, number, title, place, date, world (mapa registrado), kind:
-      'targets'  · dianas (campo de tiro)        → targets: cuántas
-      'mission'  · encuentros con soldados        → encounters (como la campaña: flick | strafe | peek | mixed)
-      'numbers'  · secuencias de números (cúpula) → rounds: [[7, 3, 9, 1, 4], …]
-    difficulty: 0-11 (perfil de los bots, campaign/campaignData.botProfile)
-    loadout: armas disponibles (la primera sale en la mano) · grenades: granadas de fragmentación
-    objective: texto del objetivo en pantalla
-    intro / outro: escenas (diálogos entre misiones)
-    radio: diálogos durante la misión { start, encounters: { índice: [...] }, end }
-    setup: ajustes del mapa (openDoors: abrir las puertas del barrio; spawn: [x, z] del jugador)
-
-  Diálogos: { who, text }. who: voz · vera · reyes · ibarra · lang · numeros · narrador.
-  Las líneas de `numeros` las lee una voz sintética (como las estaciones de números).
-*/
-
 export const SPEAKERS = {
   voz: { name: 'La Voz', color: '#ff5a4a' },
   vera: { name: 'Vera', color: '#36d6ff' },
@@ -368,10 +348,7 @@ export const CHAPTER_KINDS = ['targets', 'mission', 'numbers'];
 export const getChapter = (id) => CHAPTERS.find((c) => c.id === id) ?? null;
 export const chapterIndex = (id) => CHAPTERS.findIndex((c) => c.id === id);
 
-// Total de enemigos de una misión.
 export const missionTotal = (ch) => (ch.encounters ?? []).reduce((s, e) => s + e.count, 0);
-
-// --- Progreso (store.records.story) ---------------------------------------------------------------
 
 export function emptyStoryRecord() {
   return { completed: {}, prologueSeen: false, finished: false };
@@ -381,19 +358,16 @@ export function normalizeStory(rec = {}) {
   return { ...emptyStoryRecord(), ...rec, completed: { ...(rec.completed ?? {}) } };
 }
 
-/** ¿Se puede jugar el capítulo? El primero siempre; los demás, al terminar el anterior. */
 export function isUnlocked(rec, id) {
   const i = chapterIndex(id);
   if (i <= 0) return i === 0;
   return !!rec.completed[CHAPTERS[i - 1].id];
 }
 
-/** Capítulo que toca jugar: el primero sin terminar (o el último si ya se terminó todo). */
 export function nextChapter(rec) {
   return CHAPTERS.find((c) => !rec.completed[c.id]) ?? CHAPTERS[CHAPTERS.length - 1];
 }
 
-/** Guarda un capítulo terminado (con el mejor tiempo). Devuelve true si es la primera vez. */
 export function completeChapter(rec, id, { time = 0, kills = 0, accuracy = null } = {}) {
   const prev = rec.completed[id];
   rec.completed[id] = prev
@@ -403,5 +377,4 @@ export function completeChapter(rec, id, { time = 0, kills = 0, accuracy = null 
   return !prev;
 }
 
-/** Segundos que dura una línea en pantalla (subtítulos durante la misión). */
 export const lineDuration = (line) => Math.min(7, 1.8 + line.text.length * 0.045);

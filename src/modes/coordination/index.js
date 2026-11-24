@@ -3,7 +3,6 @@ import { registerMode } from '../registry.js';
 import { DomeMap } from './DomeMap.js';
 import { Coordination, MODE_ID, WORLD_ID } from './Coordination.js';
 
-// Coordinación ojo-mano: secuencias, color objetivo, visión periférica y doble tarea.
 registerWorld(WORLD_ID, () => new DomeMap());
 
 registerMode({

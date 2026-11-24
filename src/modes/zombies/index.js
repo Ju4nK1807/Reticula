@@ -3,7 +3,6 @@ import { registerMode } from '../registry.js';
 import { ZombieMap } from './ZombieMap.js';
 import { DEFENSE_ID, MODE_ID, WORLD_ID, Zombies } from './Zombies.js';
 
-// Modo zombi: oleadas de zombis en el Barrio en ruinas, con armería, potenciadores y granadas.
 registerWorld(WORLD_ID, () => new ZombieMap());
 
 registerMode({
@@ -14,7 +13,6 @@ registerMode({
   create: (game) => new Zombies(game),
 });
 
-// Defensa de la barra: la misma plaza, pero los zombis van primero por la barra llena de botellas.
 registerMode({
   id: DEFENSE_ID,
   title: 'Defensa de la barra',

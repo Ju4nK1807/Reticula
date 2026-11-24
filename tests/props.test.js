@@ -21,7 +21,7 @@ describe('utilería con física', () => {
     const props = new Props(w, [{ type: 'crate', x: 2, z: 0 }, { type: 'can', x: -2, z: 1 }, { type: 'cone', x: 0, z: 3 }]);
     expect(w.solids.filter((m) => m.userData.prop)).toHaveLength(props.items.reduce((n, it) => n + it.group.children.length, 0));
     expect(props.items[0].body.position.y).toBeCloseTo(PROP_TYPES.crate.size[1] / 2, 5);
-    expect(props.awakeCount).toBe(0); // quietos hasta que algo los toque
+    expect(props.awakeCount).toBe(0);
   });
 
   it('un balazo hace volar una lata; a una caja apenas la mueve', () => {
@@ -34,7 +34,7 @@ describe('utilería con física', () => {
     step(props, 3);
     expect(can.body.position.x).toBeGreaterThan(2);
     expect(crate.body.position.x - 4).toBeLessThan(0.2);
-    expect(props.awakeCount).toBe(0); // todo vuelve a dormirse
+    expect(props.awakeCount).toBe(0);
   });
 
   it('una explosión empuja hacia fuera y hacia arriba', () => {
@@ -50,7 +50,7 @@ describe('utilería con física', () => {
     expect(props.items[0].body.position.x).toBeGreaterThan(2);
     expect(props.items[1].body.position.x).toBeLessThan(-2);
     expect(maxY).toBeGreaterThan(0.5);
-    expect(props.items[2].body.position.x).toBe(9); // fuera del radio: ni se entera
+    expect(props.items[2].body.position.x).toBe(9);
   });
 
   it('quien camina empuja los objetos en vez de atravesarlos', () => {
@@ -94,14 +94,12 @@ describe('utilería con física', () => {
     for (let i = 0; i < ground.length; i++) {
       for (let j = i + 1; j < ground.length; j++) expect(Math.hypot(ground[i].x - ground[j].x, ground[i].z - ground[j].z)).toBeGreaterThan(0.5);
     }
-    // Siempre igual (semilla por mapa).
     expect(autoPropSpawns(new BastionMap(), { cans: 6, crates: 4, barrels: 3, ammo: 2, cones: 2 })).toEqual(spawns);
   });
 
   it('el modo zombi tiene utilería y nada nace dentro de un obstáculo', () => {
     const map = new ZombieMap();
     expect(map.props.items.length).toBeGreaterThan(25);
-    // Tras unos segundos sin tocar nada, todo sigue quieto donde estaba (nada cae ni salta).
     for (const it of map.props.items) it.body.wake();
     const before = map.props.items.map((it) => it.body.position.clone());
     step(map.props, 3);

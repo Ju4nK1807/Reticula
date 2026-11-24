@@ -2,11 +2,9 @@ import * as THREE from 'three';
 
 const DEATH_TIME = 0.14;
 const LEAVE_TIME = 0.15;
-const WRONG_TIME = 0.3; // s que dura el aviso de "objetivo equivocado"
-const LABEL_SIZE = 1.25; // tamaño del número respecto al radio
+const WRONG_TIME = 0.3;
+const LABEL_SIZE = 1.25;
 
-// Formas: en el ejercicio de color cada color va con su propia forma, para que se pueda jugar
-// también con daltonismo (se distingue por la silueta).
 export const SHAPES = {
   sphere: new THREE.IcosahedronGeometry(1, 1),
   cube: new THREE.BoxGeometry(1.45, 1.45, 1.45),
@@ -14,7 +12,6 @@ export const SHAPES = {
   diamond: new THREE.OctahedronGeometry(1.3),
 };
 
-// Texturas de números dibujadas en canvas (sin archivos externos), una por número y reutilizadas.
 const labelTextures = new Map();
 
 function labelTexture(text) {
@@ -40,14 +37,6 @@ function labelTexture(text) {
 
 const _wrong = new THREE.Color('#ff2a3d');
 
-/*
-  Objetivo de los ejercicios de coordinación. Misma interfaz que SphereTarget y Bot (hitMeshes,
-  alive, removable, escaped, damage, update, dispose…), así que Phase lo maneja igual, y además:
-  - shape y color configurables (el color y la forma son la "identidad" en el ejercicio de color),
-  - label: número dibujado encima (ejercicio de secuencia),
-  - flashWrong(): sacudida y destello rojo al disparar al objetivo equivocado,
-  - data: información libre del ejercicio (número de orden, si es el color correcto…).
-*/
 export class CoordTarget {
   constructor(parent, { position, radius = 0.5, color = '#36d6ff', shape = 'sphere', label = null, hp = 1, lifetime = null, spawnTime = 0.08, spin = 0, data = {} }) {
     this.opts = { behavior: {}, lifetime };
@@ -56,7 +45,7 @@ export class CoordTarget {
     this.hp = hp;
     this.spin = spin;
     this.data = data;
-    this.state = 'alive'; // alive | dying | leaving | gone
+    this.state = 'alive';
     this.escaped = false;
     this.age = 0;
     this.t = 0;
@@ -80,7 +69,6 @@ export class CoordTarget {
     this.mesh.userData = { bot: this, part: 'body' };
     this.hitMeshes = [this.mesh];
 
-    // El número va en un grupo aparte (no hereda el giro de la forma) y siempre se dibuja encima.
     this.labelSprite = null;
     if (label !== null) {
       this.labelSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(String(label)), depthTest: false, transparent: true }));
@@ -91,8 +79,6 @@ export class CoordTarget {
 
     parent.add(this.mesh);
     this.applyScale(spawnTime > 0 ? 0.01 : 1);
-    // Matriz al día desde el primer instante: si no, un disparo en el mismo cuadro en que aparece
-    // atravesaría el objetivo (el raycast usa matrixWorld, que si no se actualiza hasta el render).
     this.mesh.updateMatrixWorld();
   }
 
@@ -132,7 +118,6 @@ export class CoordTarget {
     return { killed: false };
   }
 
-  // Aviso visual de "este no era": destello rojo y sacudida, sin destruirlo.
   flashWrong() {
     this.wrongT = WRONG_TIME;
   }
@@ -143,7 +128,6 @@ export class CoordTarget {
     this.t = 0;
   }
 
-  // Destruir sin que cuente como escapado (p. ej. al reiniciar una serie).
   remove() {
     this.state = 'gone';
   }
@@ -198,7 +182,6 @@ export class CoordTarget {
     this.mesh.updateMatrixWorld();
   }
 
-  // Mueve el objetivo (ejercicios con objetivos en movimiento).
   moveTo(position) {
     this.home.copy(position);
     if (this.wrongT <= 0) this.mesh.position.copy(position);
@@ -209,7 +192,7 @@ export class CoordTarget {
     this.material.dispose();
     if (this.labelSprite) {
       this.labelSprite.removeFromParent();
-      this.labelSprite.material.dispose(); // la textura se comparte y se conserva
+      this.labelSprite.material.dispose();
     }
   }
 }

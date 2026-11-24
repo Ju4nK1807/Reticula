@@ -7,30 +7,16 @@ import { icon } from '../../ui/icons.js';
 import { SAFE } from './safe.js';
 
 const MAX_ARROWS = 6;
-const THREAT_RANGE = 7; // m: zombis más cerca que esto y fuera de pantalla → flecha
+const THREAT_RANGE = 7;
 const EDGE = 0.9;
 const _v = new THREE.Vector3();
 const fmt = (n) => Math.round(n).toLocaleString('es');
-// Calavera de la barra de vida (color con currentColor).
 const SKULL_SVG =
   '<svg viewBox="0 0 32 32" width="100%" height="100%" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M16 2C8.8 2 4 7.2 4 13.6c0 3.9 1.8 6.6 4.4 8.2V26a2 2 0 0 0 2 2h1.4v-3h2v3h4.4v-3h2v3h1.4a2 2 0 0 0 2-2v-4.2c2.6-1.6 4.4-4.3 4.4-8.2C28 7.2 23.2 2 16 2Zm-5.6 9.4a3.2 3.4 0 1 1 0 6.8 3.2 3.4 0 0 1 0-6.8Zm11.2 0a3.2 3.4 0 1 1 0 6.8 3.2 3.4 0 0 1 0-6.8ZM16 18.4l1.8 3.4h-3.6Z"/></svg>';
 
-/*
-  Capa de HUD del modo zombi (dentro de la capa de juego del HUD general: se oculta con él).
-  Solo escribe en el DOM cuando cambia un valor.
-  - Número de la ronda, solo, con letra de terror (sin carteles de inicio ni zombis restantes).
-  - Vida: barra de terror centrada abajo (la general se oculta con la clase zh-on de la capa).
-  - Puntos para la armería, con "+N" al ganar.
-  - Granadas y potenciadores activos con su cuenta atrás.
-  - Flechas de amenaza: zombis cerca y fuera de la vista.
-  - El código de la caja fuerte cuando el Jefe lo suelta (su vida no se muestra).
-  - Teclado de la caja fuerte (se escribe con los números o tocando las teclas en el celular). Va
-    encima de los controles táctiles para que se pueda tocar.
-*/
 export class ZombieHud {
   constructor(hud) {
     const layer = hud.refs.crosshair.parentElement;
-    // Solo el número de la ronda, con letra de terror (sin cuántos zombis quedan).
     this.waveNum = h('strong', {}, '1');
     this.panel = h('div', { class: 'zh-panel', title: 'Ronda' }, h('div', { class: 'zh-wave' }, this.waveNum));
 
@@ -44,7 +30,6 @@ export class ZombieHud {
     this.powers = h('div', { class: 'zh-powers' });
     this.side = h('div', { class: 'zh-side' }, this.powerTag, this.grenades, this.perks, this.powers);
 
-    // Aviso de compra (lo que hay delante: puerta, arma de pared o bebida).
     this.pKey = h('kbd', {});
     this.pText = h('span', { class: 'zh-p-text' });
     this.pPrice = h('strong', { class: 'zh-p-price' });
@@ -57,25 +42,19 @@ export class ZombieHud {
       this.arrowLayer.append(el);
       this.arrows.push(el);
     }
-    // Defensa: botellas que quedan en la barra (con su barra de vida).
     this.barCount = h('strong', {}, '');
     this.barFill = h('i');
     this.barBox = h('div', { class: 'zh-barbox', hidden: true }, h('small', {}, 'Barra'), this.barCount, h('div', { class: 'zh-barmeter' }, this.barFill));
-    // Linterna: ícono (encendido o apagado), su tecla y la batería.
     this.lightKey = h('kbd', {});
     this.lightFill = h('i');
     this.lightState = h('span', { class: 'zh-light-state' });
     this.lightIcon = h('span', { class: 'zh-light-icon' });
     this.lightIcon.innerHTML = icon('flashlight', 18);
     this.lightBox = h('div', { class: 'zh-light' }, this.lightIcon, h('div', { class: 'zh-light-info' }, h('div', { class: 'zh-light-row' }, this.lightKey, this.lightState), h('div', { class: 'zh-battery' }, this.lightFill)));
-    // Viñeta oscura (en calidad alta la pone el postproceso) y bordes rojos al estar herido.
     this.vignette = h('div', { class: 'zh-vignette', hidden: true });
     this.hurt = h('div', { class: 'zh-hurt' });
-    // Código de la caja fuerte (cuando el Jefe ya cayó y la caja sigue cerrada).
     this.codeVal = h('strong', {}, '');
     this.codeBox = h('div', { class: 'zh-code', hidden: true }, h('small', {}, 'Código de la caja fuerte'), this.codeVal);
-    // Vida: barra de terror centrada abajo (reemplaza a la del HUD general en este modo). La franja
-    // oscura de atrás (lag) baja despacio y deja ver cuánto te acaban de quitar; sangre que gotea.
     this.lifeNum = h('span', { class: 'zh-life-num' }, '100');
     this.lifeFill = h('i', { class: 'zh-life-fill' });
     this.lifeLag = h('i', { class: 'zh-life-lag' });
@@ -85,12 +64,11 @@ export class ZombieHud {
     this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.lightBox, this.codeBox, this.life, this.prompt);
     layer.append(this.root);
     this.layer = layer;
-    layer.classList.add('zh-on'); // oculta la barra de vida general
+    layer.classList.add('zh-on');
     this.cache = new Map();
     this.buildKeypad(layer);
   }
 
-  // Teclado de la caja fuerte. onKeypad(tecla): '0'-'9', 'back', 'ok' o 'close' (lo pone el modo).
   buildKeypad(layer) {
     this.onKeypad = null;
     this.kpSlots = Array.from({ length: SAFE.digits }, () => h('span', { class: 'zh-kp-slot' }, ''));
@@ -107,11 +85,9 @@ export class ZombieHud {
     };
     const keys = h('div', { class: 'zh-kp-keys' }, ...'123456789'.split('').map((d) => key(d, d)), key('back', '⌫', 'muted'), key('0', '0'), key('ok', 'Abrir', 'ok'));
     this.keypad = h('div', { class: 'zh-keypad', hidden: true }, h('div', { class: 'zh-kp-title' }, 'Caja fuerte'), h('div', { class: 'zh-kp-screen' }, ...this.kpSlots), this.kpMsg, keys, key('close', 'Cerrar', 'close'), this.kpHelp);
-    // Encima de los controles táctiles (que tapan el HUD): en la raíz de la app.
     (layer.closest('#app') ?? layer).append(this.keypad);
   }
 
-  /** state = { entry, msg, tone: '' | 'bad' | 'good', help } o null para cerrarlo. */
   setKeypad(state) {
     this.set('kpShow', this.keypad, !state, 'hidden');
     if (!state) return;
@@ -135,7 +111,6 @@ export class ZombieHud {
     this.root.hidden = !on;
   }
 
-  // "+N" que sube junto a los puntos (se reinicia la animación con cada ganancia).
   popGain(n) {
     this.gain.textContent = `+${fmt(n)}`;
     this.gain.classList.remove('show');
@@ -143,7 +118,6 @@ export class ZombieHud {
     this.gain.classList.add('show');
   }
 
-  // p = { key, text, price, ok } o null para ocultarlo. ok = false: no alcanzan los puntos.
   setPrompt(p) {
     this.set('pShow', this.prompt, !p, 'hidden');
     if (!p) return;
@@ -160,7 +134,6 @@ export class ZombieHud {
     const wave = String(Math.max(1, run.wave || mode.nextWave));
     if (this.cache.get('wave') !== wave) {
       this.set('wave', this.waveNum, wave);
-      // El número de la oleada late al cambiar (como una marca nueva en la pared).
       this.waveNum.classList.remove('pop');
       void this.waveNum.offsetWidth;
       this.waveNum.classList.add('pop');
@@ -181,20 +154,17 @@ export class ZombieHud {
       if (this.barFill.style.width !== `${Math.round(k * 100)}%`) this.barFill.style.width = `${Math.round(k * 100)}%`;
       this.set('barLow', this.barBox, k < 0.35 ? 'zh-barbox low' : 'zh-barbox', 'className');
     }
-    // Granada elegida y cuántas quedan de ese tipo (y del resto).
     const type = game.grenades.type;
     const bag = mode.grenadeBag;
     const others = Object.entries(bag).filter(([t, n]) => t !== type && n > 0).map(([t, n]) => `${GRENADE_TYPES[t].name.slice(0, 4)}. ×${n}`);
     const keys = game.touchMode ? '' : `  ·  ${keyLabel(game.settings.keys, 'grenade')} / ${keyLabel(game.settings.keys, 'grenadeNext')}`;
     this.set('nades', this.grenades, `${GRENADE_TYPES[type].name} ×${bag[type] ?? 0}${others.length ? ` (${others.join(', ')})` : ''}${keys}`);
-    // Bebidas tomadas.
     const perks = [...run.perks].join('|');
     if (this.cache.get('perks') !== perks) {
       this.cache.set('perks', perks);
       this.perks.replaceChildren(...[...run.perks].map((id) => h('span', { class: 'zh-perk', style: { '--c': PERKS[id].color }, title: PERKS[id].desc }, PERKS[id].name)));
     }
 
-    // Potenciadores activos (con su tiempo).
     const active = Object.entries(run.timers)
       .filter(([, t]) => t > 0)
       .map(([id, t]) => `${id}:${Math.ceil(t)}`)
@@ -212,7 +182,6 @@ export class ZombieHud {
     this.updateArrows(game, run);
   }
 
-  // Código de la caja fuerte (cuando el Jefe lo soltó). La vida del Jefe no se muestra.
   updateCode(run) {
     const s = run.safe;
     const showCode = !!s && s.known && !s.unlocked;
@@ -220,7 +189,6 @@ export class ZombieHud {
     if (showCode) this.set('codeVal', this.codeVal, s.code.split('').join(' '));
   }
 
-  // Estado de la linterna: prendida (amarilla), apagada (gris), batería baja (roja, late) o vacía.
   updateLight(game, fl) {
     this.set('lightShow', this.lightBox, !fl, 'hidden');
     if (!fl) return;
@@ -237,7 +205,6 @@ export class ZombieHud {
     this.set('lightCls', this.lightBox, cls, 'className');
   }
 
-  // Flechas alrededor de la mira hacia los zombis cercanos que no se ven.
   updateArrows(game, run) {
     const cam = game.engine.camera;
     let n = 0;
@@ -249,7 +216,7 @@ export class ZombieHud {
       _v.copy(p).setY(p.y + 1).project(cam);
       const onScreen = _v.z < 1 && Math.abs(_v.x) < EDGE && Math.abs(_v.y) < EDGE;
       if (onScreen) continue;
-      const angle = game.angleTo(p); // + = a la izquierda
+      const angle = game.angleTo(p);
       const el = this.arrows[n++];
       el.hidden = false;
       el.style.transform = `translate(-50%, -50%) rotate(${-angle}rad) translateY(-120px)`;
@@ -258,7 +225,6 @@ export class ZombieHud {
     for (let i = n; i < MAX_ARROWS; i++) if (!this.arrows[i].hidden) this.arrows[i].hidden = true;
   }
 
-  // Barra de vida: ancho, número y estado (baja: late; golpe: sacudida corta).
   updateLife(run) {
     const k = Math.max(0, Math.min(1, run.health / run.maxHealth));
     const pct = `${(k * 100).toFixed(1)}%`;

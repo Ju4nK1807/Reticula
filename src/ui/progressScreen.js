@@ -37,8 +37,6 @@ function panel(title, ...children) {
   return h('section', { class: 'panel pg-panel' }, h('h3', {}, title), ...children);
 }
 
-// --- Pestañas -----------------------------------------------------------------------------------
-
 function evaluationsTab(data, state, rerender) {
   const totals = evaluationSeries(data);
   const variant = state.variant;
@@ -197,8 +195,6 @@ function dataTab(game, refresh) {
     ),
   ];
 }
-
-// --- Pantalla -----------------------------------------------------------------------------------
 
 export function progressScreen(game, { onBack }) {
   const state = { tab: 'evaluations', variant: 'targets', filter: 'all' };

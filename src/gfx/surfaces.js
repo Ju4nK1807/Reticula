@@ -2,51 +2,30 @@ import * as THREE from 'three';
 import CATALOG from './surfaces.json';
 import STATS from './textureStats.json';
 
-/*
-  Superficies PBR de los mapas (texturas CC0 de Poly Haven, ver tools/textures.py).
-
-  surface('concrete', '#4a5260') devuelve un MeshStandardMaterial con las texturas de la superficie
-  y el color de la paleta del mapa: el albedo se escala para que su color MEDIO sea exactamente ese
-  color (la dirección de arte de cada mapa no cambia; la textura solo añade detalle).
-
-  Nivel de detalle (setSurfaceDetail), según la calidad gráfica:
-  - alta:  texturas 1K con color, relieve (normal) y ARM (oclusión, rugosidad, metal).
-  - media: texturas 512 (4 veces menos memoria) con las tres capas.
-  - baja:  texturas 512 solo de color (el sombreado más barato).
-  Las texturas se cargan al primer uso y se comparten entre todos los materiales.
-
-  glow('#00ffa3') es para luces y neón: no le afecta la iluminación ni el tono, y con el bloom
-  (calidad alta) brilla de verdad.
-*/
-
 const BASE = `${import.meta.env?.BASE_URL ?? './'}textures/`;
 const DETAIL = { alta: { size: '1k', normal: true, arm: true }, media: { size: '512', normal: true, arm: true }, baja: { size: '512', normal: false, arm: false } };
-const MAX_TINT = 6; // tope de amplificación del albedo (texturas muy oscuras en un canal)
-const GLOW_HDR = 1.8; // intensidad del neón cuando hay bloom
+const MAX_TINT = 6;
+const GLOW_HDR = 1.8;
 
 let detail = 'alta';
 let anisotropy = 1;
 const loader = new THREE.TextureLoader();
-// Las imágenes se decodifican fuera del hilo principal (createImageBitmap): cargar un mapa ya no
-// congela el juego mientras el navegador descomprime 15-30 WebP. Ya vienen volteadas en vertical.
 const bitmapLoader =
   typeof document !== 'undefined' && typeof createImageBitmap === 'function'
     ? new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY', premultiplyAlpha: 'none' })
     : null;
-const pending = new Set(); // cargas en curso
+const pending = new Set();
 
-/** Se resuelve cuando terminaron de cargar todas las texturas pedidas hasta ahora. */
 export function whenSurfacesReady() {
   return Promise.all([...pending]);
 }
-const textures = new Map(); // `${key}/${size}/${map}` → Texture
-const materials = new Set(); // superficies creadas (para cambiar el detalle en caliente)
+const textures = new Map();
+const materials = new Set();
 const glows = new Set();
 let bloomOn = false;
 
 export const SURFACE_KEYS = Object.keys(CATALOG).filter((k) => !k.startsWith('_'));
 
-/** Metros que ocupa una repetición de la textura (para calcular UVs en metros). */
 export function tileOf(material) {
   return material?.userData?.tile ?? null;
 }
@@ -57,10 +36,10 @@ function texture(key, size, map) {
   if (!tex) {
     const url = `${BASE}${id}.webp`;
     if (typeof document === 'undefined') {
-      tex = new THREE.Texture(); // sin navegador (pruebas en Node): textura vacía, el mapa se construye igual
+      tex = new THREE.Texture();
     } else if (bitmapLoader) {
       tex = new THREE.Texture();
-      tex.flipY = false; // el bitmap ya viene volteado
+      tex.flipY = false;
       const t = tex;
       const job = bitmapLoader
         .loadAsync(url)
@@ -82,9 +61,8 @@ function texture(key, size, map) {
   return tex;
 }
 
-// Color que, multiplicado por el albedo medio de la textura, da el color de la paleta.
 export function tintFor(key, color, max = MAX_TINT) {
-  const target = new THREE.Color(color); // lineal
+  const target = new THREE.Color(color);
   const mean = STATS[key]?.mean ?? [0.5, 0.5, 0.5];
   return new THREE.Color(
     Math.min(max, target.r / Math.max(mean[0], 1e-3)),
@@ -102,20 +80,12 @@ function applyDetail(mat) {
   const u = mat.userData;
   mat.aoMap = arm;
   mat.roughnessMap = arm;
-  // metalMap = false: la metalicidad es fija (u.metal), no la de la textura (armas de metal pintado).
   mat.metalnessMap = u.metalMap === false ? null : arm;
-  // Sin ARM: rugoso y no metálico (aspecto mate uniforme), salvo que el material fije los suyos.
   mat.roughness = arm ? (u.rough ?? 1) : (u.baseRough ?? 0.88);
   mat.metalness = arm || u.metalMap === false ? u.metal : 0;
   mat.needsUpdate = true;
 }
 
-/**
- * Material de superficie.
- * @param {string} key  clave de src/gfx/surfaces.json
- * @param {THREE.ColorRepresentation} color  color medio deseado (el de la paleta del mapa)
- * @param {{ flat?: boolean, metal?: number, normalScale?: number }} [opts]
- */
 export function surface(key, color, { flat = false, metal = 0.35, normalScale = 1, metalMap = true, rough, baseRough, maxTint = MAX_TINT } = {}) {
   if (!CATALOG[key]) throw new Error(`Superficie desconocida: ${key}`);
   const mat = new THREE.MeshStandardMaterial({ color: tintFor(key, color, maxTint), flatShading: flat });
@@ -128,7 +98,6 @@ export function surface(key, color, { flat = false, metal = 0.35, normalScale = 
   return mat;
 }
 
-/** Luz o neón: color plano, sin tono ni niebla; con bloom se vuelve HDR y brilla. */
 export function glow(color, { fog = true } = {}) {
   const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false, fog });
   mat.userData.glow = new THREE.Color(color);
@@ -138,7 +107,6 @@ export function glow(color, { fog = true } = {}) {
   return mat;
 }
 
-/** Cambia el detalle de todas las superficies (alta | media | baja). */
 export function setSurfaceDetail(level, maxAnisotropy = 1) {
   const next = DETAIL[level] ? level : 'alta';
   anisotropy = next === 'alta' ? Math.min(8, maxAnisotropy) : Math.min(2, maxAnisotropy);
@@ -148,7 +116,6 @@ export function setSurfaceDetail(level, maxAnisotropy = 1) {
   }
   detail = next;
   for (const mat of materials) applyDetail(mat);
-  // Libera de la GPU las texturas que ya no usa ningún material.
   const used = new Set();
   for (const mat of materials) for (const t of [mat.map, mat.normalMap, mat.aoMap]) if (t) used.add(t);
   for (const [id, t] of textures) {
@@ -159,12 +126,10 @@ export function setSurfaceDetail(level, maxAnisotropy = 1) {
   }
 }
 
-/** Multiplicador actual del neón (con bloom es HDR); para materiales glow que se animan. */
 export function glowScale() {
   return bloomOn ? GLOW_HDR : 1;
 }
 
-/** Activa el brillo HDR de los materiales glow (solo cuando hay bloom). */
 export function setGlowBloom(on) {
   bloomOn = on;
   for (const mat of glows) {
@@ -173,16 +138,12 @@ export function setGlowBloom(on) {
   }
 }
 
-/**
- * UVs en metros para una caja (BoxGeometry de 1 segmento): cada cara repite la textura según su
- * tamaño real, así un muro de 40 m no la estira. Orden de caras de Three: +x, -x, +y, -y, +z, -z.
- */
 export function boxWorldUV(geometry, w, h, d, tile) {
   const uv = geometry.attributes.uv;
   const faces = [
-    [d, h], [d, h], // ±x: ancho = profundidad, alto = altura
-    [w, d], [w, d], // ±y
-    [w, h], [w, h], // ±z
+    [d, h], [d, h],
+    [w, d], [w, d],
+    [w, h], [w, h],
   ];
   for (let f = 0; f < 6; f++) {
     const [su, sv] = faces[f];
@@ -192,7 +153,6 @@ export function boxWorldUV(geometry, w, h, d, tile) {
   return geometry;
 }
 
-/** UVs en metros para un plano. */
 export function planeWorldUV(geometry, w, d, tile) {
   const uv = geometry.attributes.uv;
   for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * w) / tile, (uv.getY(i) * d) / tile);
@@ -200,7 +160,6 @@ export function planeWorldUV(geometry, w, d, tile) {
   return geometry;
 }
 
-/** Pintura lisa sin textura (autos, montacargas): semibrillante, refleja el entorno. */
 export function paint(color, { roughness = 0.38, metalness = 0.25 } = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }

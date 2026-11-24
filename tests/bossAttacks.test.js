@@ -1,5 +1,3 @@
-// Ataques especiales del Jefe (bossBrain.js + ZombieRun.bossAction), texturas de las armas y el tope de
-// zombis a la vez. Con la partida real sobre el mapa real (sin navegador: los modelos no se cargan).
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { ZombieMap } from '../src/modes/zombies/ZombieMap.js';
@@ -34,7 +32,6 @@ function makeRun() {
   return { run, game, events };
 }
 
-// Jefe de mentira para probar el cerebro solo (sin mapa): se mueve libre salvo que `wall` lo frene.
 function fakeBoss({ wall = false } = {}) {
   const actions = [];
   const z = {
@@ -89,7 +86,7 @@ describe('El Jefe: embestida', () => {
     expect(z.brain.state === 'charge' || actions.some(([k]) => k === 'chargeHit')).toBe(true);
     stepBrain(z, player, 1.5);
     expect(actions.some(([k]) => k === 'chargeHit')).toBe(true);
-    expect(z.position.z).toBeGreaterThan(8); // recorrió la distancia a toda velocidad
+    expect(z.position.z).toBeGreaterThan(8);
     expect(z.brain.state).toBe('idle');
   });
 
@@ -128,7 +125,7 @@ describe('El Jefe: pisotón', () => {
     boss.group.position.set(game.player.position.x, 0, game.player.position.z - 2);
     run.bossAction('slam', boss, { radius: BOSS.slam.radius });
     expect(run.health).toBeLessThan(run.maxHealth);
-    expect(game.player.velocity.z).toBeGreaterThan(2); // lejos del Jefe
+    expect(game.player.velocity.z).toBeGreaterThan(2);
   });
 
   it('saltando a tiempo (o lejos) no te pasa nada', () => {
@@ -221,14 +218,13 @@ describe('armas con texturas reales', () => {
       expect(m.map).toBeTruthy();
       expect(m.normalMap).toBeTruthy();
       expect(m.roughnessMap).toBeTruthy();
-      expect(m.metalnessMap).toBeNull(); // metalicidad del acabado, no de la textura
+      expect(m.metalnessMap).toBeNull();
     }
-    expect(wood.userData.surface).toBe('gun_wood'); // la escopeta tiene culata de nogal
+    expect(wood.userData.surface).toBe('gun_wood');
     expect(metal.metalness).toBeGreaterThan(0.8);
     expect(parts.every((m) => m.geometry.attributes.uv)).toBe(true);
-    expect(sights.map).toBeTruthy(); // detalles claros de la escopeta: sin brillo, con textura
+    expect(sights.map).toBeTruthy();
 
-    // Las miras de la pistola brillan (color plano con brillo propio, sin textura).
     const pistol = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), Object.assign(new THREE.MeshStandardMaterial(), { name: 'M_PCL_Flat_White' }));
     fitWeaponModel(new THREE.Group().add(pistol), { scale: 1, back: 0, top: 0, finish: 'pistol' });
     expect(pistol.material.map).toBeNull();

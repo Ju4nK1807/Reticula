@@ -58,10 +58,10 @@ describe('superficies PBR', () => {
       const vals = [0, 1, 2, 3].map((i) => (axis === 'u' ? uv.getX(face * 4 + i) : uv.getY(face * 4 + i)));
       return Math.max(...vals) - Math.min(...vals);
     };
-    expect(range(4, 'u')).toBeCloseTo(8 / tile); // cara +z: ancho
-    expect(range(4, 'v')).toBeCloseTo(4 / tile); // cara +z: alto
-    expect(range(0, 'u')).toBeCloseTo(1 / tile); // cara +x: profundidad
-    expect(range(2, 'v')).toBeCloseTo(1 / tile); // cara +y: profundidad
+    expect(range(4, 'u')).toBeCloseTo(8 / tile);
+    expect(range(4, 'v')).toBeCloseTo(4 / tile);
+    expect(range(0, 'u')).toBeCloseTo(1 / tile);
+    expect(range(2, 'v')).toBeCloseTo(1 / tile);
   });
 
   it('las UVs de un plano van en metros', () => {

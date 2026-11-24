@@ -1,9 +1,7 @@
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { getGrade } from './grade.js';
 
-// Pase de salida con etalonaje (ver grade.js): mapeo de tonos y sRGB como el OutputPass de three.js,
-// más el color del modo, la viñeta y el grano, en el mismo dibujo de pantalla completa.
-const FRAGMENT = /* glsl */ `
+const FRAGMENT = `
 precision highp float;
 uniform sampler2D tDiffuse;
 uniform vec4 uGrade; // saturación, contraste, viñeta, grano

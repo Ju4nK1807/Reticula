@@ -1,5 +1,3 @@
-// Pausa: mismo lenguaje que la pantalla de título (menú de texto a la izquierda) y el ajuste rápido
-// de sensibilidad a la derecha.
 import './menu.css';
 import { h } from './dom.js';
 import { menuList } from './menuList.js';

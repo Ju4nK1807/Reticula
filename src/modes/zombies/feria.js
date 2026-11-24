@@ -3,31 +3,16 @@ import { withObb } from '../../physics/obb.js';
 import { sign } from './sections.js';
 import { circusMaterials, garland, hangGarlands, stripeMaterial } from './circo.js';
 
-/*
-  La Feria (sureste, la sección más cara): parque de diversiones abandonado con carrusel, rueda de la
-  fortuna, puestos de juegos y la Casa de la Risa, una tarima de dos pisos. Se entra desde la Estación
-  o desde la Iglesia.
-
-  Segundo piso: la terraza de la Casa de la Risa (TARIMA, a DECK_H m) se sube por dos escaleras
-  (RAMPS). La altura del piso la da ZombieMap.floorAt con `floors`: el jugador y los zombis la siguen
-  (los zombis suben por las escaleras: la navegación es la misma cuadrícula, porque debajo de la terraza
-  no se puede entrar). Los muros de la tarima siguen como barandal arriba, así que solo se sube y se
-  baja por las escaleras (o saltando el barandal).
-*/
-
 export const FERIA = { minX: 28, maxX: 60, minZ: 30, maxZ: 60 };
 export const DECK_H = 3.6;
-// Terraza en la esquina sureste (contra los muros de la sección).
 export const TARIMA = { minX: 45, maxX: 60, minZ: 45, maxZ: 60 };
-// Escaleras: rect, eje en que suben y de dónde a dónde (de 0 a DECK_H; el último tramo es un descanso).
 export const RAMPS = [
-  { minX: 39, maxX: 45, minZ: 52, maxZ: 54.5, axis: 'x', from: 39, to: 44.4 }, // oeste, sube hacia +x
-  { minX: 51, maxX: 53.5, minZ: 38, maxZ: 45, axis: 'z', from: 38, to: 44.4 }, // norte, sube hacia +z
+  { minX: 39, maxX: 45, minZ: 52, maxZ: 54.5, axis: 'x', from: 39, to: 44.4 },
+  { minX: 51, maxX: 53.5, minZ: 38, maxZ: 45, axis: 'z', from: 38, to: 44.4 },
 ];
-const RAIL = 1.15; // alto del barandal sobre la terraza
+const RAIL = 1.15;
 const WALL_T = 0.4;
 
-/** Pisos altos de la Feria para ZombieMap.floorAt. */
 export function feriaFloors() {
   return [{ ...TARIMA, h: DECK_H }, ...RAMPS.map((r) => ({ ...r, h: DECK_H }))];
 }
@@ -39,14 +24,11 @@ export function buildFeria(map, M) {
   const stripesY = stripeMaterial(['#1f3f7a', '#b9a57f', '#8a1c1a', '#b9a57f'], 2.4, { seed: 19 });
   const T = TARIMA;
 
-  // --- Casa de la Risa: la tarima de dos pisos -------------------------------------------------------
-  // Muros de la base (lona) que siguen como barandal arriba: con hueco donde llega cada escalera.
   const rail = (x0, x1, z0, z1) => {
     const w = x1 - x0;
     const d = z1 - z0;
     const m = b(w, DECK_H, d, stripesY, (x0 + x1) / 2, (z0 + z1) / 2);
-    map.colliders.at(-1).max.y = DECK_H + RAIL; // el barandal también frena (no las balas)
-    // Barandal: pasamanos y balaustres (solo se ven).
+    map.colliders.at(-1).max.y = DECK_H + RAIL;
     const top = Math.abs(w) > Math.abs(d) ? [w, 0.08, 0.1] : [0.1, 0.08, d];
     b(top[0], top[1], top[2], M.metal, (x0 + x1) / 2, (z0 + z1) / 2, DECK_H + RAIL - 0.08, false);
     b(top[0], top[1], top[2], M.metal, (x0 + x1) / 2, (z0 + z1) / 2, DECK_H + 0.5, false);
@@ -64,11 +46,7 @@ export function buildFeria(map, M) {
   rail(T.minX - WALL_T / 2, T.minX + WALL_T / 2, west.maxZ, T.maxZ);
   rail(T.minX - WALL_T / 2, north.minX, T.minZ - WALL_T / 2, T.minZ + WALL_T / 2);
   rail(north.maxX, T.maxX, T.minZ - WALL_T / 2, T.minZ + WALL_T / 2);
-  // Piso de la terraza (tablones): frena granadas y casquillos; los zombis y la navegación lo ignoran
-  // (está alto) y pisan con floorAt.
   b(T.maxX - T.minX, 0.3, T.maxZ - T.minZ, M.wood, (T.minX + T.maxX) / 2, (T.minZ + T.maxZ) / 2, DECK_H - 0.3);
-  // Escaleras: peldaños (se ven y frenan balas, sin colisión: se pisa con floorAt), laterales con su
-  // colisión invisible (como barandal) y pasamanos inclinado.
   for (const r of RAMPS) {
     const alongX = r.axis === 'x';
     const run = r.to - r.from;
@@ -82,7 +60,6 @@ export function buildFeria(map, M) {
       const m = alongX ? b(len, h, width, M.wood, at, mid, 0, false) : b(width, h, len, M.wood, mid, at, 0, false);
       map.solids.push(m);
     }
-    // Descanso arriba (hasta la terraza).
     const restLen = (alongX ? r.maxX : r.maxZ) - r.to;
     const rest = alongX ? b(restLen, DECK_H, width, M.wood, r.to + restLen / 2, mid, 0, false) : b(width, DECK_H, restLen, M.wood, mid, r.to + restLen / 2, 0, false);
     map.solids.push(rest);
@@ -90,7 +67,6 @@ export function buildFeria(map, M) {
       const sideAt = mid + s * (width / 2 + 0.1);
       const box = alongX ? new THREE.Box3(v(r.minX, 0, sideAt - 0.1), v(r.maxX, DECK_H + RAIL, sideAt + 0.1)) : new THREE.Box3(v(sideAt - 0.1, 0, r.minZ), v(sideAt + 0.1, DECK_H + RAIL, r.maxZ));
       map.colliders.push(box);
-      // Pasamanos inclinado.
       const slope = Math.hypot(run, DECK_H);
       const hand = new THREE.Mesh(new THREE.BoxGeometry(alongX ? slope : 0.07, 0.07, alongX ? 0.07 : slope), M.metal);
       const c = r.from + run / 2;
@@ -106,12 +82,9 @@ export function buildFeria(map, M) {
       }
     }
   }
-  // Fachada: carteles de la Casa de la Risa (hacia el oeste y hacia el norte).
   sign(map, 'CASA DE LA RISA', '#ffcf5a', T.minX - WALL_T / 2 - 0.03, 2.4, 49, -Math.PI / 2, 3.2, 0.62);
   sign(map, 'CASA DE LA RISA', '#ffcf5a', 56.5, 2.4, T.minZ - WALL_T / 2 - 0.03, Math.PI, 3.2, 0.62);
   sign(map, 'SUBE SI TE ATREVES', '#ff5a5a', 47.6, DECK_H + 2.6, T.maxZ - 0.06, Math.PI, 3, 0.45);
-  // Arriba: guirnaldas entre postes y una luz de feria (con la electricidad) más un foco rojo que
-  // titila (batería).
   const poles = [v(T.minX + 0.4, 0, T.minZ + 0.4), v(T.maxX - 0.6, 0, T.minZ + 0.4), v(T.maxX - 0.6, 0, T.maxZ - 0.6), v(T.minX + 0.4, 0, T.maxZ - 0.6)];
   for (const p of poles) b(0.14, 3.2, 0.14, M.wood, p.x, p.z, DECK_H, false);
   let s = 23;
@@ -127,7 +100,6 @@ export function buildFeria(map, M) {
   map.pools.push({ pos: v(52.5, DECK_H + 0.02, 52.5), radius: 5, color: '#ffcf8a', power: true });
   map.lights.add({ pos: v(46.5, DECK_H + 2.2, 58.5), color: '#ff3b3b', intensity: 8, distance: 8, power: false, flicker: 'broken' });
 
-  // --- Carrusel ---------------------------------------------------------------------------------------
   const CX = 36.5;
   const CZ = 41;
   const disk = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 0.16, 32), C.red);
@@ -144,7 +116,6 @@ export function buildFeria(map, M) {
   const rim = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.6, 0.45, 24, 1, true), C.roofBlue);
   rim.position.set(CX, 3.8, CZ);
   map.scene.add(rim);
-  // Caballitos en sus barras (uno caído): cuerpo, cuello y cabeza; frenan el paso (forma real).
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + 0.3;
     const x = CX + Math.cos(a) * 2.7;
@@ -162,7 +133,7 @@ export function buildFeria(map, M) {
     add(0.34, 0.42, 1.05, i % 2 ? C.cream : M.wood, 0, y, 0);
     add(0.22, 0.5, 0.25, i % 2 ? C.cream : M.wood, 0, y + 0.35, 0.45);
     add(0.2, 0.22, 0.42, i % 2 ? C.cream : M.wood, 0, y + 0.6, 0.58);
-    add(0.36, 0.08, 0.5, C.red, 0, y + 0.24, -0.05); // montura
+    add(0.36, 0.08, 0.5, C.red, 0, y + 0.24, -0.05);
     if (!fallen) add(0.05, 3.7, 0.05, C.gold, 0, 1.95, 0);
     g.position.set(x, 0, z);
     g.rotation.y = ry;
@@ -171,7 +142,6 @@ export function buildFeria(map, M) {
     map.colliders.push(withObb(new THREE.Box3(v(x - 0.6, 0, z - 0.6), v(x + 0.6, 1.6, z + 0.6)), x, z, 0.2, 0.55, ry));
   }
 
-  // --- Rueda de la fortuna (detenida), contra el muro sur ------------------------------------------------
   const WX = 33;
   const WY = 7.6;
   const WZ = 58.6;
@@ -199,7 +169,6 @@ export function buildFeria(map, M) {
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.1, 12), C.gold);
   hub.rotation.x = Math.PI / 2;
   wheel.add(hub);
-  // Góndolas colgando (una sola, la de abajo, casi toca el suelo).
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2 + 0.2;
     const gx = Math.cos(a) * WR;
@@ -211,7 +180,6 @@ export function buildFeria(map, M) {
   }
   wheel.position.set(WX, WY, WZ);
   map.flatten(wheel);
-  // Patas en A (con su colisión al pie).
   for (const sx of [-3.6, 3.6]) {
     for (const sz of [-0.9, 0.9]) {
       const foot = v(WX + sx, 0, WZ + sz);
@@ -224,10 +192,8 @@ export function buildFeria(map, M) {
     }
     map.colliders.push(new THREE.Box3(v(WX + sx - 0.4, 0, WZ - 1.1), v(WX + sx + 0.4, 2, WZ + 1.1)));
   }
-  // Caseta de control de la rueda.
   b(1.6, 2.2, 1.4, stripesY, WX + 4.8, WZ - 0.4);
 
-  // --- Puestos de juegos contra el muro norte (mostrador y toldo a rayas) ------------------------------------
   for (const [x, label] of [[31.5, 'TIRO AL PAYASO'], [46.5, 'PREMIOS']]) {
     const z = FERIA.minZ + 1.7;
     b(3.2, 1.0, 1.0, M.wood, x, z);
@@ -238,10 +204,8 @@ export function buildFeria(map, M) {
     map.scene.add(awning);
     sign(map, label, '#ffcf5a', x, 2.0, z - 0.45, 0, 2.4, 0.4);
   }
-  // Payasos de cartón (blancos de tiro) caídos en el mostrador.
   for (let i = 0; i < 3; i++) b(0.35, 0.55, 0.04, C.cream, 30.6 + i * 0.9, FERIA.minZ + 1.5, 1.0, false);
 
-  // --- Postes con guirnaldas y luces de feria (con la electricidad) ----------------------------------------
   const lightPoles = [v(31, 0, 47), v(42, 0, 35), v(43, 0, 48.5), v(32.5, 0, 34)];
   for (const p of lightPoles) {
     b(0.2, 5, 0.2, M.wood, p.x, p.z);
@@ -258,13 +222,11 @@ export function buildFeria(map, M) {
     map.lights.add({ pos: p, color, intensity: 26, distance: 13, power: true });
     map.pools.push({ pos: p.clone().setY(0.02), radius: 4.5, color, power: true });
   }
-  // Depósito de la feria: cajas apiladas en la esquina noreste (lejos de la puerta y de la entrada).
   for (const [x, z, s] of [[59.05, 31.1, 1.1], [59.2, 32.35, 0.8], [57.85, 31.0, 0.8]]) map.crate(x, z, s);
   map.fireBarrel(48.5, 41.5, M);
   map.fireBarrel(30, 44.5, M);
   sign(map, 'FERIA', '#ff5a8a', FERIA.minX + 0.03, 4.4, 34.5, Math.PI / 2, 2.6, 0.7);
 
-  // Manchas: sangre, aceite y basura.
   for (const [x, z, sz, ry] of [[38, 47.5, 1.8, 0.3], [49, 36, 1.4, 2.2], [36, 57, 2, 1.1], [34, 53, 1.5, 0.6], [44.5, 42, 1.2, 2.7]]) map.decal('blood', x, z, sz, ry);
   for (const [x, z, sz, ry] of [[40, 33, 2.2, 0.8], [33, 49, 1.8, 2], [55.5, 34, 1.6, 0.2]]) map.decal('litter', x, z, sz, ry);
 }

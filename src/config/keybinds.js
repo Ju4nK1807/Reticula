@@ -1,8 +1,3 @@
-// Controles reasignables. Cada acción tiene una tecla (KeyboardEvent.code) que el jugador puede
-// cambiar en Configuración → Controles. Las teclas fijas no se pueden asignar: Esc (pausa, lo exige
-// el navegador para soltar el mouse) y 1-9 (armas).
-// Lógica pura (sin DOM): ver tests/keybinds.test.js.
-
 export const ACTIONS = [
   { id: 'forward', group: 'Movimiento', label: 'Avanzar', key: 'KeyW' },
   { id: 'back', group: 'Movimiento', label: 'Retroceder', key: 'KeyS' },
@@ -26,10 +21,8 @@ export const ACTIONS = [
 
 export const DEFAULT_KEYS = Object.fromEntries(ACTIONS.map((a) => [a.id, a.key]));
 
-/** Teclas que no se pueden asignar a una acción. */
 export const isReservedCode = (code) => code === 'Escape' || /^Digit[1-9]$/.test(code) || /^Numpad[1-9]$/.test(code);
 
-/** Acción asignada a `code`, o null. */
 export function actionFor(keys, code) {
   for (const a of ACTIONS) if ((keys?.[a.id] ?? a.key) === code) return a.id;
   return null;
@@ -72,7 +65,6 @@ const NAMES = {
   PageDown: 'AvPág',
 };
 
-/** Nombre legible de una tecla (distribución española). */
 export function codeLabel(code) {
   if (!code) return '—';
   if (NAMES[code]) return NAMES[code];
@@ -83,14 +75,8 @@ export function codeLabel(code) {
   return code;
 }
 
-/** Nombre de la tecla de una acción. */
 export const keyLabel = (keys, id) => codeLabel(keys?.[id] ?? DEFAULT_KEYS[id]);
 
-/**
- * Asigna `code` a la acción `id`. Si otra acción usaba esa tecla, las intercambia (nunca quedan dos
- * acciones en la misma tecla ni una sin tecla). Devuelve la acción intercambiada o null.
- * Lanza un error si la tecla está reservada.
- */
 export function rebind(keys, id, code) {
   if (isReservedCode(code)) throw new Error('Tecla reservada');
   const old = keys[id] ?? DEFAULT_KEYS[id];
@@ -103,7 +89,6 @@ export function rebind(keys, id, code) {
   return null;
 }
 
-/** Completa las acciones que falten (guardados viejos) y corrige asignaciones inválidas. */
 export function normalizeKeys(keys = {}) {
   const out = { ...DEFAULT_KEYS };
   const used = new Set();
@@ -111,7 +96,6 @@ export function normalizeKeys(keys = {}) {
     const code = keys[a.id];
     if (typeof code === 'string' && code && !isReservedCode(code) && !used.has(code)) out[a.id] = code;
   }
-  // Si dos acciones quedaron en la misma tecla (guardado editado a mano), la segunda vuelve a la suya.
   used.clear();
   for (const a of ACTIONS) {
     if (used.has(out[a.id])) out[a.id] = a.key;

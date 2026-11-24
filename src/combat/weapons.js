@@ -1,22 +1,3 @@
-// Arsenal de Retícula. Cada arma define su balística, su manejo y su mira por defecto.
-// Los valores son propios (inspirados en los arquetipos de los shooters, sin copiar ningún juego).
-//
-// rps: disparos por segundo · magazine: balas por cargador · reloadTime: s · drawTime: s al sacarla
-// damage: daño por zona (cabeza/cuerpo/piernas) de cada bala o perdigón; los bots tienen 100 de vida
-// fireModes: modos disponibles ('semi' | 'auto' | 'burst') y el primero es el de por defecto. Las
-//   automáticas arrancan en automático: mantener el clic dispara (sin un clic por bala).
-// burst / burstDelay: balas por ráfaga y pausa tras cada ráfaga (s) — rifle de ráfaga
-// bloomPerShot / maxBloom / bloomRecovery: dispersión que acumula al disparar seguido (grados) y cuánto
-//   recupera por segundo
-// moveSpread: multiplicador de la imprecisión al moverse/saltar (1 = la del rifle)
-// pellets / pelletSpread: perdigones por disparo y su cono (grados) — escopeta
-// hipSpread: dispersión fija sin apuntar (grados) — francotirador
-// zoom: aumento al apuntar con clic derecho (null = sin mira telescópica)
-// ads: apuntar con las miras (clic derecho) en las armas sin mira telescópica: aumento, multiplicador de
-//   la dispersión (ráfaga y movimiento) y de la velocidad al caminar apuntando
-// recoil: fuerza del retroceso visual (0-1) · sound: perfil de sonido (audio/Sfx.js) · soundRate:
-//   tono de la grabación (las armas nuevas reutilizan la de su familia, más grave o más aguda)
-
 import { normalizeCrosshair } from '../ui/Crosshair.js';
 
 export const WEAPONS = {
@@ -253,8 +234,6 @@ export const WEAPONS = {
   },
 };
 
-// Arma especial del modo zombi (no está en el arsenal de entrenamiento): sale de la caja fuerte o
-// se compra en la terraza de la Feria. Un rayo de energía que deshace a casi cualquier zombi de un tiro.
 WEAPONS.ray = {
   id: 'ray',
   key: '0',
@@ -283,24 +262,19 @@ WEAPONS.ray = {
   crosshair: normalizeCrosshair({ shape: 'circle', color: '#c77dff', size: 6, thickness: 2, gap: 3, outline: true, opacity: 1, dot: true, dotSize: 2, outlineThickness: 1, outlineColor: '#000000', dynamic: false }),
 };
 
-// Orden de las teclas (1-9): las cinco de siempre conservan su número.
 export const WEAPON_ORDER = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr'];
-// Todas, con las especiales (munición por arma, modelos).
 export const ALL_WEAPONS = [...WEAPON_ORDER, 'ray'];
 export const DEFAULT_WEAPON = 'rifle';
-export const EVALUATION_WEAPON = 'rifle'; // arma estándar de la evaluación (la que da rango; se cambia en «Personalizar» como práctica)
+export const EVALUATION_WEAPON = 'rifle';
 
 export function getWeapon(id) {
   return WEAPONS[id] ?? WEAPONS[DEFAULT_WEAPON];
 }
 
-// Daño máximo de un disparo a una zona (todos los perdigones).
 export const shotDamage = (w, part) => w.damage[part] * w.pellets;
 
-// Disparos por segundo sostenidos: en ráfaga cuenta la pausa entre ráfagas.
 export const sustainedRps = (w) => (w.burst ? w.burst / (w.burst / w.rps + w.burstDelay) : w.rps);
 
-// Valoraciones 0-1 para comparar armas en el arsenal (normalizadas contra el arsenal).
 export function weaponRatings(w) {
   const all = WEAPON_ORDER.map((id) => WEAPONS[id]);
   const max = (f) => Math.max(...all.map(f));

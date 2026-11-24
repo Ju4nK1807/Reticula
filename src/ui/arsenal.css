@@ -1,5 +1,3 @@
-/* Arsenal: lista de armas + ficha del arma enfocada (se carga con la pantalla). */
-
 .ar-layout { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 28px; align-items: start; }
 .ar-list { padding-top: 8px; }
 .ar-list .menu-list { width: 100%; }
@@ -10,7 +8,6 @@
 .ar-show-head .tag { margin-left: 0; }
 .ar-name { font-size: 40px; letter-spacing: 0.1em; }
 
-/* Silueta grande del arma sobre un suelo de luz: es la "vitrina". */
 .ar-hero {
   position: relative; height: clamp(90px, 14vh, 150px); margin: 4px 0 6px; padding: 10px 6%;
   color: var(--text-2);

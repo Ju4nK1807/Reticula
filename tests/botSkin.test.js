@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { aimBone, loadSoldier } from '../src/bots/botSkin.js';
 
-// Cadena de dos huesos: muslo (hip) → rodilla (knee), con el muslo colgando hacia abajo.
 function chain() {
   const root = new THREE.Group();
   const hip = new THREE.Bone();
@@ -19,7 +18,7 @@ describe('apariencia del soldado (IK y carga)', () => {
   it('aimBone gira el hueso para que su hijo apunte al objetivo, sin cambiar el largo', () => {
     const { hip, knee } = chain();
     const from = knee.getWorldPosition(new THREE.Vector3());
-    const target = new THREE.Vector3(0, 1, 1); // al frente, a la altura de la cadera
+    const target = new THREE.Vector3(0, 1, 1);
     aimBone(hip, from, target);
     const k = knee.getWorldPosition(new THREE.Vector3());
     const dir = k.clone().sub(new THREE.Vector3(0, 1, 0)).normalize();
