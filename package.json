@@ -1,6 +1,6 @@
 {
   "name": "reticula",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Retícula: aim trainer 3D (navegador, Windows y Android)",
   "private": true,
   "type": "module",
@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "desktop": "vite build && electron .",
     "desktop:build": "vite build && electron-builder --win --publish never",
+    "desktop:mac": "vite build && electron-builder --mac --publish never",
     "android:sync": "vite build && cap sync android",
     "android:build": "npm run android:sync && cd android && gradlew assembleDebug"
   },

@@ -115,7 +115,7 @@ export class SphereTrackingPhase extends SpherePhase {
     this.origin = this.game.player.eye.clone();
     this.yaw = 0;
     this.pitch = 3;
-    this.vel = randSign() * rand(16, 26); // grados/s
+    this.vel = randSign() * rand(16, 26) * this.evalCfg.speed; // grados/s
     this.turnIn = rand(0.4, 1.1);
     this.jumpT = -1;
     this.jumpIn = rand(2, 4);
@@ -134,7 +134,7 @@ export class SphereTrackingPhase extends SpherePhase {
       if (Math.random() < 0.12) this.vel = 0;
       else {
         const dir = this.vel === 0 ? randSign() : Math.random() < 0.7 ? -Math.sign(this.vel) : Math.sign(this.vel);
-        this.vel = dir * rand(14, 34);
+        this.vel = dir * rand(14, 34) * this.evalCfg.speed;
       }
       this.turnIn = rand(0.3, 1.2);
     }
@@ -212,6 +212,7 @@ export class SphereReactionPhase extends SpherePhase {
     super(ev);
     this.duration = Infinity;
     this.trial = 0;
+    this.trials = this.evalCfg.reactionTrials;
     this.times = [];
     this.early = 0;
     this.state = 'idle';
@@ -262,7 +263,7 @@ export class SphereReactionPhase extends SpherePhase {
 
   nextTrial() {
     this.trial++;
-    if (this.trial >= TRIALS) {
+    if (this.trial >= this.trials) {
       this.state = 'done';
       this.finished = true;
     } else this.armWait();
@@ -310,7 +311,7 @@ export class SphereReactionPhase extends SpherePhase {
       score: Math.round(this.score),
       accLabel: 'Promedio',
       accText: ms(average(this.times)),
-      time: `${Math.min(this.trial + 1, TRIALS)}/${TRIALS}`,
+      time: `${Math.min(this.trial + 1, this.trials)}/${this.trials}`,
     };
   }
 
@@ -320,7 +321,7 @@ export class SphereReactionPhase extends SpherePhase {
       avgMs: average(this.times),
       bestMs: this.times.length ? Math.min(...this.times) : null,
       early: this.early,
-      trials: TRIALS,
+      trials: this.trials,
     };
   }
 }
@@ -349,7 +350,7 @@ export class SphereMultiPhase extends SpherePhase {
   }
 
   begin() {
-    for (let i = 0; i < 3; i++) this.spawnOne();
+    for (let i = 0; i < this.evalCfg.count; i++) this.spawnOne();
   }
 
   spawnOne() {
@@ -396,7 +397,7 @@ export class SpherePrecisionPhase extends SpherePhase {
   }
 
   begin() {
-    for (let i = 0; i < 3; i++) this.spawnOne();
+    for (let i = 0; i < this.evalCfg.count; i++) this.spawnOne();
   }
 
   spawnOne() {

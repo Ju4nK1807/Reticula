@@ -2,6 +2,7 @@
 import { DEFAULT_WEAPON, WEAPONS, WEAPON_ORDER } from '../combat/weapons.js';
 import { CROSSHAIR_DEFAULTS } from '../ui/Crosshair.js';
 import { DEFAULT_KEYS } from './keybinds.js';
+import { EVAL_DEFAULTS } from '../modes/evaluation/evalConfig.js';
 
 export const DEFAULT_SETTINGS = {
   // La sensibilidad se guarda en la escala del juego elegido (ver config/sensitivity.js).
@@ -10,7 +11,7 @@ export const DEFAULT_SETTINGS = {
   fov: 103,
   // Mira global (piezas combinables: líneas, líneas exteriores, punto, anillo, contorno… ver ui/Crosshair.js).
   crosshair: { ...CROSSHAIR_DEFAULTS },
-  // Arma elegida en el arsenal (la evaluación usa siempre el rifle).
+  // Arma elegida en el arsenal (la evaluación usa la suya: ver evaluation).
   weapon: DEFAULT_WEAPON,
   // Mira propia de cada arma (true) o la misma para todas (false → `crosshair`).
   crosshairPerWeapon: true,
@@ -18,6 +19,8 @@ export const DEFAULT_SETTINGS = {
   // Retículas guardadas por el jugador en el editor: [{ name, config }].
   savedCrosshairs: [],
   enemyColor: '#ff3b4f',
+  // Personalización de las evaluaciones (arma, colores, cantidad, tamaño…): ver modes/evaluation/evalConfig.js.
+  evaluation: structuredClone(EVAL_DEFAULTS),
   gameplay: {
     moveInaccuracy: true, // disparar en movimiento o en el aire desvía las balas (estilo táctico)
     tracers: true,
@@ -43,6 +46,10 @@ export const ENEMY_COLORS = {
   '#ffe14d': 'Amarillo (daltonismo)',
   '#c86bff': 'Morado (daltonismo)',
   '#36d6ff': 'Cian',
+  '#ff8a2a': 'Naranja',
+  '#3dff8a': 'Verde',
+  '#3d6bff': 'Azul',
+  '#f2f2f2': 'Blanco',
 };
 
 // Al cambiar la forma del guardado: subir `version` y añadir el paso en storage/SaveStore.js (MIGRATIONS).

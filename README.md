@@ -26,10 +26,16 @@ Además de en el navegador, Retícula se descarga como app. Las descargas están
 | Plataforma | Archivo | Cómo se juega |
 |------------|---------|---------------|
 | Windows | `Reticula-Setup-x.y.z.exe` (instalador) o `Reticula-Portable-x.y.z.exe` (sin instalar) | Mouse y teclado, con raw input y Pointer Lock igual que en Chrome. `F11`: pantalla completa |
+| Mac | `Reticula-Mac-x.y.z-arm64.dmg` (Apple M1 o más nuevo) o `Reticula-Mac-x.y.z-x64.dmg` (Intel); también en `.zip` | Mouse y teclado, igual que en Windows |
 | Android | `Reticula-x.y.z.apk` | **Controles táctiles**: joystick a la izquierda, arrastrar a la derecha para apuntar y botones de disparo, mira, recarga, salto, agacharse, arma y pausa. Siempre en horizontal y a pantalla completa |
 | Navegador | https://ju4nk1807.github.io/Reticula/ | En el teléfono, "Agregar a la pantalla de inicio" la instala con su ícono |
 
 Para instalar el APK en Android hay que permitir "Instalar apps de origen desconocido" al abrirlo.
+
+En Mac, abre el `.dmg` y arrastra Retícula a Aplicaciones. Como la app no está firmada por Apple (eso
+requiere una cuenta de Apple Developer), la primera vez hay que abrirla con **clic derecho → Abrir** y
+confirmar. Si macOS dice que "está dañada", en la Terminal: `xattr -cr /Applications/Reticula.app`.
+No hay versión para iPhone/iPad: instalar apps en iOS fuera de la App Store exige esa misma cuenta.
 
 ### Controles táctiles
 Se activan solos en dispositivos sin mouse, o a mano en *Configuración → Juego → Controles táctiles*.
@@ -39,6 +45,7 @@ Ahí también están la sensibilidad táctil (independiente de la del mouse) y e
 ```bash
 npm run desktop          # abre la app de escritorio con la versión compilada
 npm run desktop:build    # instalador y portable de Windows en release/
+npm run desktop:mac      # DMG y ZIP de macOS en release/ (hay que compilarlo en una Mac; el CI lo hace)
 npm run android:sync     # compila el juego y lo copia al proyecto Android (android/)
 npm run android:build    # APK de depuración (necesita JDK 21 y el SDK de Android)
 ```

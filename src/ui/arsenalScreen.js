@@ -1,6 +1,6 @@
 // Arsenal: lista de armas a la izquierda (mismo menú que la pantalla de título) y la ficha del arma
 // enfocada a la derecha. Moverse por la lista la previsualiza; Enter o clic la equipa.
-// La evaluación usa siempre el rifle (rangos comparables); el arma elegida vale para el resto.
+// La evaluación usa el rifle para dar rango (otra arma, en «Personalizar», es práctica); el arma elegida vale para el resto.
 import './menu.css';
 import './arsenal.css';
 import { h } from './dom.js';
@@ -117,7 +117,7 @@ export function arsenalScreen(game, { onBack, onCrosshair }) {
           {},
           h('div', { class: 'eyebrow' }, 'Arsenal'),
           h('h2', {}, 'Elige tu arma'),
-          h('p', { class: 'muted' }, `${touch ? 'En partida cambia con el botón de arma.' : 'En partida cambia con las teclas 1 a 5.'} La evaluación usa siempre el ${WEAPONS[EVALUATION_WEAPON].name} para que los rangos sean comparables.`),
+          h('p', { class: 'muted' }, `${touch ? 'En partida cambia con el botón de arma.' : 'En partida cambia con las teclas 1 a 5.'} La evaluación da rango con el ${WEAPONS[EVALUATION_WEAPON].name}; en «Personalizar» puedes practicarla con cualquier arma.`),
         ),
         button('← Volver', onBack, { variant: 'ghost' }),
       ),

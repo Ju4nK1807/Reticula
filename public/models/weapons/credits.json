@@ -1,5 +1,5 @@
 {
-  "_info": "Modelos de armas en primera persona. Fuente: Poly Pizza. Optimizados con: npx @gltf-transform/cli optimize <in> <out> --compress false --texture-compress false --simplify false --instance false --palette false",
+  "_info": "Modelos de armas en primera persona (Poly Pizza, CC0). Cada arma tiene su propio modelo. Los de Quaternius vienen con el cañón sobre X y a otra escala: ver rotY y norm en src/combat/weaponModels.js.",
   "pistol": {
     "file": "pistol.glb",
     "source": "https://poly.pizza/m/r8RjoAwN5A",
@@ -31,31 +31,38 @@
     "license": "CC0 1.0"
   },
   "magnum": {
-    "file": "pistol.glb",
-    "note": "Variante del modelo de la pistola (otra escala y acabado).",
-    "source": "https://poly.pizza/m/r8RjoAwN5A",
-    "author": "Pichuliru",
+    "file": "magnum.glb",
+    "name": "Revolver Small",
+    "source": "https://poly.pizza/m/khBf3dViHE",
+    "author": "Quaternius",
     "license": "CC0 1.0"
   },
   "burst": {
-    "file": "rifle.glb",
-    "note": "Variante del modelo del rifle (otra escala y acabado).",
-    "source": "https://poly.pizza/m/ss1nz3gJnx",
+    "file": "burst.glb",
+    "name": "Rifle Assault East",
+    "source": "https://poly.pizza/m/xrJfQgAuDL",
     "author": "Pichuliru",
     "license": "CC0 1.0"
   },
   "lmg": {
-    "file": "rifle.glb",
-    "note": "Variante del modelo del rifle (otra escala y acabado).",
-    "source": "https://poly.pizza/m/ss1nz3gJnx",
+    "file": "lmg.glb",
+    "name": "Rifle West",
+    "source": "https://poly.pizza/m/wED1MSx2SK",
     "author": "Pichuliru",
     "license": "CC0 1.0"
   },
   "dmr": {
-    "file": "sniper.glb",
-    "note": "Variante del modelo del francotirador (otra escala y acabado).",
-    "source": "https://poly.pizza/m/R1qESvHtZH",
+    "file": "dmr.glb",
+    "name": "Sniper Rifle East",
+    "source": "https://poly.pizza/m/mqhnsEX5VJ",
     "author": "Pichuliru",
+    "license": "CC0 1.0"
+  },
+  "ray": {
+    "file": "ray.glb",
+    "name": "Scifi Assault Rifle",
+    "source": "https://poly.pizza/m/j40c8VDdAQ",
+    "author": "Quaternius",
     "license": "CC0 1.0"
   }
 }

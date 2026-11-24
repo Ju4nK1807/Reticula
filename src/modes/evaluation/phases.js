@@ -179,6 +179,7 @@ export class PeekPhase extends Phase {
     super(ev);
     this.duration = Infinity;
     this.count = 0;
+    this.peeks = this.evalCfg.peeks;
     this.times = [];
     this.current = null;
     this.visibleAt = null; // ms (reloj real) en que el enemigo actual se volvió visible
@@ -212,7 +213,7 @@ export class PeekPhase extends Phase {
     if (!this.current) {
       this.wait -= dt;
       if (this.wait > 0) return;
-      if (this.count >= PEEKS) this.finished = true;
+      if (this.count >= this.peeks) this.finished = true;
       else this.spawnPeek();
       return;
     }
@@ -248,14 +249,14 @@ export class PeekPhase extends Phase {
       score: Math.round(this.score),
       accLabel: 'Reacción',
       accText: ms(average(this.times)),
-      time: `${Math.min(Math.max(this.count, 1), PEEKS)}/${PEEKS}`,
+      time: `${Math.min(Math.max(this.count, 1), this.peeks)}/${this.peeks}`,
     };
   }
 
   results() {
     return {
       ...this.baseResults(),
-      peeks: PEEKS,
+      peeks: this.peeks,
       avgMs: average(this.times),
       bestMs: this.times.length ? Math.min(...this.times) : null,
     };
@@ -296,8 +297,8 @@ export class PrecisionPhase extends Phase {
   }
 
   begin() {
-    this.spawnOne();
-    this.spawnOne();
+    // Dos enemigos a la vez con la cantidad estándar (3): uno menos que las dianas, que son más chicas.
+    for (let i = 0; i < Math.max(1, this.evalCfg.count - 1); i++) this.spawnOne();
   }
 
   spawnOne() {
@@ -327,7 +328,6 @@ export class PrecisionPhase extends Phase {
 // ---------------------------------------------------------------------------
 // 5. Combate en movimiento: enemigos por todos lados que disparan de verdad.
 // ---------------------------------------------------------------------------
-const MAX_ALIVE = 3;
 
 export class CombatPhase extends Phase {
   static info = {
@@ -367,7 +367,7 @@ export class CombatPhase extends Phase {
     if (this.finished) return;
     this.spawnIn -= dt;
     const alive = this.bots.filter((b) => b.alive).length;
-    if (this.spawnIn <= 0 && alive < MAX_ALIVE) {
+    if (this.spawnIn <= 0 && alive < this.evalCfg.count) {
       this.spawnEnemy();
       this.spawnIn = rand(1.6, 3);
     }

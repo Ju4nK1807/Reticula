@@ -659,3 +659,24 @@ input[type='range']:active::-webkit-slider-thumb { transform: scale(1.15); }
   #hud .eh-b-count { font-size: 26px; }
   #hud .eh-b-sub { font-size: 12px; }
 }
+
+/* Evaluación: tarjeta de configuración (estándar o práctica) y pantalla «Personalizar». */
+.eval-config-card {
+  display: flex; flex-direction: column; gap: 4px; margin: 14px 0 4px; padding: 10px 14px;
+  border-radius: var(--r-md); background: var(--surface-2); border: 1px solid rgba(0, 245, 160, 0.35);
+}
+.eval-config-card strong { color: var(--accent); font: 600 13px var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; }
+.eval-config-card p { margin: 0; }
+.eval-config-card.custom { border-color: rgba(255, 176, 32, 0.45); }
+.eval-config-card.custom strong { color: var(--warn); }
+.eval-config h3 { margin: 18px 0 6px; }
+.eval-color { display: flex; align-items: center; gap: 10px; }
+.eval-color select { flex: 1; }
+.eval-swatch { width: 26px; height: 26px; border-radius: 50%; flex: none; border: 2px solid rgba(255, 255, 255, 0.25); box-shadow: 0 0 10px rgba(255, 255, 255, 0.15); }
+.eval-phases { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.eval-phase {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--r-md); cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.eval-phase:has(input:checked) { border-color: rgba(0, 245, 160, 0.45); }
+.results-hero.practice { grid-template-columns: 1fr; }
