@@ -657,7 +657,7 @@ Proyecto del curso de 5.º semestre, hecho en equipo con ramas, pull requests re
 |---|---|
 | Camilo Rosero | [@KmiloRosero](https://github.com/KmiloRosero) |
 | Ju4nK1807 | [@Ju4nK1807](https://github.com/Ju4nK1807) |
-| tulcansantiago08-cell | [@tulcansantiago08-cell](https://github.com/tulcansantiago08-cell) |
+| Santiago Tulcan | [@tulcansantiago08-cell](https://github.com/tulcansantiago08-cell) |
 
 ## Créditos de recursos
 
