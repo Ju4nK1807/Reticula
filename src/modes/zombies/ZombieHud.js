@@ -4,6 +4,7 @@ import { PERKS, POWERUPS } from './zombieData.js';
 import { GRENADE_TYPES } from '../../combat/Grenades.js';
 import { keyLabel } from '../../config/keybinds.js';
 import { icon } from '../../ui/icons.js';
+import { SAFE } from './safe.js';
 
 const MAX_ARROWS = 6;
 const THREAT_RANGE = 7; // m: zombis más cerca que esto y fuera de pantalla → flecha
@@ -19,6 +20,9 @@ const fmt = (n) => Math.round(n).toLocaleString('es');
   - Granadas y potenciadores activos con su cuenta atrás.
   - Cartel central (cuentas, oleada nueva, oleada superada y aviso de la armería).
   - Flechas de amenaza: zombis cerca y fuera de la vista.
+  - El Jefe: su barra de vida mientras está vivo y, al matarlo, el código de la caja fuerte.
+  - Teclado de la caja fuerte (se escribe con los números o tocando las teclas en el celular). Va
+    encima de los controles táctiles para que se pueda tocar.
 */
 export class ZombieHud {
   constructor(hud) {
@@ -69,9 +73,51 @@ export class ZombieHud {
     // Viñeta oscura (en calidad alta la pone el postproceso) y bordes rojos al estar herido.
     this.vignette = h('div', { class: 'zh-vignette', hidden: true });
     this.hurt = h('div', { class: 'zh-hurt' });
-    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.lightBox, this.banner, this.prompt);
+    // El Jefe: barra de vida arriba al centro.
+    this.bossFill = h('i');
+    this.bossBox = h('div', { class: 'zh-boss', hidden: true }, h('div', { class: 'zh-boss-name' }, 'El Jefe'), h('div', { class: 'zh-boss-meter' }, this.bossFill), h('small', {}, 'Lleva el código de la caja fuerte'));
+    // Código de la caja fuerte (cuando el Jefe ya cayó y la caja sigue cerrada).
+    this.codeVal = h('strong', {}, '');
+    this.codeBox = h('div', { class: 'zh-code', hidden: true }, h('small', {}, 'Código de la caja fuerte'), this.codeVal);
+    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.lightBox, this.bossBox, this.codeBox, this.banner, this.prompt);
     layer.append(this.root);
     this.cache = new Map();
+    this.buildKeypad(layer);
+  }
+
+  // Teclado de la caja fuerte. onKeypad(tecla): '0'-'9', 'back', 'ok' o 'close' (lo pone el modo).
+  buildKeypad(layer) {
+    this.onKeypad = null;
+    this.kpSlots = Array.from({ length: SAFE.digits }, () => h('span', { class: 'zh-kp-slot' }, ''));
+    this.kpMsg = h('div', { class: 'zh-kp-msg' }, '');
+    this.kpHelp = h('div', { class: 'zh-kp-help' }, '');
+    const key = (k, label, cls = '') => {
+      const b = h('button', { type: 'button', class: `zh-kp-key ${cls}`, 'data-k': k }, label);
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.onKeypad?.(k);
+      });
+      return b;
+    };
+    const keys = h('div', { class: 'zh-kp-keys' }, ...'123456789'.split('').map((d) => key(d, d)), key('back', '⌫', 'muted'), key('0', '0'), key('ok', 'Abrir', 'ok'));
+    this.keypad = h('div', { class: 'zh-keypad', hidden: true }, h('div', { class: 'zh-kp-title' }, 'Caja fuerte'), h('div', { class: 'zh-kp-screen' }, ...this.kpSlots), this.kpMsg, keys, key('close', 'Cerrar', 'close'), this.kpHelp);
+    // Encima de los controles táctiles (que tapan el HUD): en la raíz de la app.
+    (layer.closest('#app') ?? layer).append(this.keypad);
+  }
+
+  /** state = { entry, msg, tone: '' | 'bad' | 'good', help } o null para cerrarlo. */
+  setKeypad(state) {
+    this.set('kpShow', this.keypad, !state, 'hidden');
+    if (!state) return;
+    this.kpSlots.forEach((el, i) => {
+      const ch = state.entry[i] ?? '';
+      if (el.textContent !== ch) el.textContent = ch;
+      el.classList.toggle('on', i === state.entry.length);
+    });
+    this.set('kpMsg', this.kpMsg, state.msg ?? '');
+    this.set('kpTone', this.keypad, `zh-keypad${state.tone ? ` ${state.tone}` : ''}`, 'className');
+    this.set('kpHelp', this.kpHelp, state.help ?? '');
   }
 
   set(key, el, value, prop = 'textContent') {
@@ -177,7 +223,23 @@ export class ZombieHud {
     } else if (mode.state === 'wave' && mode.waveBannerT > 0) this.banner_(`Ronda ${run.wave}`, run.cfg?.runnerNight ? 'Noche de corredores: vienen rápido' : `${run.cfg?.count ?? ''} zombis`);
     else this.banner_(null);
 
+    this.updateBoss(run);
     this.updateArrows(game, run);
+  }
+
+  // Barra de vida del Jefe (mientras vive) y el código de la caja fuerte (cuando lo soltó).
+  updateBoss(run) {
+    const b = run.boss;
+    this.set('bossShow', this.bossBox, !b, 'hidden');
+    if (b) {
+      const pct = `${Math.max(0, Math.round((b.hp / b.maxHp) * 100))}%`;
+      this.set('bossFill', this.bossFill, pct, '__w');
+      if (this.bossFill.style.width !== pct) this.bossFill.style.width = pct;
+    }
+    const s = run.safe;
+    const showCode = !!s && s.known && !s.unlocked;
+    this.set('codeShow', this.codeBox, !showCode, 'hidden');
+    if (showCode) this.set('codeVal', this.codeVal, s.code.split('').join(' '));
   }
 
   // Estado de la linterna: prendida (amarilla), apagada (gris), batería baja (roja, late) o vacía.
@@ -220,5 +282,6 @@ export class ZombieHud {
 
   dispose() {
     this.root.remove();
+    this.keypad.remove();
   }
 }

@@ -419,7 +419,7 @@ export class Sfx {
 
   // Gruñido de zombi: cada tipo con su voz (el caminante alterna gruñido y lamento).
   groan(pan = 0, distance = 5, type = 'walker') {
-    const kind = { runner: 'shriek', brute: 'brute', crawler: 'gurgle' }[type] ?? (Math.random() < 0.55 ? 'groan' : 'moan');
+    const kind = { runner: 'shriek', brute: 'brute', boss: 'brute', crawler: 'gurgle' }[type] ?? (Math.random() < 0.55 ? 'groan' : 'moan');
     this.zombieVoice(kind, pan, distance);
   }
 

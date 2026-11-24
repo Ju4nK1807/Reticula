@@ -253,7 +253,7 @@ export const WEAPONS = {
   },
 };
 
-// Arma especial del modo zombi (no está en el arsenal de entrenamiento): sale de la caja misteriosa o
+// Arma especial del modo zombi (no está en el arsenal de entrenamiento): sale de la caja fuerte o
 // se compra en la terraza de la Feria. Un rayo de energía que deshace a casi cualquier zombi de un tiro.
 WEAPONS.ray = {
   id: 'ray',

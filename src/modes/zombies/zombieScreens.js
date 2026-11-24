@@ -3,7 +3,8 @@ import { button } from '../../ui/components.js';
 import { sensSummary } from '../../config/sensitivity.js';
 import { clock, pct } from '../../utils/format.js';
 import { keyLabel } from '../../config/keybinds.js';
-import { BARRICADE, BOX_PRICE, DEFENSE, DIFFICULTIES, DIFFICULTY_ORDER, DOORS, FORGE, GRENADE_MAX, PERKS, PLAYER, POWERUPS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
+import { BARRICADE, BOX_PRICE, DEFENSE, DIFFICULTIES, DIFFICULTY_ORDER, DOORS, FORGE, GRENADE_MAX, PERKS, PLAYER, POWERUPS, ROUNDS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
+import { SAFE } from './safe.js';
 
 const DIFF_COLORS = { facil: '#00f5a0', normal: '#36d6ff', dificil: '#ffb020', locura: '#ff4d5e' };
 
@@ -22,13 +23,13 @@ function rules(game) {
     ['Barricadas', `Empiezas encerrado en el Vestíbulo. La horda sale de la tierra y arranca los tablones de las ventanas; mantén${key('interact')} junto a una ventana para repararla (+${BARRICADE.repairPoints} por tablón).`],
     ['Abre el mapa', `Las puertas tapiadas se compran${key('interact')}: ${doors}. Cada sección tiene más armas y bebidas, pero también más entradas de zombis. Al Hospital se llega por la Subestación o por el Mercado.`],
     ['Enciende la luz', `El barrio está sin electricidad: las farolas están apagadas y las bebidas y la Forja no funcionan (salvo Segundo Aire). Busca el generador en la Subestación y baja la palanca${key('interact')}.`],
-    ['Caja misteriosa', `Empieza en la plaza (el haz de luz azul): ${BOX_PRICE} puntos por un arma al azar de las que no tienes. Cada tantas tiradas se muda a otro lugar del mapa: sigue el haz.`],
+    ['Caja fuerte', `Empieza en el Relicario de la plaza (el haz de luz roja) y está cerrada con un código de ${SAFE.digits} cifras. El código lo lleva El Jefe, un zombi enorme que llega en la ronda ${ROUNDS.bossFrom}: mátalo, ve a la caja y escribe el código${touch ? '' : ' con los números'}. Abierta (luz verde), da un arma al azar por ${BOX_PRICE} puntos y cada tantas tiradas se muda: sigue el haz.`],
     ['La Forja', `En el quirófano del Hospital, con electricidad: ${fmt(FORGE.price)} puntos forjan el arma que llevas en la mano (doble daño, cargador y reserva más grandes).`],
     ['Armas en la pared', `Empiezas con la pistola (munición infinita). Las demás están colgadas en las paredes: acércate y cómpralas${key('interact')}; con el arma ya comprada, el mismo puesto vende su munición.`],
     ['Bebidas', `${Object.keys(PERKS).length} máquinas repartidas por el mapa: ${Object.values(PERKS).map((p) => p.name).join(', ')}. Duran hasta que caes (Último Aliento te levanta una vez).`],
     ['Granadas y armería', `Entre rondas abre la armería${key('interact')}: munición, botiquín y cuatro tipos de granada (fragmentación, incendiaria, aturdidora y señuelo). Cambia de tipo${key('grenadeNext')}.`],
     ['Potenciadores', `Algunos zombis sueltan un cristal brillante: ${Object.values(POWERUPS).map((p) => p.name.toLowerCase()).join(', ')}. Pasa por encima para tomarlo.`],
-    ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte. Una explosión cerca puede arrancarles las piernas: siguen arrastrándose.'],
+    ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte; El Jefe es el más grande de todos y suelta el código de la caja fuerte. Una explosión cerca puede arrancarles las piernas: siguen arrastrándose.'],
   ];
 }
 

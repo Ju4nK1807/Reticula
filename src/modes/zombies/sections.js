@@ -136,12 +136,17 @@ export function buildHospital(map, M) {
   const b = map.block.bind(map);
   const r = HOSPITAL;
   const wall = M.peeling;
-  // Tabiques del pasillo con las puertas de las salas.
+  // Tabiques del pasillo con las puertas de las salas, y su zócalo azul (del lado del pasillo). El zócalo
+  // va por tramos, como el tabique: entero cruzaba las puertas como una pared que se atravesaba.
   for (const z of [CORRIDOR.minZ, CORRIDOR.maxZ]) {
+    const face = z === CORRIDOR.minZ ? z + 0.14 : z - 0.14;
     let a = r.minX;
     for (const d of [...DOORWAYS, r.maxX + 10]) {
       const end = Math.min(d - DOOR_HALF, r.maxX);
-      if (end - a > 0.1) b(end - a, WALL, 0.25, wall, (a + end) / 2, z);
+      if (end - a > 0.1) {
+        b(end - a, WALL, 0.25, wall, (a + end) / 2, z);
+        b(end - a, 1.1, 0.03, M.peelingBlue, (a + end) / 2, face, 0, false);
+      }
       a = d + DOOR_HALF;
     }
   }
@@ -150,8 +155,7 @@ export function buildHospital(map, M) {
     b(0.25, WALL, r.maxZ - CORRIDOR.maxZ, wall, x, (CORRIDOR.maxZ + r.maxZ) / 2);
     b(0.25, WALL, CORRIDOR.minZ - r.minZ, wall, x, (r.minZ + CORRIDOR.minZ) / 2);
   }
-  // Zócalo azul a lo largo del pasillo y vigas con tubos fluorescentes (algunos titilan).
-  for (const z of [CORRIDOR.minZ + 0.14, CORRIDOR.maxZ - 0.14]) b(r.maxX - r.minX, 1.1, 0.03, M.peelingBlue, (r.minX + r.maxX) / 2, z, 0, false);
+  // Vigas con tubos fluorescentes (algunos titilan).
   for (let x = r.minX + 5; x < r.maxX - 2; x += 7) {
     b(0.35, 0.35, CORRIDOR.maxZ - CORRIDOR.minZ + 0.6, M.concrete, x, (CORRIDOR.minZ + CORRIDOR.maxZ) / 2, WALL, false);
     b(0.12, 0.05, 1.6, M.lamp, x, (CORRIDOR.minZ + CORRIDOR.maxZ) / 2, WALL - 0.06, false);
@@ -181,9 +185,12 @@ export function buildHospital(map, M) {
   };
   // Sala noroeste: cuatro camas con cortinas (el medio queda libre: por ahí entra la horda).
   for (const x of [-54, -51.3, -45.4, -43]) bed(x, -60.5, 0);
+  // Cortinas entre las camas: se ven como paredes, así que también bloquean el paso (no las balas: son
+  // de tela).
   for (const x of [-52.65, -44.2]) {
     b(0.04, 0.04, 2.4, M.metal, x, -60.5, 2.5, false);
     b(0.05, 2.1, 1.9, M.curtain, x, -60.6, 0.35, false);
+    map.colliders.push(new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(x, 1.25, -60.6), new THREE.Vector3(0.12, 2.5, 1.9)));
   }
   // Sala sur-centro: camas contra el muro sur.
   for (const x of [-40.2, -30.2]) bed(x, -41.4, Math.PI);

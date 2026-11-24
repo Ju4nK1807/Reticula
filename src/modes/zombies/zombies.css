@@ -210,3 +210,66 @@
 .zh-light.empty { color: #ff8a8a; border-color: rgba(255, 77, 77, 0.4); }
 @keyframes zh-light-low { 50% { border-color: rgba(255, 77, 77, 0.6); } }
 .touch-mode .zh-light { bottom: auto; top: 236px; left: 72px; }
+
+/* El Jefe: barra de vida arriba al centro (mientras vive). */
+.zh-boss {
+  position: absolute; left: 50%; top: 86px; transform: translateX(-50%); width: min(420px, 70vw); text-align: center;
+  padding: 6px 12px 7px; border-radius: var(--r-md); background: rgba(14, 6, 8, 0.78); border: 1px solid rgba(255, 40, 60, 0.45);
+}
+.zh-boss[hidden] { display: none; }
+.zh-boss-name { font: 700 15px var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; color: #ff3046; }
+.zh-boss-meter { height: 8px; margin: 4px 0 3px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.zh-boss-meter i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #7a0a14, #ff3046); transition: width 0.15s; }
+.zh-boss small { font-size: 11px; color: var(--muted); }
+
+/* Código de la caja fuerte (lo soltó el Jefe): bajo los puntos. */
+.zh-code {
+  position: absolute; right: 22px; top: 118px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  padding: 6px 12px; border-radius: var(--r-md); background: rgba(6, 16, 10, 0.78); border: 1px solid rgba(61, 255, 138, 0.5);
+}
+.zh-code[hidden] { display: none; }
+.zh-code small { font-size: 11px; color: var(--muted); }
+.zh-code strong { font: 700 22px var(--mono); letter-spacing: 0.18em; color: #3dff8a; }
+
+/* Teclado de la caja fuerte: encima de todo (también de los controles táctiles). */
+.zh-keypad {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 8; width: 236px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 14px; pointer-events: auto;
+  border-radius: var(--r-md); background: linear-gradient(180deg, #2b3038, #171a1f); border: 1px solid #5b636d;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08); user-select: none; -webkit-user-select: none;
+}
+.zh-keypad[hidden] { display: none; }
+.zh-kp-title { text-align: center; font: 700 13px var(--font-display); letter-spacing: 0.22em; text-transform: uppercase; color: #e6c27a; }
+.zh-kp-screen {
+  display: flex; justify-content: center; gap: 8px; padding: 8px; border-radius: var(--r-sm);
+  background: #071009; border: 1px solid #1f3a26; box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8);
+}
+.zh-kp-slot {
+  width: 34px; height: 40px; display: grid; place-items: center; font: 700 26px var(--mono); color: #3dff8a;
+  border-bottom: 2px solid rgba(61, 255, 138, 0.25); text-shadow: 0 0 8px rgba(61, 255, 138, 0.6);
+}
+.zh-kp-slot.on { border-bottom-color: #3dff8a; animation: zh-kp-blink 1s steps(1) infinite; }
+@keyframes zh-kp-blink { 50% { border-bottom-color: transparent; } }
+.zh-kp-msg { min-height: 16px; text-align: center; font-size: 12px; color: var(--muted); }
+.zh-keypad.bad .zh-kp-screen { border-color: #7a1a1a; }
+.zh-keypad.bad .zh-kp-slot { color: #ff4a4a; text-shadow: 0 0 8px rgba(255, 74, 74, 0.6); }
+.zh-keypad.bad .zh-kp-msg { color: #ff6b6b; }
+.zh-keypad.good .zh-kp-msg { color: #3dff8a; }
+.zh-kp-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.zh-kp-key {
+  height: 40px; border-radius: var(--r-sm); border: 1px solid #636b75; background: linear-gradient(180deg, #d4d7db, #9ea4ab);
+  font: 700 18px var(--mono); color: #16181b; cursor: pointer; touch-action: manipulation;
+}
+.zh-kp-key:active { transform: translateY(1px); filter: brightness(0.9); }
+.zh-kp-key.muted { background: linear-gradient(180deg, #4a515a, #343a41); color: #e8eaed; }
+.zh-kp-key.ok { background: linear-gradient(180deg, #3dff8a, #1f9a52); font-size: 14px; }
+.zh-kp-key.close { height: 32px; background: transparent; color: var(--muted); border-color: #3a4048; font: 600 13px var(--font, sans-serif); }
+.zh-kp-help { text-align: center; font-size: 11px; line-height: 1.4; color: var(--muted); }
+.touch-mode .zh-kp-help { display: none; }
+@media (max-height: 520px) {
+  .zh-keypad { width: 210px; gap: 5px; padding: 10px; }
+  .zh-kp-key { height: 32px; }
+  .zh-kp-slot { height: 32px; font-size: 22px; }
+  .zh-code { top: 96px; }
+}
+.touch-mode .zh-code { right: 84px; top: 16px; }

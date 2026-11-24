@@ -86,7 +86,7 @@ export function setZombieDetail(level) {
 // Paletas de variación: color medio de la piel y de la ropa (el detalle lo pone la textura).
 const SKINS = ['#6f7062', '#646b5c', '#77695f', '#5d6566', '#6e5f63', '#6a6150', '#7a7468'];
 const CLOTHES = ['#2c3340', '#3b3026', '#2b3326', '#3a3a3a', '#3d2626', '#262d38', '#4a3e2e', '#4d4d52'];
-const EYES = { normal: '#ffb347', brute: '#ff4a2a', runner: '#ffd27a' };
+const EYES = { normal: '#ffb347', brute: '#ff4a2a', runner: '#ffd27a', boss: '#ff1030' };
 // Trajes de payaso: color de fondo y del estampado (apagados: la tela está vieja y sucia).
 const SUITS = [
   ['#7a1612', '#c9b48a'],
@@ -290,7 +290,7 @@ export class ZombieLook {
     this.next = 0;
   }
 
-  /** Aspecto al azar según el tipo (normal | brute | runner). */
+  /** Aspecto al azar según el tipo (normal | brute | runner | boss). */
   randomize(kind = 'normal', rng = Math.random) {
     const pick = (list) => list[Math.floor(rng() * list.length) % list.length];
     this.u.uSkin.value.set(pick(SKINS));
@@ -299,18 +299,26 @@ export class ZombieLook {
       this.u.uSkin.value.multiplyScalar(0.72);
       this.u.uCloth.value.multiplyScalar(0.7);
     }
+    // El Jefe: piel cenicienta casi negra con un tinte rojizo y traje de luto: se distingue de lejos.
+    if (kind === 'boss') {
+      this.u.uSkin.value.set('#4a3a38');
+      this.u.uCloth.value.set('#1a1214');
+    }
     this.u.uBlood.value = 0.8 + rng() * 0.4;
     // Disfraz de payaso: colores y estampado al azar; algunos con la pintura casi toda caída.
     const [a, b] = pick(SUITS);
     this.u.uClownA.value.set(a);
     this.u.uClownB.value.set(b);
     this.u.uClown.value.set(1, Math.floor(rng() * 3), rng() < 0.2 ? 0.55 : 1, 0);
-    if (kind === 'brute') {
+    if (kind === 'boss') {
+      this.u.uClownA.value.set('#5a0a12');
+      this.u.uClownB.value.set('#141012');
+    } else if (kind === 'brute') {
       this.u.uClownA.value.multiplyScalar(0.7);
       this.u.uClownB.value.multiplyScalar(0.7);
     }
     this.u.uEye.value.set(EYES[kind] ?? EYES.normal);
-    this.u.uEyeGlow.value = kind === 'brute' ? 2.4 : 1.5 + rng() * 0.5;
+    this.u.uEyeGlow.value = kind === 'boss' ? 4 : kind === 'brute' ? 2.4 : 1.5 + rng() * 0.5;
     this.clearWounds();
   }
 

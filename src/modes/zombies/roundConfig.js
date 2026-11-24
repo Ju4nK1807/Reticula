@@ -55,6 +55,10 @@ export const ROUNDS = {
   crawlerPerRound: 0.04,
   crawlerMax: 0.2,
   brutesEvery: 3, // un bruto más cada tantas rondas desde que aparecen (dificultad: brutesFrom)
+  // El Jefe (vida ×14 de la ronda): llega en la ronda bossFrom y luego cada bossEvery. Al morir suelta
+  // el código de la caja fuerte (la caja de armas).
+  bossFrom: 3,
+  bossEvery: 4,
 
   // Puntos por terminar la ronda: clearBonus × r.
   clearBonus: 100,

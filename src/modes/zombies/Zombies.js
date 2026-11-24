@@ -16,6 +16,7 @@ import { addHeightFog, nightEnvironment } from './atmosphere.js';
 import { setGrade } from '../../gfx/grade.js';
 import { Flashlight } from './flashlight.js';
 import { setZombieRim } from './zombieLook.js';
+import { SAFE } from './safe.js';
 
 export const MODE_ID = 'zombies';
 export const DEFENSE_ID = 'zombie-defense';
@@ -81,6 +82,7 @@ export class Zombies extends Mode {
     // Granadas por tipo (las lee combat/Grenades.js).
     this.grenadeBag = { frag: 0, fire: 0, stun: 0, decoy: 0 };
     this.near = null; // lo comprable del mapa que tiene delante el jugador
+    this.keypad = null; // teclado de la caja fuerte abierto: { it, msg, tone, msgT }
     this.ash = null;
   }
 
@@ -333,6 +335,7 @@ export class Zombies extends Mode {
   onKey(e, action) {
     if (action === 'flashlight' && !e.repeat) this.toggleFlashlight();
     if (action !== 'interact' || e.repeat) return;
+    if (this.keypad) return this.closeKeypad(); // la tecla de usar también cierra el teclado
     if (this.nearBarricade) return; // reparar se hace manteniendo la tecla (en update)
     if (this.near) this.buyNear();
     else this.openShop();
@@ -396,6 +399,7 @@ export class Zombies extends Mode {
   buyNear() {
     const g = this.game;
     const why = this.run.buy(this.near);
+    if (why === 'keypad') return this.openKeypad(this.near);
     if (why) {
       g.hud.flash(why, 'bad');
       g.sfx.dryFire();
@@ -405,9 +409,93 @@ export class Zombies extends Mode {
     g.onWeaponChange();
   }
 
+  // --- Caja fuerte: teclado del código ---------------------------------------------------------------
+  // Se escribe con los números del teclado (o tocando las teclas en el celular) sin soltar el mouse: la
+  // horda no se detiene mientras tanto. Se cierra con la tecla de usar, al alejarse o al abrirla.
+  openKeypad(it) {
+    if (!this.run || this.keypad) return;
+    this.keypad = { it, msg: '', tone: '', msgT: 0 };
+    this.run.safe.clear();
+    this.hud.onKeypad = (k) => this.keypadPress(k);
+    this.game.sfx.tone('square', 900, 1300, 0.05, 0.05);
+    this.renderKeypad();
+  }
+
+  closeKeypad() {
+    if (!this.keypad) return;
+    this.keypad = null;
+    this.run?.safe.clear();
+    this.hud?.setKeypad(null);
+  }
+
+  keypadMsg(msg, tone = '') {
+    if (!this.keypad) return;
+    this.keypad.msg = msg;
+    this.keypad.tone = tone;
+    this.keypad.msgT = 1.8;
+  }
+
+  /** Una tecla del teclado: '0'-'9', 'back', 'ok' o 'close'. */
+  keypadPress(k) {
+    const run = this.run;
+    if (!this.keypad || !run) return;
+    const s = run.safe;
+    const sfx = this.game.sfx;
+    if (k === 'close') return this.closeKeypad();
+    if (k === 'back') s.back();
+    else if (k === 'ok') {
+      const r = run.submitSafeCode();
+      if (r === 'open') return; // el evento safeOpen cierra el teclado
+      if (r === 'short') {
+        this.keypadMsg(`Son ${SAFE.digits} cifras`, 'bad');
+        sfx.dryFire();
+      } else if (r === 'locked') sfx.dryFire();
+    } else if (s.press(k)) sfx.tone('square', 1500 + Number(k) * 45, 1500 + Number(k) * 45, 0.045, 0.045);
+    else sfx.dryFire();
+    this.renderKeypad();
+  }
+
+  // Números, retroceso y Enter van al teclado mientras está abierto (no cambian de arma).
+  captureKey(e) {
+    if (!this.keypad) return false;
+    const digit = /^(?:Digit|Numpad)([0-9])$/.exec(e.code);
+    let k = digit ? digit[1] : null;
+    if (e.code === 'Backspace') k = 'back';
+    if (e.code === 'Enter' || e.code === 'NumpadEnter') k = 'ok';
+    if (!k) return false;
+    e.preventDefault();
+    if (!e.repeat || k === 'back') this.keypadPress(k);
+    return true;
+  }
+
+  renderKeypad(dt = 0) {
+    const kp = this.keypad;
+    if (!kp || !this.run) return;
+    const s = this.run.safe;
+    kp.msgT -= dt;
+    let msg;
+    let tone = '';
+    if (s.lockT > 0) {
+      msg = `Código incorrecto · espera ${Math.ceil(s.lockT)} s`;
+      tone = 'bad';
+    } else if (kp.msgT > 0) {
+      msg = kp.msg;
+      tone = kp.tone;
+    } else msg = s.known ? `El Jefe soltó el código: ${s.code}` : 'El código lo tiene El Jefe: mátalo';
+    const g = this.game;
+    const help = `Números: escribir · Enter: abrir · ${keyLabel(g.settings.keys, 'interact')}: cerrar`;
+    this.hud.setKeypad({ entry: s.entry, msg, tone, help });
+  }
+
+  // Al pausar (Esc) se cierra el teclado.
+  onPause() {
+    this.closeKeypad();
+  }
+
   // --- Partida ------------------------------------------------------------------------------------
   beginRun() {
     const g = this.game;
+    this.closeKeypad();
     this.run?.dispose();
     g.world.resetDoors?.(); // todas las secciones cerradas otra vez (antes de crear la navegación)
     g.world.resetBarricades?.();
@@ -511,13 +599,16 @@ export class Zombies extends Mode {
     const active = COMBAT.has(this.state) && !this.shopOpen && !run.died;
     this.nearBarricade = active ? this.findBarricade() : null;
     this.near = active && !this.nearBarricade ? this.findNear() : null;
+    // El teclado de la caja fuerte se cierra si el jugador se aleja (o deja de poder usarla).
+    if (this.keypad && (this.near !== this.keypad.it || run.safe.unlocked)) this.closeKeypad();
+    this.renderKeypad(dt);
     this.updateRepair(dt);
     if (this.nearBarricade) {
       const key = g.touchMode ? 'Mantén «Usar»' : `Mantén ${keyLabel(g.settings.keys, 'interact')}`;
       const b = this.nearBarricade;
       const capped = run.repairPoints >= BARRICADE.repairCapPerWave;
       this.hud.setPrompt({ key, text: `Reparar barricada (${b.boards}/${b.max})${capped ? '' : ` · +${BARRICADE.repairPoints} por tablón`}`, price: null, ok: true });
-    } else this.hud.setPrompt(this.near ? this.promptFor(this.near) : null);
+    } else this.hud.setPrompt(this.near && !this.keypad ? this.promptFor(this.near) : null);
     g.hud.setStats(run.hudStats());
     this.hud.update(g, run, this);
     this.updateForgeGlow(dt);
@@ -603,6 +694,7 @@ export class Zombies extends Mode {
 
   die() {
     const g = this.game;
+    this.closeKeypad();
     this.state = 'dying';
     this.timer = DEATH_TIME;
     g.player.movementEnabled = false;
@@ -703,7 +795,7 @@ export class Zombies extends Mode {
         break;
       case 'groan': {
         const z = data.zombie;
-        if (z.type === 'brute' && z.t < 2) sfx.zombieVoice('roar', this.game.panFor(z.position), data.dist);
+        if (z.heavy && z.t < 2) sfx.zombieVoice('roar', this.game.panFor(z.position), data.dist);
         else sfx.groan(this.game.panFor(z.position), data.dist, z.type);
         break;
       }
@@ -712,7 +804,7 @@ export class Zombies extends Mode {
         break;
       case 'kill': {
         const z = data.zombie;
-        if (Math.random() < 0.7) sfx.zombieVoice(z.type === 'brute' ? 'brute' : 'death', this.game.panFor(z.position), z.position.distanceTo(this.game.player.position));
+        if (Math.random() < 0.7) sfx.zombieVoice(z.heavy ? 'brute' : 'death', this.game.panFor(z.position), z.position.distanceTo(this.game.player.position));
         break;
       }
       case 'tear': { // arrancan un tablón de la barricada
@@ -739,8 +831,26 @@ export class Zombies extends Mode {
         hud.flash(`${WEAPONS[data.id].name} comprada${data.dropped ? ` · dejaste ${WEAPONS[data.dropped].name}` : ''}`, 'good');
         break;
       case 'box':
-        hud.flash(`Caja misteriosa: ¡${WEAPONS[data.id].name}!${data.dropped ? ` · dejaste ${WEAPONS[data.dropped].name}` : ''}`, 'good');
+        hud.flash(`Caja fuerte: ¡${WEAPONS[data.id].name}!${data.dropped ? ` · dejaste ${WEAPONS[data.dropped].name}` : ''}`, 'good');
         sfx.powerup();
+        break;
+      case 'bossSpawn':
+        hud.flash('¡Llegó El Jefe! Lleva el código de la caja fuerte', 'bad');
+        sfx.zombieVoice('roar', this.game.panFor(data.zombie.position), 6);
+        break;
+      case 'bossKill':
+        hud.flash(`El Jefe cayó · código de la caja fuerte: ${data.code}`, 'good');
+        sfx.complete();
+        this.game.grenades.shake = 0.5;
+        break;
+      case 'safeOpen':
+        this.closeKeypad();
+        hud.flash('¡Caja fuerte abierta! Ahora te da un arma al azar', 'good');
+        sfx.tone('square', 600, 1800, 0.25, 0.08);
+        sfx.powerup();
+        break;
+      case 'safeWrong':
+        sfx.tone('sawtooth', 180, 90, 0.4, 0.12);
         break;
       case 'ammo':
         hud.flash(`Munición de ${WEAPONS[data.id].name}`, 'good');
@@ -766,7 +876,7 @@ export class Zombies extends Mode {
         this.game.onWeaponChange();
         break;
       case 'boxMove':
-        hud.flash(`La caja misteriosa se fue a ${data.where}`, 'info');
+        hud.flash(`La caja fuerte se fue a ${data.where}`, 'info');
         break;
       case 'lastStand':
         hud.flash('Último Aliento: ¡te levantaste!', 'good');
@@ -777,6 +887,7 @@ export class Zombies extends Mode {
 
   dispose() {
     const g = this.game;
+    this.closeKeypad();
     this.music?.stop(1);
     this.music = null;
     g.sfx.setSpace(1);
