@@ -1,50 +1,43 @@
 import { h } from '../../ui/dom.js';
 import { button } from '../../ui/components.js';
 import { sensSummary } from '../../config/sensitivity.js';
-import { clock, pct } from '../../utils/format.js';
+import { clock } from '../../utils/format.js';
 import { keyLabel } from '../../config/keybinds.js';
-import { BARRICADE, BOX_PRICE, DEFENSE, DIFFICULTIES, DIFFICULTY_ORDER, DOORS, FORGE, GRENADE_MAX, PERKS, PLAYER, POWERUPS, ROUNDS, SHOP, ZOMBIE_TYPES, cannotBuy } from './zombieData.js';
-import { SAFE } from './safe.js';
+import { DIFFICULTIES, DIFFICULTY_ORDER, GRENADE_MAX, SHOP, cannotBuy } from './zombieData.js';
 
 const DIFF_COLORS = { facil: '#00f5a0', normal: '#36d6ff', dificil: '#ffb020', locura: '#ff4d5e' };
 
 const fmt = (n) => Math.round(n).toLocaleString('es');
 
-// Reglas de la pantalla de inicio; las teclas solo se nombran con teclado (en táctil hay botones).
-function rules(game) {
-  const touch = game.touchMode;
-  const key = (id) => (touch ? '' : ` (${keyLabel(game.settings.keys, id)})`);
-  // Una vez por sección (el Hospital tiene dos puertas con el mismo precio).
-  const doors = [...new Map(Object.values(DOORS).map((d) => [d.name, d])).values()].map((d) => `${d.name} (${fmt(d.price)})`).join(', ');
-  return [
-    ['Linterna', `Es de noche y la niebla no deja ver: lo único que alumbra es tu linterna. Préndela o apágala${touch ? ' con el botón de la luz' : key('flashlight')}; apagada, solo vas a ver los ojos de los payasos.`],
-    ['Gana puntos', `Cada impacto da puntos; matar da más, sobre todo a la cabeza, con el cuchillo${key('melee')} o con granadas${key('grenade')}.`],
-    ['Barricadas', `Empiezas encerrado en el Vestíbulo. La horda sale de la tierra y arranca los tablones de las ventanas; mantén${key('interact')} junto a una ventana para repararla (+${BARRICADE.repairPoints} por tablón).`],
-    ['Abre el mapa', `Las puertas tapiadas se compran${key('interact')}: ${doors}. Cada sección tiene más armas y bebidas, pero también más entradas de zombis. Al Hospital se llega por la Subestación o por el Mercado.`],
-    ['Enciende la luz', `El barrio está sin electricidad: las farolas están apagadas y las bebidas y la Forja no funcionan (salvo Segundo Aire). Busca el generador en la Subestación y baja la palanca${key('interact')}.`],
-    ['Caja fuerte', `Empieza en el Relicario de la plaza (el haz de luz roja) y está cerrada con un código de ${SAFE.digits} cifras. El código lo lleva El Jefe, un zombi enorme que llega en la ronda ${ROUNDS.bossFrom}: mátalo, ve a la caja y escribe el código${touch ? '' : ' con los números'}. Abierta (luz verde), da un arma al azar por ${BOX_PRICE} puntos y cada tantas tiradas se muda: sigue el haz.`],
-    ['La Forja', `En el quirófano del Hospital, con electricidad: ${fmt(FORGE.price)} puntos forjan el arma que llevas en la mano (doble daño, cargador y reserva más grandes).`],
-    ['Armas en la pared', `Empiezas con la pistola (munición infinita). Las demás están colgadas en las paredes: acércate y cómpralas${key('interact')}; con el arma ya comprada, el mismo puesto vende su munición.`],
-    ['Bebidas', `${Object.keys(PERKS).length} máquinas repartidas por el mapa: ${Object.values(PERKS).map((p) => p.name).join(', ')}. Duran hasta que caes (Último Aliento te levanta una vez).`],
-    ['Granadas y armería', `Entre rondas abre la armería${key('interact')}: munición, botiquín y cuatro tipos de granada (fragmentación, incendiaria, aturdidora y señuelo). Cambia de tipo${key('grenadeNext')}.`],
-    ['Potenciadores', `Algunos zombis sueltan un cristal brillante: ${Object.values(POWERUPS).map((p) => p.name.toLowerCase()).join(', ')}. Pasa por encima para tomarlo.`],
-    ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte; El Jefe es el más grande de todos, embiste (sal de su línea), pisotea el suelo (aléjate o salta), llama corredores y se enfurece con poca vida; al morir suelta el código de la caja fuerte. Una explosión cerca puede arrancarles las piernas: siguen arrastrándose.'],
-  ];
-}
-
+// Controles de la pantalla de inicio (es lo único que muestra: nada de reglas).
 function controls(keys) {
   const k = (id) => keyLabel(keys, id);
   return [
+    [`${k('forward')} ${k('left')} ${k('back')} ${k('right')}`, 'Moverse'],
+    [k('sprint'), 'Correr'],
+    [k('jump'), 'Saltar'],
+    [k('crouch'), 'Agacharse'],
     ['Clic', 'Disparar (mantenlo con las automáticas)'],
     ['Clic derecho', 'Apuntar'],
-    ['Rueda · 1 – 9', 'Armas compradas'],
+    ['Rueda · 1 – 3', 'Cambiar de arma'],
     [k('reload'), 'Recargar'],
     [k('melee'), 'Cuchillo'],
     [`${k('grenade')} · ${k('grenadeNext')}`, 'Granada · cambiar de tipo'],
-    [k('interact'), 'Comprar lo que tienes delante · armería (entre rondas)'],
+    [k('interact'), 'Usar · comprar · reparar ventanas · armería (entre rondas)'],
+    [k('flashlight'), 'Linterna'],
     ['Esc', 'Pausa'],
   ];
 }
+
+// En táctil: los botones de la pantalla.
+const TOUCH_CONTROLS = [
+  ['Izquierda', 'Joystick: moverse'],
+  ['Derecha', 'Arrastrar: mirar'],
+  ['Botones', 'Disparar · apuntar · recargar · saltar · agacharse · cuchillo · granada · cambiar de arma'],
+  ['Armería', 'Comprar entre rondas'],
+  ['Luz', 'Linterna'],
+  ['Engranaje', 'Pausa'],
+];
 
 function records(record) {
   if (!record?.totalRuns) return h('p', { class: 'muted' }, 'Aún no tienes récords en este modo.');
@@ -56,18 +49,6 @@ function records(record) {
     h('div', {}, h('small', {}, 'Más bajas'), h('strong', {}, record.bestKills)),
     h('div', {}, h('small', {}, 'Partidas'), h('strong', {}, record.totalRuns)),
   );
-}
-
-// Reglas propias de la defensa de la barra.
-function defenseRules(touch, lightKey = 'F') {
-  const key = (k) => (touch ? '' : ` (${k})`);
-  return [
-    ['Linterna', `Está muy oscuro: prende o apaga la linterna${touch ? ' con el botón de la luz' : key(lightKey)}.`],
-    ['Defiende la barra', 'La fuente de la plaza es una barra llena de botellas de licor. Los zombis van primero por ella: cada golpe rompe botellas. Si se rompe la última, se acaba la partida.'],
-    ['Atráelos', `Un zombi deja la barra y te persigue si te acercas a menos de ${DEFENSE.aggroRange} m o si le disparas (por unos segundos). Úsalo para sacarlos de la barra.`],
-    ['Cuidado con la puntería', 'Las botellas también se rompen con tus balas: dispara con cuidado cerca de la barra.'],
-    ['Armería', `Entre rondas${key('E')} puedes comprar armas, granadas y «Reponer licor» (${DEFENSE.restock} botellas).`],
-  ];
 }
 
 // Tarjetas de dificultad (con la mejor oleada en cada una).
@@ -109,8 +90,8 @@ export function zombieIntroScreen(game, { record, variant = 'survival', difficul
       records(record),
       h('h3', {}, 'Dificultad'),
       onDifficulty && difficultyPicker(record, difficulty, onDifficulty),
-      h('ol', { class: 'stage-list' }, (defense ? defenseRules(game.touchMode, keyLabel(game.settings.keys, 'flashlight')) : rules(game)).map(([t, x], i) => h('li', {}, h('span', { class: 'num' }, i + 1), h('div', {}, h('strong', {}, t), h('p', {}, x))))),
-      !game.touchMode && h('dl', { class: 'controls compact' }, controls(game.settings.keys).map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
+      h('h3', {}, 'Controles'),
+      h('dl', { class: 'controls compact' }, (game.touchMode ? TOUCH_CONTROLS : controls(game.settings.keys)).map(([k, v]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, v)])),
       h('p', { class: 'sens-line' }, `Sensibilidad: ${sensSummary(game.settings.sens)}`),
       h('div', { class: 'row' }, button('Comenzar', onStart, { variant: 'primary' }), button('Configuración', onSettings), button('Volver', onBack, { variant: 'ghost' })),
       // Parte de las animaciones son CC-BY: el crédito va a la vista, donde se usan.

@@ -14,6 +14,10 @@ import { setZombieFace } from './zombieLook.js';
   esqueleto propio. Si el zombi pierde la cabeza, el hueso se encoge y la nariz, el pelo y el sombrero
   se van con ella.
 
+  Los ciudadanos (oficinista, policía, médico, obrero, deportista, bombero) no llevan nariz ni gola:
+  llevan pelo de colores naturales, gorra de policía, casco de obra o de bombero, gorra, gorro de lana
+  o quirúrgico, según su oficio (HEADWEAR).
+
   Varias combinaciones ya armadas (colores de pelo, con o sin sombrero, pelo afro) y compartidas por
   todos los zombis: elegir una es cambiar la geometría. Un solo material con colores por vértice (sin
   sombreadores nuevos por variante). Son dos dibujos más por zombi.
@@ -107,6 +111,136 @@ function headKit(h, rnd, hair, hat, afro) {
   return mergeGeometries(parts, false);
 }
 
+/*
+  Cabezas de los ciudadanos (sin nariz de payaso): pelo de colores naturales y lo que llevaba puesto
+  según su oficio. Todas se arman sobre la caja de la cabeza en reposo (cm).
+*/
+const HAIR_NATURAL = ['#17120e', '#2e2117', '#55391f', '#8c7148', '#77746c', '#3a1e12'];
+const HARD_HATS = ['#d8a612', '#d0641a', '#c8c8c0', '#2a5aa0'];
+const FIRE_HELMETS = ['#7a1210', '#1a1a1a', '#b8941a'];
+const CAPS = ['#7a1612', '#1c3a7a', '#2a2a2a', '#3a5a2a'];
+const BEANIES = ['#2a2a2e', '#4a1a1a', '#2a3a4a'];
+const SCRUB_CAPS = ['#2a6a6a', '#3a5a8a'];
+
+// Casquete (media esfera) sobre la cabeza: base del pelo, cascos y gorras.
+function dome(h, { sx, sy, sz, y, z = 0, cut = 0.5, tilt = 0 }) {
+  const { min, max } = h.box;
+  const w = max.x - min.x;
+  const d = max.z - min.z;
+  const hh = max.y - min.y;
+  const geo = new THREE.SphereGeometry(1, 18, 10, 0, Math.PI * 2, 0, Math.PI * cut);
+  const m = new THREE.Matrix4().compose(
+    new THREE.Vector3((min.x + max.x) / 2, max.y - hh * y, (min.z + max.z) / 2 + d * z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt, 0, 0)),
+    new THREE.Vector3(w * sx, hh * sy, d * sz),
+  );
+  return { geo, m };
+}
+
+function citizenHead(h, rnd, style, color) {
+  const { min, max } = h.box;
+  const w = max.x - min.x;
+  const d = max.z - min.z;
+  const hh = max.y - min.y;
+  const cx = (min.x + max.x) / 2;
+  const cz = (min.z + max.z) / 2;
+  const parts = [];
+  const put = ({ geo, m }, c) => parts.push(piece(geo, c, m));
+  // Pelo: casquete despeinado (vértices movidos al azar), echado hacia atrás para dejar la frente.
+  const hair = (c, long = false) => {
+    const cap = dome(h, { sx: 0.58, sy: 0.44, sz: 0.6, y: 0.36, z: -0.05, cut: 0.56, tilt: -0.32 });
+    // Mechones: cada vértice sale o entra según su posición (los vértices repetidos de la costura se
+    // mueven igual: sin grietas).
+    const p = cap.geo.attributes.position;
+    const seed = rnd() * 100;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i);
+      const y = p.getY(i);
+      const z = p.getZ(i);
+      const n = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + seed) * 43758.5453;
+      const k = 1 + (n - Math.floor(n) - 0.5) * 0.32 * Math.min(1, y * 3);
+      p.setXYZ(i, x * k, y * k, z * k);
+    }
+    put(cap, new THREE.Color(c).multiplyScalar(0.7));
+    // Matas despeinadas encima.
+    const tuft = new THREE.IcosahedronGeometry(1, 0);
+    for (let i = 0; i < 7; i++) {
+      const r = w * (0.1 + rnd() * 0.07);
+      const a = rnd() * Math.PI * 2;
+      parts.push(piece(tuft.clone(), new THREE.Color(c).multiplyScalar(0.6 + rnd() * 0.2), at(cx + Math.cos(a) * w * 0.26, max.y - hh * (0.04 + rnd() * 0.1), cz - d * 0.1 + Math.sin(a) * d * 0.26, r, r * 0.7, r)));
+    }
+    if (long) {
+      // Melena por detrás hasta la nuca.
+      const puff = new THREE.IcosahedronGeometry(1, 1);
+      for (let i = 0; i < 7; i++) {
+        const r = w * (0.2 + rnd() * 0.06);
+        parts.push(piece(puff.clone(), new THREE.Color(c).multiplyScalar(0.8), at(cx + (i / 6 - 0.5) * w * 0.8, min.y + hh * (0.32 + rnd() * 0.2), min.z + d * 0.12, r, r * 1.3, r * 0.7)));
+      }
+    }
+  };
+  if (style === 'hair' || style === 'long') hair(color, style === 'long');
+  else if (style === 'police') {
+    // Gorra de plato: copa, plato ancho arriba, visera negra y placa dorada.
+    hair(HAIR_NATURAL[Math.floor(rnd() * 3)]);
+    parts.push(piece(new THREE.CylinderGeometry(w * 0.5, w * 0.47, hh * 0.18, 18), color, at(cx, max.y - hh * 0.04, cz - d * 0.04)));
+    parts.push(piece(new THREE.CylinderGeometry(w * 0.64, w * 0.58, hh * 0.07, 18), color, at(cx, max.y + hh * 0.08, cz - d * 0.06, 1, 1, d / w)));
+    const visor = new THREE.Matrix4().compose(new THREE.Vector3(cx, max.y - hh * 0.12, cz + d * 0.42), new THREE.Quaternion().setFromEuler(new THREE.Euler(0.35, 0, 0)), new THREE.Vector3(1, 1, 1));
+    parts.push(piece(new THREE.BoxGeometry(w * 0.72, 0.6, d * 0.3), '#0b0b0d', visor));
+    parts.push(piece(new THREE.BoxGeometry(w * 0.16, hh * 0.08, 0.8), '#b08a2a', at(cx, max.y + hh * 0.0, cz + d * 0.43)));
+  } else if (style === 'hardhat') {
+    // Casco de obra: casquete con ala, nervio en la copa.
+    put(dome(h, { sx: 0.64, sy: 0.4, sz: 0.68, y: 0.22, cut: 0.5 }), color);
+    parts.push(piece(new THREE.CylinderGeometry(w * 0.72, w * 0.72, 0.9, 20), color, at(cx, max.y - hh * 0.22, cz + d * 0.06, 1, 1, (d / w) * 1.05)));
+    parts.push(piece(new THREE.BoxGeometry(w * 0.12, hh * 0.06, d * 1.2), color, at(cx, max.y + hh * 0.14, cz)));
+  } else if (style === 'fire') {
+    // Casco de bombero: copa, ala larga atrás y escudo dorado al frente.
+    put(dome(h, { sx: 0.64, sy: 0.42, sz: 0.68, y: 0.2, cut: 0.5 }), color);
+    parts.push(piece(new THREE.CylinderGeometry(w * 0.64, w * 0.66, 0.9, 20), color, at(cx, max.y - hh * 0.2, cz - d * 0.14, 1, 1, (d / w) * 1.12)));
+    parts.push(piece(new THREE.BoxGeometry(w * 0.26, hh * 0.14, 0.8), '#b8941a', at(cx, max.y + hh * 0.08, cz + d * 0.5)));
+  } else if (style === 'cap') {
+    // Gorra de béisbol con visera.
+    hair(HAIR_NATURAL[Math.floor(rnd() * HAIR_NATURAL.length)]);
+    put(dome(h, { sx: 0.6, sy: 0.34, sz: 0.64, y: 0.2, cut: 0.5, tilt: -0.1 }), color);
+    const visor = new THREE.Matrix4().compose(new THREE.Vector3(cx, max.y - hh * 0.2, cz + d * 0.56), new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, 0)), new THREE.Vector3(1, 1, 1));
+    parts.push(piece(new THREE.BoxGeometry(w * 0.62, 0.7, d * 0.42), color, visor));
+  } else if (style === 'beanie' || style === 'scrub') {
+    // Gorro de lana (más alto, con doblez) o gorro quirúrgico (pegado a la cabeza).
+    const scrub = style === 'scrub';
+    put(dome(h, { sx: 0.6, sy: scrub ? 0.38 : 0.5, sz: 0.63, y: scrub ? 0.3 : 0.26, cut: 0.52, tilt: -0.15 }), color);
+    if (!scrub) parts.push(piece(new THREE.TorusGeometry(w * 0.56, 1.4, 6, 20).rotateX(Math.PI / 2), new THREE.Color(color).multiplyScalar(0.8), at(cx, max.y - hh * 0.26, cz, 1, 1, (d / w) * 1.02)));
+  }
+  // Calvo: una pieza mínima invisible (la malla necesita geometría).
+  if (!parts.length) parts.push(piece(new THREE.BoxGeometry(0.01, 0.01, 0.01), '#000000', at(cx, max.y - hh * 0.5, cz)));
+  return mergeGeometries(parts, false);
+}
+
+// Cabezas por oficio: { estilo: [geometrías] } (cada una ya en el espacio del hueso de la cabeza).
+function citizenHeads(h, rnd, toHead) {
+  const make = (style, colors) => colors.map((c) => citizenHead(h, rnd, style, c).applyMatrix4(toHead));
+  return {
+    hair: make('hair', HAIR_NATURAL),
+    long: make('long', HAIR_NATURAL.slice(0, 4)),
+    bald: make('bald', ['#000000']),
+    police: make('police', ['#141c2e', '#1a2338']),
+    hardhat: make('hardhat', HARD_HATS),
+    fire: make('fire', FIRE_HELMETS),
+    cap: make('cap', CAPS),
+    beanie: make('beanie', BEANIES),
+    scrub: make('scrub', SCRUB_CAPS),
+  };
+}
+
+// Qué se pone en la cabeza cada oficio (pesos).
+const HEADWEAR = {
+  rags: { hair: 2, long: 1, beanie: 1.5, bald: 1 },
+  office: { hair: 4, long: 1.5, bald: 1 },
+  police: { police: 4, hair: 1 },
+  medic: { scrub: 2, hair: 2, long: 1.5 },
+  worker: { hardhat: 5, cap: 1, hair: 0.6 },
+  jogger: { cap: 2, beanie: 1, hair: 2, long: 1 },
+  firefighter: { fire: 5, hair: 0.6 },
+};
+
 // Gola: aro ancho y aplanado con pliegues (ondas) alrededor de la base del cuello.
 function ruff(n, color) {
   const { min, max } = n.box;
@@ -156,7 +290,8 @@ export function prepareClownKit(scene) {
   const n = neckBone && measure(mesh, neckBone);
   const ruffs = n ? RUFFS.map((c) => ruff(n, c).applyMatrix4(boneSpace(mesh, neckBone))) : [];
   const material = addHeightFog(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0 }));
-  kit = { heads, ruffs, material };
+  const citizen = citizenHeads(h, rnd, toHead);
+  kit = { heads, ruffs, citizen, material };
   return kit;
 }
 
@@ -169,12 +304,27 @@ export function clownPieces(k) {
   return {
     head,
     ruff: ruffMesh,
-    pick(rng = Math.random) {
-      head.geometry = k.heads[Math.floor(rng() * k.heads.length)];
-      if (ruffMesh) {
-        ruffMesh.visible = rng() < 0.75;
-        ruffMesh.geometry = k.ruffs[Math.floor(rng() * k.ruffs.length)];
+    /** Piezas según el atuendo (zombieLook.OUTFITS): payaso o lo que lleva cada oficio en la cabeza. */
+    pick(rng = Math.random, outfit = 'clown') {
+      const odds = HEADWEAR[outfit];
+      if (!odds || !k.citizen) {
+        head.geometry = k.heads[Math.floor(rng() * k.heads.length)];
+        if (ruffMesh) {
+          ruffMesh.visible = rng() < 0.75;
+          ruffMesh.geometry = k.ruffs[Math.floor(rng() * k.ruffs.length)];
+        }
+        return;
       }
+      const total = Object.values(odds).reduce((s, w) => s + w, 0);
+      let r = rng() * total;
+      let style = 'hair';
+      for (const [id, w] of Object.entries(odds)) if ((r -= w) < 0) {
+        style = id;
+        break;
+      }
+      const list = k.citizen[style];
+      head.geometry = list[Math.floor(rng() * list.length)];
+      if (ruffMesh) ruffMesh.visible = false;
     },
   };
 }

@@ -19,6 +19,71 @@
 }
 @keyframes zh-wave-throb { 50% { color: #c21812; text-shadow: 0 3px 0 #2a0302, 0 0 20px rgba(200, 16, 10, 0.9), 0 0 44px rgba(140, 0, 0, 0.6); } }
 
+/* Vida (centrada abajo): una vena de sangre dentro de un marco oxidado, con el número en letra de
+   terror. Late con el pulso, se sacude al recibir un golpe y con poca vida late rápido y brilla. */
+.zh-on .hud-health { display: none !important; }
+.zh-life {
+  position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
+  pointer-events: none;
+}
+.zh-life-bar {
+  position: relative; width: min(440px, 46vw); height: 22px; overflow: hidden;
+  background: linear-gradient(180deg, #0b0404, #1c0706 60%, #0b0404); border: 2px solid #2b0d0b;
+  clip-path: polygon(0 18%, 3% 0, 22% 10%, 41% 0, 63% 12%, 82% 0, 100% 15%, 100% 82%, 96% 100%, 74% 90%, 52% 100%, 31% 88%, 9% 100%, 0 85%);
+  box-shadow: inset 0 0 10px #000, 0 0 16px rgba(120, 0, 0, 0.45);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
+}
+.zh-life-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; }
+.zh-life-lag { background: linear-gradient(180deg, #8a1208, #4a0402); box-shadow: inset 0 0 6px rgba(255, 60, 30, 0.6); transition: width 0.9s ease-in 0.35s; }
+.zh-life-fill {
+  background:
+    repeating-linear-gradient(100deg, rgba(0, 0, 0, 0) 0 14px, rgba(0, 0, 0, 0.22) 14px 17px),
+    linear-gradient(180deg, #ff2a1c 0%, #b30d08 38%, #6e0503 75%, #3a0201 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 140, 120, 0.35);
+  transition: width 0.12s ease-out;
+  animation: zh-life-pulse 1.1s ease-in-out infinite;
+}
+/* Grietas oscuras que cruzan la barra. */
+.zh-life-veins {
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(68deg, transparent 0 23px, rgba(0, 0, 0, 0.45) 23px 24px, transparent 24px 41px),
+    repeating-linear-gradient(-58deg, transparent 0 31px, rgba(0, 0, 0, 0.35) 31px 32px, transparent 32px 57px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 40%, rgba(0, 0, 0, 0.35));
+}
+/* Calavera a la izquierda: blanca hueso; con poca vida, roja y temblando. */
+.zh-life-skull { width: 30px; height: 30px; color: #d6ccbc; filter: drop-shadow(0 0 6px rgba(200, 10, 8, 0.8)); }
+.zh-life.low .zh-life-skull { color: #ff2a1c; animation: zh-life-shiver 0.12s linear infinite; }
+@keyframes zh-life-shiver { 25% { transform: translate(1px, -1px) rotate(-3deg); } 75% { transform: translate(-1px, 1px) rotate(3deg); } }
+.zh-life-num {
+  min-width: 2.2em; font: 400 40px 'Creepster', var(--font-display); line-height: 1; color: #c0140e; text-align: left;
+  text-shadow: 0 2px 0 #2a0302, 0 0 12px rgba(190, 10, 8, 0.8);
+}
+/* Gotas que caen del borde inferior de la barra. */
+.zh-life::after {
+  content: ''; position: absolute; left: 6%; right: calc(2.2em + 22px); top: 100%; height: 14px; pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 0, #7a0604 0 2px, transparent 3px),
+    radial-gradient(circle at 37% 0, #7a0604 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 64% 0, #7a0604 0 2px, transparent 3px),
+    radial-gradient(circle at 86% 0, #7a0604 0 1.5px, transparent 2.5px);
+  animation: zh-life-drip 2.6s ease-in infinite;
+}
+.zh-life.mid .zh-life-fill { animation-duration: 0.8s; }
+.zh-life.low .zh-life-fill { animation: zh-life-pulse 0.45s ease-in-out infinite; }
+.zh-life.low .zh-life-bar { border-color: #6a0d08; box-shadow: inset 0 0 10px #000, 0 0 26px rgba(230, 0, 0, 0.75); }
+.zh-life.low .zh-life-num { animation: zh-life-beat 0.45s ease-in-out infinite; color: #ff2a1c; }
+.zh-life.hit { animation: zh-life-hit 0.35s ease-out; }
+@keyframes zh-life-pulse { 50% { filter: brightness(1.35) saturate(1.2); } }
+@keyframes zh-life-beat { 50% { transform: scale(1.15); text-shadow: 0 2px 0 #2a0302, 0 0 22px rgba(255, 20, 10, 1); } }
+@keyframes zh-life-drip { 0% { transform: translateY(-4px); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(16px); opacity: 0; } }
+@keyframes zh-life-hit {
+  0%, 100% { transform: translateX(-50%); }
+  20% { transform: translateX(calc(-50% - 7px)) rotate(-1deg); }
+  45% { transform: translateX(calc(-50% + 6px)) rotate(1deg); }
+  70% { transform: translateX(calc(-50% - 3px)); }
+}
+
 /* Viñeta (calidad media y baja: en alta la pone el postproceso) y bordes rojos al estar herido. */
 .zh-vignette, .zh-hurt { position: absolute; inset: 0; pointer-events: none; }
 .zh-vignette { background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%); }
@@ -181,7 +246,7 @@
 
 /* Linterna: ícono, tecla, estado y batería (abajo a la izquierda, sobre la vida). */
 .zh-light {
-  position: absolute; left: 22px; bottom: 50px; display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 7px;
+  position: absolute; left: 22px; bottom: 22px; display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 7px;
   border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--muted);
   transition: border-color 0.15s, color 0.15s;
 }
@@ -200,6 +265,12 @@
 .zh-light.empty { color: #ff8a8a; border-color: rgba(255, 77, 77, 0.4); }
 @keyframes zh-light-low { 50% { border-color: rgba(255, 77, 77, 0.6); } }
 .touch-mode .zh-light { bottom: auto; top: 236px; left: 72px; }
+.touch-mode .zh-life { bottom: 10px; }
+.touch-mode .zh-life-bar { width: 34vw; height: 14px; }
+@media (max-height: 520px) {
+  .zh-life-num { font-size: 30px; }
+  .zh-life-bar { height: 14px; }
+}
 
 /* Código de la caja fuerte (lo soltó el Jefe): bajo los puntos. */
 .zh-code {

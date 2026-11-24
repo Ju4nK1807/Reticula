@@ -169,8 +169,8 @@ export class ZombieSkin {
     this.root.rotation.set(0, 0, 0);
     this.root.scale.set(1, 1, 1);
     this.material.emissiveIntensity = 0;
-    this.look.randomize(kind);
-    this.clown?.pick();
+    const outfit = this.look.randomize(kind);
+    this.clown?.pick(Math.random, outfit);
     this.play('idle', 0);
   }
 
