@@ -288,7 +288,7 @@ export const WEAPON_ORDER = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'mag
 // Todas, con las especiales (munición por arma, modelos).
 export const ALL_WEAPONS = [...WEAPON_ORDER, 'ray'];
 export const DEFAULT_WEAPON = 'rifle';
-export const EVALUATION_WEAPON = 'rifle'; // la evaluación siempre con el rifle: rangos comparables
+export const EVALUATION_WEAPON = 'rifle'; // arma estándar de la evaluación (la que da rango; se cambia en «Personalizar» como práctica)
 
 export function getWeapon(id) {
   return WEAPONS[id] ?? WEAPONS[DEFAULT_WEAPON];

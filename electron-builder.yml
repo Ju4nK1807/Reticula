@@ -1,4 +1,6 @@
-# Empaquetado de la app de escritorio (Windows): instalador NSIS y versión portable.
+# Empaquetado de la app de escritorio: Windows (instalador NSIS y portable) y macOS (DMG y ZIP, Intel y
+# Apple Silicon). La app de Mac no va firmada ni notarizada (hace falta una cuenta de Apple Developer):
+# la primera vez se abre con clic derecho → Abrir.
 appId: com.reticula.app
 productName: Reticula
 copyright: Retícula
@@ -29,3 +31,15 @@ nsis:
   artifactName: Reticula-Setup-${version}.${ext}
 portable:
   artifactName: Reticula-Portable-${version}.${ext}
+mac:
+  icon: build/icon.png
+  category: public.app-category.games
+  identity: null
+  artifactName: Reticula-Mac-${version}-${arch}.${ext}
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+dmg:
+  title: Retícula

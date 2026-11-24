@@ -1,5 +1,5 @@
 # Apps descargables: al crear una etiqueta v* (p. ej. v1.0.0), o a mano desde la pestaña Actions,
-# se compilan el APK de Android y el instalador de Windows y se adjuntan a un GitHub Release.
+# se compilan el APK de Android, el instalador de Windows y la app de macOS y se adjuntan a un GitHub Release.
 #
 # APK firmado (opcional): si el repositorio tiene los secretos ANDROID_KEYSTORE_BASE64,
 # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS y ANDROID_KEY_PASSWORD, se publica el APK de release
@@ -117,9 +117,42 @@ jobs:
           name: windows
           path: release/*.exe
 
+  # macOS: DMG (instalar arrastrando a Aplicaciones) y ZIP, para Intel (x64) y Apple Silicon (arm64).
+  # Sin firma de Apple: la primera vez se abre con clic derecho → Abrir.
+  mac:
+    name: App de macOS
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias y probar
+        run: |
+          npm ci
+          npm test
+
+      - name: Compilar DMG y ZIP
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+          npm run desktop:mac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            release/*.dmg
+            release/*.zip
+
   release:
     name: Publicar el Release
-    needs: [android, windows]
+    needs: [android, windows, mac]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -135,6 +168,7 @@ jobs:
           NOTES="Retícula ${TAG}
 
           - Windows: Reticula-Setup (instalador) o Reticula-Portable (sin instalar).
+          - Mac: Reticula-Mac-*-arm64.dmg (Apple M1 o más nuevo) o Reticula-Mac-*-x64.dmg (Intel). Arrástrala a Aplicaciones; la primera vez, clic derecho → Abrir (no está firmada por Apple).
           - Android: Reticula-*.apk (activa «Instalar apps de origen desconocido»). Se juega con controles táctiles.
           - Navegador: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
           if gh release view "$TAG" --repo "${{ github.repository }}" > /dev/null 2>&1; then

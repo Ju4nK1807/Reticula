@@ -46,7 +46,7 @@ export const FINISHES = {
   // Fusil de tirador: tierra (marrón) con madera clara y detalles cian.
   dmr: { woodTex: 'gun_wood', name: 'Tierra', hud: '#36d6ff', frame: F('#6e5639', 0.64, 0.08), metal: F('#2c2823', 0.4, 0.8), wood: F('#9a7448', 0.58, 0), light: F('#36d6ff', 0.4, 0, 1.6), red: F('#36d6ff', 0.4, 0, 1.6), brass: F('#b08a3c', 0.3, 1) },
   // Desintegrador: violeta metalizado con bobinas de energía cian que brillan.
-  ray: { name: 'Energía', hud: '#c77dff', frame: F('#4b1f82', 0.3, 0.75), metal: F('#22163a', 0.3, 0.85), wood: F('#8a3fe0', 0.35, 0.3, 0.6), light: F('#7df9ff', 0.3, 0, 3), red: F('#7df9ff', 0.3, 0, 3), brass: F('#d38bff', 0.25, 0.6, 1.4) },
+  ray: { name: 'Energía', hud: '#c77dff', frame: F('#4b1f82', 0.3, 0.75), metal: F('#22163a', 0.3, 0.85), wood: F('#8a3fe0', 0.35, 0.3, 0.6), light: F('#7df9ff', 0.3, 0, 1.1), red: F('#7df9ff', 0.3, 0, 1.6), brass: F('#d38bff', 0.25, 0.6, 1.4) },
 };
 // Acabado de los modelos sin arma propia (el arma de los soldados de los menús): el clásico.
 const DEFAULT_FINISH = { woodTex: 'gun_wood', frame: F('#121417', 0.58, 0.35), metal: F('#4b5058', 0.38, 0.75), wood: F('#33241a', 0.6, 0), light: F('#8c939c', 0.38, 0.75), red: F('#8a1a14', 0.5, 0.2), brass: F('#b08a3c', 0.32, 1) };
@@ -61,17 +61,21 @@ export const WEAPON_MODELS = {
   rifle: { file: 'rifle.glb', scale: 1.2, back: 0.32, top: 0.12, x: -0.03, finish: 'rifle', grip: [-0.033, -0.1, -0.02], fore: [-0.033, -0.005, -0.36] },
   shotgun: { file: 'shotgun.glb', scale: 1.25, back: 0.34, top: 0.1, x: -0.03, finish: 'shotgun', grip: [-0.03, -0.035, 0.13], fore: [-0.03, -0.03, -0.24] },
   sniper: { file: 'sniper.glb', scale: 1.15, back: 0.4, top: 0.135, x: -0.03, finish: 'sniper', grip: [-0.04, -0.06, 0.02], fore: [-0.04, -0.005, -0.27] },
-  magnum: { file: 'pistol.glb', scale: 1.9, back: 0.07, top: 0.105, x: -0.03, finish: 'magnum', grip: [-0.03, -0.075, 0.01], fore: null },
-  burst: { file: 'rifle.glb', scale: 1.12, back: 0.3, top: 0.115, x: -0.03, finish: 'burst', grip: [-0.033, -0.095, -0.02], fore: [-0.033, -0.005, -0.34] },
-  lmg: { file: 'rifle.glb', scale: 1.38, back: 0.36, top: 0.135, x: -0.03, finish: 'lmg', grip: [-0.036, -0.11, -0.01], fore: [-0.036, -0.01, -0.42] },
-  ray: { file: 'smg.glb', scale: 1.3, back: 0.24, top: 0.115, x: -0.03, finish: 'ray', grip: [-0.03, -0.083, -0.05], fore: [-0.03, -0.02, -0.34] },
-  dmr: { file: 'sniper.glb', scale: 1.0, back: 0.34, top: 0.12, x: -0.03, finish: 'dmr', grip: [-0.04, -0.055, 0.0], fore: [-0.04, -0.005, -0.24] },
+  // Modelos propios (antes reutilizaban el del rifle, la pistola, el subfusil o el francotirador y se
+  // veían iguales). rotY / norm: los de Quaternius vienen con el cañón sobre X y a otra escala; thin: el
+  // revólver es caricaturesco y muy grueso.
+  magnum: { file: 'magnum.glb', scale: 1.5, back: 0.08, top: 0.1, x: -0.03, finish: 'magnum', rotY: -Math.PI / 2, norm: 0.27 / 0.663, thin: 0.6, grip: [-0.03, -0.08, 0.02], fore: null },
+  burst: { file: 'burst.glb', scale: 1.15, back: 0.3, top: 0.115, x: -0.03, finish: 'burst', grip: [-0.033, -0.1, -0.03], fore: [-0.033, -0.01, -0.33] },
+  lmg: { file: 'lmg.glb', scale: 1.2, back: 0.36, top: 0.13, x: -0.03, finish: 'lmg', grip: [-0.036, -0.1, -0.03], fore: [-0.036, -0.01, -0.45] },
+  ray: { file: 'ray.glb', scale: 1.0, back: 0.26, top: 0.11, x: -0.03, finish: 'ray', rotY: Math.PI / 2, norm: 0.66 / 1.792, grip: [-0.03, -0.09, -0.04], fore: [-0.03, -0.03, -0.32] },
+  dmr: { file: 'dmr.glb', scale: 1.05, back: 0.36, top: 0.125, x: -0.03, finish: 'dmr', grip: [-0.04, -0.06, 0.0], fore: [-0.04, -0.01, -0.26] },
 };
 
 // Papel de cada material plano del autor (por su nombre). El orden importa: «Black_Lighter» es negro
 // (armazón), no un detalle claro.
 const ROLES = [
   [/brass|yellow/i, 'brass'],
+  [/^main$/i, 'wood'], // Quaternius: color principal (el desintegrador: violeta)
   [/brown|wood|chestnut|bole/i, 'wood'],
   [/red|brick/i, 'red'],
   [/black_lighter/i, 'frame'],
@@ -194,16 +198,20 @@ const cache = new Map(); // id → Promise<{ object, muzzle }>
 export function fitWeaponModel(root, cfg) {
   root.updateMatrixWorld(true);
   const rootScale = root.matrixWorld.getMaxScaleOnAxis() || 1;
+  const norm = cfg.norm ?? 1; // metros reales por unidad del modelo (1 si ya viene en metros)
   root.traverse((o) => {
     if (o.isMesh) {
       const finish = cfg.finish ?? null;
       // UVs en metros reales (escala de la pieza dentro del modelo, antes de agrandarlo en pantalla).
-      if (!o.geometry.attributes.uv) o.geometry = boxProjectUV(o.geometry, o.matrixWorld.getMaxScaleOnAxis() / rootScale);
+      // Los modelos que ya traen UVs (Quaternius) las cambian por las de caja: sus UVs son de paleta.
+      if (!o.geometry.attributes.uv || cfg.norm) o.geometry = boxProjectUV(o.geometry, (o.matrixWorld.getMaxScaleOnAxis() / rootScale) * norm);
       o.material = Array.isArray(o.material) ? o.material.map((m) => pbrFor(m, finish)) : pbrFor(o.material, finish);
       o.frustumCulled = false;
     }
   });
-  root.scale.setScalar(cfg.scale);
+  root.rotation.y = cfg.rotY ?? 0; // cañón hacia -Z
+  root.scale.setScalar(cfg.scale * norm);
+  if (cfg.thin) root.scale.z *= cfg.thin; // grosor (eje local: antes de girar el modelo)
   root.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(root);
   const center = box.getCenter(new THREE.Vector3());

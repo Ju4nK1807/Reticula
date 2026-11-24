@@ -5,6 +5,7 @@ import { SphereTarget } from '../../targets/SphereTarget.js';
 import { angularDistance, pointFromAngles } from '../../targets/spawn.js';
 import { clock, pct } from '../../utils/format.js';
 import { DEG, rand } from '../../utils/math.js';
+import { EVAL_DEFAULTS, scaleBehavior } from './evalConfig.js';
 
 // Puntos por defecto. Cada fallo resta: la evaluación es estricta a propósito.
 export const DEFAULT_POINTS = { head: 150, body: 60, legs: 40, kill: 100, miss: -80, escaped: -120 };
@@ -123,8 +124,22 @@ export class Phase {
     return out;
   }
 
+  // Configuración de la evaluación (evalConfig.js): tamaño, velocidad, cantidad, color…
+  get evalCfg() {
+    return this.ev?.evalCfg ?? EVAL_DEFAULTS; // solo la Evaluación lo tiene: los demás modos, la estándar
+  }
+
   spawnBot(opts) {
-    const bot = new Bot(this.root, this.world, { color: this.game.settings.enemyColor, ...opts });
+    const { size, speed, enemyFire } = this.evalCfg;
+    const o = { color: this.game.settings.enemyColor, ...opts };
+    // Disparos enemigos: puntería y daño según la configuración (0 = no disparan).
+    if (o.shooter && enemyFire !== 1) o.shooter = enemyFire > 0 ? { ...o.shooter, accuracy: Math.min(0.95, o.shooter.accuracy * enemyFire), damage: o.shooter.damage * enemyFire } : null;
+    if (size !== 1) o.scale = (o.scale ?? 1) * size;
+    if (speed !== 1) {
+      o.behavior = scaleBehavior(o.behavior, speed);
+      if (o.lifetime) o.lifetime /= speed;
+    }
+    const bot = new Bot(this.root, this.world, o);
     const spot = opts.behavior?.spot;
     if (spot) this.usedSpots.add(spot.id);
     this.bots.push(bot);
@@ -132,7 +147,12 @@ export class Phase {
   }
 
   spawnSphere(opts) {
-    const target = new SphereTarget(this.root, opts);
+    const { size, speed, targetColor } = this.evalCfg;
+    const o = { ...opts };
+    if (targetColor !== 'auto') o.color = targetColor;
+    if (size !== 1 && o.radius) o.radius *= size;
+    if (speed !== 1 && o.lifetime) o.lifetime /= speed;
+    const target = new SphereTarget(this.root, o);
     this.bots.push(target);
     return target;
   }

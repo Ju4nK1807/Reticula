@@ -255,7 +255,7 @@ export class Game {
     return s.crosshairPerWeapon ? s.weaponCrosshairs[this.weapon.id] ?? s.crosshair : s.crosshair;
   }
 
-  // Motivo por el que el modo no deja cambiar de arma (o null). La evaluación usa siempre el rifle.
+  // Motivo por el que el modo no deja cambiar de arma (o null). La evaluación usa la de su configuración.
   weaponLock() {
     return this.mode?.weaponLocked?.() ?? null;
   }
