@@ -1,6 +1,3 @@
-// Auditoría de los mapas de campaña: comprueba con geometría real (raycasts de Three.js) que cada punto
-// donde aparece un enemigo sea jugable. Si un mapa cambia y deja un escondite inútil o un enemigo
-// imposible de ver, esta prueba falla y dice cuál.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Ballistics } from '../src/combat/Ballistics.js';
@@ -13,7 +10,6 @@ const MAPS = { warehouse: WarehouseMap, city: CityMap, arena: ArenaMap };
 const EYE = 1.62;
 const BOT_RADIUS = 0.4;
 
-// Puntos de la zona del jugador desde donde se mira (centro, esquinas y bordes).
 function playerEyes(world) {
   const z = world.playerZone;
   const xs = [z.minX + 0.5, (z.minX + z.maxX) / 2, z.maxX - 0.5];
@@ -23,7 +19,6 @@ function playerEyes(world) {
 
 const head = (p, crouch = 0) => new THREE.Vector3(p.x, p.y + BOT_DIMENSIONS.headCenter - BOT_DIMENSIONS.crouchDrop * crouch, p.z);
 
-// ¿Hay piso bajo un punto elevado? (rayo hacia abajo que toca algo sólido a menos de 0.5 m)
 function hasFloor(world, p) {
   if (p.y < 0.01) return true;
   const rc = new THREE.Raycaster(new THREE.Vector3(p.x, p.y + 0.3, p.z), new THREE.Vector3(0, -1, 0), 0, 0.8);
@@ -78,7 +73,7 @@ for (const [key, MapClass] of Object.entries(MAPS)) {
     it('los bots caben donde se esconden y donde se asoman, y el camino está libre', () => {
       const bad = [];
       for (const s of world.coverSpots) {
-        if (s.kind === 'door') continue; // las puertas empiezan fuera del mapa
+        if (s.kind === 'door') continue;
         if (!world.isFree(s.hidden.x, s.hidden.z, BOT_RADIUS - 0.05, s.hidden.y)) bad.push(`#${s.id} escondite ocupado`);
         if (!world.isFree(s.exposed.x, s.exposed.z, BOT_RADIUS - 0.05, s.exposed.y)) bad.push(`#${s.id} asomada ocupada`);
         if (!pathClear(world, s.hidden, s.exposed, s.hidden.y)) bad.push(`#${s.id} camino bloqueado`);

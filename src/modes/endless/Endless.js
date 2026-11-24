@@ -9,19 +9,12 @@ import { FIRST_COUNTDOWN, INTERMISSION, emptyRecord, updateRecord } from './wave
 export const MODE_ID = 'endless';
 export const WORLD_ID = 'bastion';
 
-const DEATH_TIME = 1.8; // s de cámara lenta antes del resumen
+const DEATH_TIME = 1.8;
 const DEATH_SLOWMO = 0.25;
-const LOW_HEALTH = 30; // por debajo suena el latido
-const STREAK_ANNOUNCE = 3; // a partir de esta racha se anuncia en pantalla
+const LOW_HEALTH = 30;
+const STREAK_ANNOUNCE = 3;
 const COMBAT_STATES = new Set(['countdown', 'wave', 'clear']);
 
-/*
-  Modo infinito. Estados:
-    intro → (captura del mouse) → countdown → wave → clear → wave → … → dying → over
-  - countdown: cuenta antes de la primera oleada. clear: descanso entre oleadas.
-  - dying: cámara lenta tras caer. over: resumen con récords (mouse libre).
-  La lógica de juego vive en EndlessRun; aquí están el flujo, la presentación y el sonido.
-*/
 export class Endless extends Mode {
   constructor(game) {
     super(game);
@@ -44,8 +37,6 @@ export class Endless extends Mode {
     const g = this.game;
     g.useWorld(WORLD_ID);
     g.world.scene.add(this.root);
-    // Solo cuentan los disparos con la oleada en curso: en la cuenta y el descanso se puede
-    // probar el arma sin perder puntos.
     g.weapon.onShot = (hit, spread, time) => {
       if (this.state === 'wave') this.run.handleShot(hit, time);
     };
@@ -68,8 +59,6 @@ export class Endless extends Mode {
     );
   }
 
-  // --- Interfaz de modo ---------------------------------------------------------------
-
   wantsLock() {
     return COMBAT_STATES.has(this.state);
   }
@@ -82,7 +71,6 @@ export class Endless extends Mode {
     return this.run && COMBAT_STATES.has(this.state) ? this.run.hitMeshes() : [];
   }
 
-  // Golpe cuerpo a cuerpo (V): cuenta como un acierto que mantiene la racha.
   meleeAllowed() {
     return this.state === 'wave';
   }
@@ -101,22 +89,19 @@ export class Endless extends Mode {
     this.beginRun();
   }
 
-  // Retroceso o "Reiniciar fase" en la pausa: empieza una partida nueva.
   restartStage() {
     if (COMBAT_STATES.has(this.state)) this.beginRun();
   }
-
-  // --- Partida ------------------------------------------------------------------------
 
   beginRun() {
     const g = this.game;
     this.run?.dispose();
     this.run = new EndlessRun(this);
     this.run.listener = (type, data) => this.onRunEvent(type, data);
-    g.world.props?.reset(); // la utilería vuelve a su lugar
+    g.world.props?.reset();
     g.player.reset(g.world.spawn);
     g.player.movementEnabled = true;
-    g.equipLoadout(); // arma elegida en el arsenal (1-9 o la rueda para cambiar, B para el modo de disparo)
+    g.equipLoadout();
     g.effects.clear();
     g.hud.setVisible(true);
     g.hud.setHealth(1);
@@ -179,7 +164,6 @@ export class Endless extends Mode {
     }
   }
 
-  // Latido cada vez más rápido con poca vida.
   heartbeat(dt) {
     const run = this.run;
     if (this.state !== 'wave' || run.health > LOW_HEALTH || run.died) {
@@ -230,14 +214,11 @@ export class Endless extends Mode {
         result,
         record: this.record,
         isBest,
-        // El clic en el botón cuenta como gesto del usuario: se puede capturar el mouse directo.
         onRetry: () => g.input.lock(),
         onMenu: () => g.quitToMenu(),
       }),
     );
   }
-
-  // --- Eventos de la partida → sonido y avisos ----------------------------------------------
 
   onRunEvent(type, data) {
     const { hud, sfx } = this.game;

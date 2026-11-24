@@ -1,9 +1,5 @@
 import { h } from '../../ui/dom.js';
 
-/*
-  Capa de HUD de la campaña (se monta en la capa de juego del HUD general): enemigos restantes y metas
-  de estrellas del nivel. Solo toca el DOM cuando cambia un valor.
-*/
 export class CampaignHud {
   constructor(hud) {
     this.remaining = h('strong', {}, '0');

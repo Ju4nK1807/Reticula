@@ -1,30 +1,18 @@
 import { EVALUATION_WEAPON, WEAPONS, WEAPON_ORDER } from '../../combat/weapons.js';
 
-/*
-  Configuración de las evaluaciones (Dianas y Enemigos): arma, colores, cuántos objetivos a la vez,
-  tamaño, velocidad, duración, intentos y qué fases se juegan. Lógica pura (sin DOM): ver
-  tests/evalConfig.test.js.
-
-  Con los valores estándar (EVAL_DEFAULTS) la evaluación da rango y se guarda. Si cambia algo que
-  afecta la dificultad (arma, cantidad, tamaño, velocidad, duración, intentos, fases o el daño
-  enemigo), la partida es una PRÁCTICA: se ven los resultados de cada fase, pero no cambia el rango
-  (así los rangos siguen siendo comparables). Los colores son solo estética: no cambian nada.
-*/
-
 export const EVAL_DEFAULTS = {
   weapon: EVALUATION_WEAPON,
-  targetColor: 'auto', // 'auto' = el color propio de cada fase
-  duration: 30, // s de cada fase con tiempo (el combate dura 4/3 de esto)
-  count: 3, // dianas o enemigos a la vez (multi-objetivo, precisión y combate)
-  size: 1, // tamaño de las dianas y de los enemigos
-  speed: 1, // velocidad de dianas y enemigos (y lo que tardan en escaparse)
-  reactionTrials: 8, // intentos de la fase de reacción
-  peeks: 10, // asomadas de la fase de peeks
-  enemyFire: 1, // puntería y daño de los enemigos que disparan (0 = no disparan)
-  skip: { targets: [], bots: [] }, // fases que no se juegan (por id)
+  targetColor: 'auto',
+  duration: 30,
+  count: 3,
+  size: 1,
+  speed: 1,
+  reactionTrials: 8,
+  peeks: 10,
+  enemyFire: 1,
+  skip: { targets: [], bots: [] },
 };
 
-// [mínimo, máximo, paso]
 export const EVAL_LIMITS = {
   duration: [10, 120, 5],
   count: [1, 8, 1],
@@ -48,7 +36,6 @@ export const TARGET_COLORS = {
   '#ffffff': 'Blanco',
 };
 
-/** Armas que se pueden elegir (las del arsenal). */
 export const EVAL_WEAPONS = WEAPON_ORDER.filter((id) => WEAPONS[id]);
 
 const clampStep = (v, [min, max, step], fallback) => {
@@ -58,7 +45,6 @@ const clampStep = (v, [min, max, step], fallback) => {
   return Math.round((c - min) / step) * step + min;
 };
 
-/** Configuración válida a partir de la guardada (lo que falte o no sirva, por defecto). */
 export function evalConfig(saved = {}) {
   const s = saved ?? {};
   const cfg = { ...EVAL_DEFAULTS, skip: { targets: [], bots: [] } };
@@ -72,14 +58,12 @@ export function evalConfig(saved = {}) {
   return cfg;
 }
 
-/** Fases que se juegan de una variante (al menos una: si se quitan todas, se juegan todas). */
 export function stagesFor(variant, cfg) {
   const skip = new Set(cfg.skip?.[variant.id] ?? []);
   const list = variant.stages.filter((S) => !skip.has(S.info.id));
   return list.length ? list : variant.stages;
 }
 
-/** Qué cambió respecto al estándar (lo que convierte la partida en práctica). Vacío = da rango. */
 export function customChanges(variant, cfg) {
   const out = [];
   const d = EVAL_DEFAULTS;
@@ -95,12 +79,10 @@ export function customChanges(variant, cfg) {
   return out;
 }
 
-/** ¿Da rango? (configuración estándar en todo lo que afecta la dificultad). */
 export function isRanked(variant, cfg) {
   return customChanges(variant, cfg).length === 0;
 }
 
-/** Multiplica las velocidades de un comportamiento de bot (rangos [min, max] o números). */
 export function scaleBehavior(behavior, k) {
   if (!behavior || k === 1) return behavior;
   const sc = (v) => (Array.isArray(v) ? v.map((x) => x * k) : typeof v === 'number' ? v * k : v);

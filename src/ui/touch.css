@@ -1,10 +1,7 @@
-/* Controles táctiles (solo en modo táctil y en partida). */
-
 .touch-controls { position: absolute; inset: 0; z-index: 5; touch-action: none; user-select: none; -webkit-user-select: none; }
 .tc-stick-zone { position: absolute; left: 0; top: 0; bottom: 0; width: 42%; }
 .tc-look-zone { position: absolute; right: 0; top: 0; bottom: 0; width: 58%; }
 
-/* Joystick flotante: aparece donde se apoya el dedo. */
 .tc-stick {
   position: absolute; left: 0; top: 0; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none;
   border-radius: 50%; background: rgba(255, 255, 255, 0.06); border: 2px solid rgba(255, 255, 255, 0.22);
@@ -37,7 +34,6 @@
 .tc-btn.weapon { right: 210px; bottom: 150px; }
 .tc-weapon-key { position: absolute; right: -2px; bottom: -2px; font: 700 11px var(--mono); background: var(--surface-3); border-radius: 6px; padding: 1px 4px; }
 
-/* En vertical no se puede jugar: pedir girar el teléfono. */
 .rotate-hint { display: none; }
 @media (orientation: portrait) {
   .touch-mode .rotate-hint {
@@ -46,20 +42,16 @@
   }
 }
 
-/* En modo táctil, el HUD deja sitio a los botones. */
 .touch-mode .hud-slots { display: none; }
 .touch-mode .hud-ammo-box { bottom: auto; top: 70px; }
 .touch-mode .hud-health { left: auto; right: 22px; top: 140px; bottom: auto; }
 
-/* HUD compacto en modo táctil: deja sitio al botón de pausa y a los controles. */
 .touch-mode .hud-label { left: 72px; top: 18px; }
 .touch-mode .eh-panel, .touch-mode .cg-panel { left: 72px; top: 40px; }
 .touch-mode .hud-health { top: 128px; right: 22px; }
 .touch-mode .hud-health .bar { width: 120px; }
 .touch-mode .hud-weapon { font-size: 10px; }
 
-/* Botones según el modo: golpe y granada (en el grupo, sin tapar la vida de la derecha) y armería
-   (abajo en el centro, que en modo táctil está libre; solo entre oleadas). */
 .tc-btn.melee { right: 214px; bottom: 76px; display: none; }
 .tc-btn.grenade { right: 228px; bottom: 222px; display: none; }
 .touch-controls.can-melee .tc-btn.melee, .touch-controls.can-grenade .tc-btn.grenade { display: grid; }
@@ -69,7 +61,6 @@
 }
 .tc-btn.shop:active { transform: translateX(-50%) scale(0.95); }
 .touch-controls.can-shop .tc-btn.shop { display: grid; }
-/* Linterna (modo zombi): debajo de la vida; amarilla mientras alumbra. */
 .tc-btn.light { display: none; right: 22px; top: 172px; }
 .touch-controls.can-light .tc-btn.light { display: grid; }
 .touch-controls.light-on .tc-btn.light { color: #ffe39a; border-color: rgba(255, 227, 154, 0.7); }

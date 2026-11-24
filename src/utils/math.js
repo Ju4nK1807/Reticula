@@ -9,5 +9,4 @@ export function average(values) {
   return values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
 }
 
-// Normaliza v al rango [0, 1] entre lo (0) y hi (1).
 export const norm = (v, lo, hi) => clamp01((v - lo) / (hi - lo));

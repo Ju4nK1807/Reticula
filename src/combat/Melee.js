@@ -1,24 +1,13 @@
 import * as THREE from 'three';
 import { DEG } from '../utils/math.js';
 
-/*
-  Golpe cuerpo a cuerpo (tecla V o botón táctil): un golpe rápido con el arma.
-
-  - Alcance corto (RANGE) en un abanico de rayos delante de la cámara: acierta aunque el enemigo no
-    esté justo en el centro.
-  - El impacto se resuelve en el momento del golpe (HIT_AT), no al pulsar: se siente físico.
-  - Cancela la recarga y bloquea el disparo mientras dura (busy).
-  - Solo funciona en los modos que lo permiten (mode.meleeAllowed()); la evaluación no, para no
-    cambiar los rangos. El modo recibe el impacto en mode.onMeleeHit(hit, damage).
-*/
-
 export const MELEE = {
-  damage: 140, // mata a un bot de un golpe; un zombi normal necesita dos
-  range: 2.3, // m
-  duration: 0.55, // s de la animación (y del bloqueo)
-  hitAt: 0.13, // s: momento del impacto
-  cooldown: 0.65, // s entre golpes
-  fan: [-22, -11, 0, 11, 22], // grados: abanico de rayos (horizontal)
+  damage: 140,
+  range: 2.3,
+  duration: 0.55,
+  hitAt: 0.13,
+  cooldown: 0.65,
+  fan: [-22, -11, 0, 11, 22],
 };
 
 const _dir = new THREE.Vector3();
@@ -28,7 +17,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 export class Melee {
   constructor(game) {
     this.game = game;
-    this.t = -1; // tiempo desde el inicio del golpe (-1 = sin golpe)
+    this.t = -1;
     this.cooldown = 0;
     this.resolved = false;
   }
@@ -42,7 +31,6 @@ export class Melee {
     return !!m && !!m.meleeAllowed?.() && this.game.playing;
   }
 
-  // Pulsar V: empieza el golpe si se puede.
   trigger() {
     if (!this.allowed || this.busy || this.cooldown > 0) return false;
     const g = this.game;
@@ -67,7 +55,6 @@ export class Melee {
     if (this.t >= MELEE.duration) this.t = -1;
   }
 
-  // Abanico de rayos cortos: el primer enemigo que toque cualquiera de ellos (el más cercano).
   resolve() {
     const g = this.game;
     const cam = g.engine.camera;

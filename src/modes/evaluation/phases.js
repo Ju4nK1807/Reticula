@@ -5,9 +5,6 @@ import { fixed, ms, pct } from '../../utils/format.js';
 
 const _dir = new THREE.Vector3();
 
-// ---------------------------------------------------------------------------
-// 1. Flicks: un enemigo aparece en un lugar inesperado y escapa si tardas.
-// ---------------------------------------------------------------------------
 export class FlickPhase extends Phase {
   static info = {
     id: 'flick',
@@ -70,9 +67,6 @@ export class FlickPhase extends Phase {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 2. Tracking: un enemigo blindado hace strafing errático; disparo automático.
-// ---------------------------------------------------------------------------
 export class TrackingPhase extends Phase {
   static info = {
     id: 'tracking',
@@ -147,9 +141,6 @@ export class TrackingPhase extends Phase {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 3. Peeks y reacción: enemigos se asoman desde coberturas y disparan.
-// ---------------------------------------------------------------------------
 const PEEKS = 10;
 
 export class PeekPhase extends Phase {
@@ -182,8 +173,8 @@ export class PeekPhase extends Phase {
     this.peeks = this.evalCfg.peeks;
     this.times = [];
     this.current = null;
-    this.visibleAt = null; // ms (reloj real) en que el enemigo actual se volvió visible
-    this.timingValid = true; // false si hubo una pausa con el enemigo actual en juego
+    this.visibleAt = null;
+    this.timingValid = true;
   }
 
   begin() {
@@ -220,7 +211,6 @@ export class PeekPhase extends Phase {
     if (this.visibleAt === null && this.current.alive && this.isVisible(this.current)) this.visibleAt = performance.now();
   }
 
-  // Una pausa con el enemigo en juego invalida su tiempo de reacción (el reloj real siguió corriendo).
   onPause() {
     if (this.current) this.timingValid = false;
   }
@@ -263,9 +253,6 @@ export class PeekPhase extends Phase {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 4. Precisión: solo la cabeza cuenta, a larga distancia.
-// ---------------------------------------------------------------------------
 export class PrecisionPhase extends Phase {
   static info = {
     id: 'precision',
@@ -297,7 +284,6 @@ export class PrecisionPhase extends Phase {
   }
 
   begin() {
-    // Dos enemigos a la vez con la cantidad estándar (3): uno menos que las dianas, que son más chicas.
     for (let i = 0; i < Math.max(1, this.evalCfg.count - 1); i++) this.spawnOne();
   }
 
@@ -324,10 +310,6 @@ export class PrecisionPhase extends Phase {
     return { ...this.baseResults(), headAcc: s.shots ? s.head / s.shots : 0, kps: s.kills / this.duration };
   }
 }
-
-// ---------------------------------------------------------------------------
-// 5. Combate en movimiento: enemigos por todos lados que disparan de verdad.
-// ---------------------------------------------------------------------------
 
 export class CombatPhase extends Phase {
   static info = {
@@ -392,7 +374,6 @@ export class CombatPhase extends Phase {
       },
       shooter: { reaction: 0.55, interval: 0.32, damage: 9, accuracy: 0.4 },
     });
-    // Aviso sonoro (y visual) cuando llegan por donde no estás mirando.
     if (spot.area === 'flank' || spot.area === 'back') {
       this.game.sfx.cue(this.game.panFor(spot.exposed));
       this.game.hud.flash(spot.area === 'back' ? '¡Detrás!' : '¡Flanco!', 'bad');

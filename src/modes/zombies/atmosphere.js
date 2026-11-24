@@ -1,38 +1,19 @@
 import * as THREE from 'three';
 
-/*
-  Atmósfera nocturna del Barrio en ruinas:
-
-  - Niebla baja: además de la niebla por distancia de three.js, una capa de bruma pegada al suelo
-    (densidad que cae con la altura, integrada exacta a lo largo de cada rayo). Se aplica a los
-    materiales del mapa, a la utilería y a los zombis con applyHeightFog (un parche del sombreador).
-  - LightPool: luces puntuales de verdad (farolas, fuego, máquinas) con un número FIJO de luces que
-    se reparten entre las fuentes más cercanas a la cámara y que más aportan. Cambiar de fuente es un
-    fundido (sin saltos); el número de luces solo cambia con el detalle (cambiarlo recompila).
-  - Conos de luz bajo las farolas y charcos de luz en el suelo: geometría unida con mezcla aditiva
-    (dos llamadas de dibujo para todo el mapa). Las farolas lejanas se siguen viendo encendidas.
-  - Entorno nocturno: reflejos de cielo oscuro con resplandor de fuego (no el estudio genérico).
-*/
-
-// --- Niebla baja -----------------------------------------------------------------------------------
-// x: densidad (1/m) a la altura base · y: caída con la altura (1/m) · z: altura base · w: intensidad
 export const HEIGHT_FOG = {
   uHFog: { value: new THREE.Vector4(0.016, 0.5, 0, 1) },
   uHFogColor: { value: new THREE.Color('#1c2330') },
-  // Haz de la linterna (sale de la cámara): la niebla dentro del cono se ilumina.
-  // uBeam: dirección (xyz) · fuerza (w; 0 = apagada) · uBeamCone: cosenos del borde y del centro.
   uBeam: { value: new THREE.Vector4(0, 0, -1, 0) },
   uBeamCone: { value: new THREE.Vector2(0.9, 0.97) },
   uBeamColor: { value: new THREE.Color('#f3f1ec') },
-  // Cuánto aclara la niebla dentro del círculo de la linterna (0-1): la luz la atraviesa y deja ver.
   uBeamClear: { value: 0 },
 };
 
-const FOG_PARS_VERT = /* glsl */ `#include <fog_pars_vertex>
+const FOG_PARS_VERT = `#include <fog_pars_vertex>
 #ifdef USE_FOG
 varying vec3 vFogWorld;
 #endif`;
-const FOG_VERT = /* glsl */ `#include <fog_vertex>
+const FOG_VERT = `#include <fog_vertex>
 #ifdef USE_FOG
   vec4 zfw = vec4( transformed, 1.0 );
   #ifdef USE_BATCHING
@@ -43,7 +24,7 @@ const FOG_VERT = /* glsl */ `#include <fog_vertex>
   #endif
   vFogWorld = ( modelMatrix * zfw ).xyz;
 #endif`;
-const FOG_PARS_FRAG = /* glsl */ `#include <fog_pars_fragment>
+const FOG_PARS_FRAG = `#include <fog_pars_fragment>
 #ifdef USE_FOG
 varying vec3 vFogWorld;
 uniform vec4 uHFog;
@@ -53,8 +34,7 @@ uniform vec2 uBeamCone;
 uniform vec3 uBeamColor;
 uniform float uBeamClear;
 #endif`;
-// Profundidad óptica de una densidad a·e^(−b·(y−h0)) entre la cámara y el punto (fórmula cerrada).
-const FOG_FRAG = /* glsl */ `#ifdef USE_FOG
+const FOG_FRAG = `#ifdef USE_FOG
   #ifdef FOG_EXP2
     float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
   #else
@@ -80,7 +60,6 @@ const FOG_FRAG = /* glsl */ `#ifdef USE_FOG
   if ( uBeam.w > 0.0 ) gl_FragColor.rgb += uBeamColor * ( uBeam.w * hfCone * ( 0.55 * fogFactor + hfFog ) / ( 1.0 + hfT * 0.06 ) );
 #endif`;
 
-/** Añade la niebla baja al sombreador (para encadenar con otros parches, p. ej. el de los zombis). */
 export function patchHeightFog(shader) {
   Object.assign(shader.uniforms, HEIGHT_FOG);
   shader.vertexShader = shader.vertexShader.replace('#include <fog_pars_vertex>', FOG_PARS_VERT).replace('#include <fog_vertex>', FOG_VERT);
@@ -89,7 +68,6 @@ export function patchHeightFog(shader) {
 
 const PATCHABLE = (m) => m && !m.userData?.heightFog && m.fog !== false && (m.isMeshStandardMaterial || m.isMeshBasicMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isPointsMaterial);
 
-/** Pone la niebla baja a un material (una vez; respeta un onBeforeCompile anterior). */
 export function addHeightFog(material) {
   if (!PATCHABLE(material)) return material;
   const before = material.onBeforeCompile;
@@ -105,25 +83,18 @@ export function addHeightFog(material) {
   return material;
 }
 
-/** Niebla baja para todo lo que cuelga de `root` (mapa, utilería). */
 export function applyHeightFog(root) {
   root.traverse((o) => {
     for (const m of [].concat(o.material ?? [])) addHeightFog(m);
   });
 }
 
-// --- Luces puntuales repartidas -------------------------------------------------------------------
-// Cuántas luces reales según el detalle (el resto de las fuentes solo se ven por su brillo y su cono).
 export const LIGHTS_FOR = { alta: 8, media: 5, baja: 2 };
-const PICK_EVERY = 0.15; // s entre repartos
-const FADE = 4; // 1/s: fundido al cambiar de fuente
+const PICK_EVERY = 0.15;
+const FADE = 4;
 const _fwd = new THREE.Vector3();
 const _d = new THREE.Vector3();
 
-/**
- * Fuente de luz: { pos, color, intensity (cd), distance (m), flicker: 0 | 'fire' | 'tube' | 'broken',
- * power: true si depende de la electricidad, on }
- */
 export class LightPool {
   constructor(scene, sources = []) {
     this.scene = scene;
@@ -145,7 +116,6 @@ export class LightPool {
     return src;
   }
 
-  /** Número de luces (solo al cambiar el detalle: recompila los materiales). */
   setCount(n) {
     if (n === this.lights.length) return;
     for (const l of this.lights) l.light.removeFromParent();
@@ -164,7 +134,6 @@ export class LightPool {
     this.powered = on;
   }
 
-  // Brillo actual de una fuente (parpadeos incluidos): 0 si está apagada.
   level(src, t) {
     if (!src.on || (src.power && !this.powered)) return 0;
     const p = src.phase;
@@ -172,7 +141,6 @@ export class LightPool {
       case 'fire':
         return 0.78 + 0.14 * Math.sin(t * 9.3 + p) + 0.08 * Math.sin(t * 23.7 + p * 2);
       case 'tube': {
-        // Fluorescente viejo: casi siempre bien, de vez en cuando titila.
         const k = Math.sin(t * 0.7 + p) > 0.93 ? (Math.sin(t * 60 + p) > 0 ? 1 : 0.15) : 1;
         return k;
       }
@@ -203,7 +171,6 @@ export class LightPool {
     }
   }
 
-  // Las fuentes que más aportan cerca de la cámara (las de delante cuentan más).
   pick(camera) {
     const n = this.lights.length;
     if (!n) return;
@@ -223,7 +190,6 @@ export class LightPool {
     const chosen = new Set(scored.slice(0, n).map((x) => x[0]));
     for (const l of this.lights) l.keep = !!l.src && chosen.has(l.src);
     for (const l of this.lights) if (l.keep) chosen.delete(l.src);
-    // Fuentes nuevas: a luces libres (apagadas del todo).
     for (const src of chosen) {
       const free = this.lights.find((l) => !l.src);
       if (!free) break;
@@ -241,8 +207,7 @@ export class LightPool {
   }
 }
 
-// --- Conos y charcos de luz (aditivos) -------------------------------------------------------------
-const coneVert = /* glsl */ `
+const coneVert = `
 attribute vec4 aLight; // rgb · fase de parpadeo
 attribute float aPower; // 1: depende de la electricidad
 varying vec3 vColor;
@@ -263,7 +228,7 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
 }`;
-const coneFrag = /* glsl */ `
+const coneFrag = `
 uniform float uPower;
 uniform float uTime;
 uniform float uStrength;
@@ -287,7 +252,7 @@ void main() {
   #endif
   gl_FragColor = vec4(c, 1.0);
 }`;
-const poolFrag = /* glsl */ `
+const poolFrag = `
 uniform float uPower;
 uniform float uTime;
 uniform float uStrength;
@@ -326,10 +291,6 @@ function lightMaterial(vertexShader, fragmentShader, strength) {
   });
 }
 
-/**
- * Conos (farolas) y charcos de luz unidos en dos mallas.
- * cones: [{ top: Vector3, height, radius, color, power, broken }] · pools: [{ pos, radius, color, power, broken }]
- */
 export function lightShapes(cones, pools) {
   const group = new THREE.Group();
   group.userData.dynamic = true;
@@ -390,7 +351,6 @@ export function lightShapes(cones, pools) {
 }
 
 function mergeAll(geos) {
-  // Unión simple (mismos atributos e índices): sin depender de BufferGeometryUtils.
   const attrs = Object.keys(geos[0].attributes);
   const out = new THREE.BufferGeometry();
   let total = 0;
@@ -424,10 +384,8 @@ function mergeAll(geos) {
   return out;
 }
 
-// --- Entorno nocturno -------------------------------------------------------------------------------
 let nightEnv = null;
 
-/** Mapa de entorno de noche (cielo oscuro, resplandor de fuego en el horizonte y farolas). */
 export function nightEnvironment(renderer) {
   if (nightEnv) return nightEnv;
   const scene = new THREE.Scene();
@@ -448,7 +406,6 @@ export function nightEnvironment(renderer) {
     }),
   );
   scene.add(sky);
-  // Farolas y fuego como manchas brillantes: dan reflejos cálidos en charcos, metal y sangre.
   const lamp = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffb066').multiplyScalar(6) });
   const fire = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff6a2a').multiplyScalar(5) });
   const moon = new THREE.MeshBasicMaterial({ color: new THREE.Color('#bcd0ff').multiplyScalar(3) });
@@ -467,11 +424,7 @@ export function nightEnvironment(renderer) {
   return nightEnv;
 }
 
-// --- Fuego y humo -------------------------------------------------------------------------------------
-// Llamas de los barriles: cuadros que miran a la cámara con un fuego de ruido animado (aditivo) y una
-// columna de humo encima (mezcla normal). Todas las llamas son instancias de una malla y todo el humo de
-// otra: dos llamadas de dibujo para todos los fuegos del mapa.
-const FIRE_VERT = /* glsl */ `
+const FIRE_VERT = `
 attribute vec4 aFire; // base (xyz) · semilla
 attribute vec2 aSize; // ancho · alto
 varying vec2 vUv;
@@ -485,7 +438,7 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
 }`;
-const NOISE = /* glsl */ `
+const NOISE = `
 float fHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float fNoise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
@@ -493,7 +446,7 @@ float fNoise(vec2 p) {
   return mix(mix(fHash(i), fHash(i + vec2(1.0, 0.0)), f.x), mix(fHash(i + vec2(0.0, 1.0)), fHash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 float fFbm(vec2 p) { return fNoise(p) * 0.55 + fNoise(p * 2.1) * 0.3 + fNoise(p * 4.3) * 0.15; }`;
-const FLAME_FRAG = /* glsl */ `
+const FLAME_FRAG = `
 uniform float uTime;
 varying vec2 vUv;
 varying float vSeed;
@@ -511,7 +464,7 @@ void main() {
   #endif
   gl_FragColor = vec4(c, 1.0);
 }`;
-const SMOKE_FRAG = /* glsl */ `
+const SMOKE_FRAG = `
 uniform float uTime;
 varying vec2 vUv;
 varying float vSeed;
@@ -529,7 +482,6 @@ void main() {
   gl_FragColor = vec4(c, a);
 }`;
 
-/** Llamas y humo para una lista de fuegos [{ pos: Vector3 (base), width, height, smoke }]. */
 export function fireField(fires) {
   const group = new THREE.Group();
   group.userData.dynamic = true;
@@ -564,12 +516,7 @@ export function fireField(fires) {
   };
 }
 
-// --- Bancos de niebla -----------------------------------------------------------------------------
-// Jirones de bruma que flotan a ras del suelo alrededor del jugador y se mueven despacio con el viento:
-// cuadros grandes que miran a la cámara con un ruido suave y transparencia baja (una malla instanciada,
-// una llamada de dibujo). Se apagan al acercarse a la cámara (no se ve el borde del cuadro) y se
-// funden con la niebla de distancia. Los que quedan lejos reaparecen del otro lado.
-const BANK_VERT = /* glsl */ `
+const BANK_VERT = `
 attribute vec4 aBank; // posición (xyz) · semilla
 attribute float aSize;
 uniform float uFade; // m: más cerca de la cámara se desvanecen
@@ -591,7 +538,7 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
 }`;
-const BANK_FRAG = /* glsl */ `
+const BANK_FRAG = `
 uniform float uTime;
 uniform vec3 uColor;
 uniform float uOpacity;
@@ -626,10 +573,6 @@ void main() {
   gl_FragColor = vec4(c, a);
 }`;
 
-/**
- * Bancos de niebla alrededor de la cámara. opts: { count, radius (m), color, opacity }.
- * update(dt, camera) los mueve con el viento y recicla los que quedan lejos.
- */
 export function fogBanks({ count = 42, radius = 34, color = '#5a6678', opacity = 0.22 } = {}) {
   const geo = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(1, 1));
   geo.instanceCount = count;
@@ -647,7 +590,6 @@ export function fogBanks({ count = 42, radius = 34, color = '#5a6678', opacity =
     depthWrite: false,
     fog: true,
   });
-  // El haz de la linterna es el mismo que el de la niebla baja (uniformes compartidos).
   for (const k of ['uBeam', 'uBeamCone', 'uBeamColor', 'uBeamClear']) mat.uniforms[k] = HEIGHT_FOG[k];
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
@@ -656,7 +598,6 @@ export function fogBanks({ count = 42, radius = 34, color = '#5a6678', opacity =
   mesh.renderOrder = 3;
   const wind = new THREE.Vector2(0.45, 0.18);
   const place = (i, cx, cz, anywhere) => {
-    // Anillo alrededor de la cámara (al reciclar, en el borde del lado de donde viene el viento).
     const a = Math.random() * Math.PI * 2;
     const d = anywhere ? 4 + Math.random() * radius : radius * (0.75 + Math.random() * 0.25);
     data[i * 4] = cx + Math.cos(a) * d;

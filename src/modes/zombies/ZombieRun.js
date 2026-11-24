@@ -12,33 +12,19 @@ import { SafeLock } from './safe.js';
 import { BOSS } from './bossBrain.js';
 import { BARRICADE, BOX_MOVE, BOX_PRICE, rollBox, DOORS, MAX_WEAPONS, DROP, FORGE, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
-const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
-const PLAYER_RADIUS = 0.38; // los zombis no se meten dentro del jugador (ni de la cámara)
-const CROWD_PASSES = 2; // pasadas de separación firme entre zombis por cuadro
-const VIEW_AVOID = Math.PI / 3; // en oleadas altas se prefieren entradas fuera de la vista (±60°)
-const NEAR_ENTRIES = 4; // los zombis salen de las entradas abiertas más cercanas al jugador
-const LEG_LOSS = { near: 0.55, chance: 0.45 }; // explosión a menos de esa fracción del radio: puede dejarlo sin piernas
+const NAV_EVERY = 0.25;
+const PLAYER_RADIUS = 0.38;
+const CROWD_PASSES = 2;
+const VIEW_AVOID = Math.PI / 3;
+const NEAR_ENTRIES = 4;
+const LEG_LOSS = { near: 0.55, chance: 0.45 };
 const _v = new THREE.Vector3();
 const _to = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
 const powerGeo = new THREE.OctahedronGeometry(0.32, 0);
-// Cabeza que sale volando (low-poly, piel gris verdosa).
 const headGeo = new THREE.DodecahedronGeometry(0.13, 0);
 const headMat = new THREE.MeshStandardMaterial({ color: '#5f6b55', roughness: 0.85, flatShading: true });
 
-/*
-  Una partida del modo zombi. Extiende Phase para reutilizar disparos, vida, daño direccional,
-  estadísticas y colisiones con el jugador. El modo (Zombies.js) controla el flujo entre oleadas.
-
-  Avisa al modo con listener(tipo, datos):
-    waveStart { wave, count, runnerNight } · waveClear { wave, bonus } · kill { zombie, part, points }
-    cash { amount } · powerup { id } · powerupEnd { id } · hurt · groan { zombie, dist } · death
-    door { id } · perk { id } · weapon { id } · ammo { id }   (compras en el mapa)
-    power · forge { id } · box { id } · boxMove { where } · lastStand
-    bossSpawn { zombie } · bossKill { zombie, code } (el Jefe suelta el código de la caja fuerte)
-    boss { kind, zombie, dist?, spawned? } (ataques especiales del Jefe: ver bossAction)
-    safeOpen · safeWrong { fails }
-*/
 export class ZombieRun extends Phase {
   static info = { id: 'zombies', name: 'Zombis', desc: '', auto: true, health: true };
 
@@ -59,15 +45,14 @@ export class ZombieRun extends Phase {
     this.health = this.maxHealth;
     this.sinceHurt = 99;
     this.owned = new Set(['pistol']);
-    this.slots = ['pistol']; // espacios de armas en orden (teclas 1-3); hasta MAX_WEAPONS
-    this.perks = new Set(); // bebidas tomadas (zombieData.PERKS)
-    this.upgraded = new Set(); // armas forjadas (zombieData.FORGE)
+    this.slots = ['pistol'];
+    this.perks = new Set();
+    this.upgraded = new Set();
     this.game.weapon.magazineBy = {};
-    // Caja fuerte (la caja de armas): cerrada con un código que suelta el Jefe al morir.
     this.safe = new SafeLock();
     this.world.setSafeLocked?.(true);
-    this.boss = null; // el Jefe vivo
-    this.boxUses = 0; // tiradas de la caja en su lugar actual (cada tantas se muda)
+    this.boss = null;
+    this.boxUses = 0;
     this.boxMoveAt = BOX_MOVE.min + Math.floor(Math.random() * (BOX_MOVE.max - BOX_MOVE.min + 1));
     this.dmgMul = 1;
     this.regenDelay = PLAYER.regenDelay;
@@ -75,8 +60,8 @@ export class ZombieRun extends Phase {
     this.repairPoints = 0;
     this.timers = { double: 0, instakill: 0 };
     this.sinceDrop = DROP.cooldown;
-    this.drops = []; // { id, mesh, t }
-    this.heads = []; // cabezas que salieron volando { mesh, vel, spin, t }
+    this.drops = [];
+    this.heads = [];
     this.waveKills = 0;
     this.stats.headKills = 0;
     this.stats.meleeKills = 0;
@@ -88,10 +73,9 @@ export class ZombieRun extends Phase {
     this.navCell = -1;
     this.ctx.zombies = this.bots;
     this.ctx.colliders = w.colliders;
-    this.ctx.decoy = null; // señuelo activo: { x, z }
-    // Defensa: los zombis van por la barra con su propio campo de flujo (fijo: la barra no se mueve).
+    this.ctx.decoy = null;
     this.bar = mode.bar ?? null;
-    this.blood = mode.blood ?? null; // neblina y manchas de sangre (BloodFx)
+    this.blood = mode.blood ?? null;
     this.ctx.objective = null;
     if (this.defense && this.bar) {
       const barNav = new NavGrid({ ...w.nav, cell: 1, radius: 0.45, colliders: w.colliders });
@@ -115,20 +99,19 @@ export class ZombieRun extends Phase {
     return this.state === 'wave' ? this.roster.length + this.aliveCount : 0;
   }
 
-  // --- Oleadas ------------------------------------------------------------------------------------
   startWave(n) {
     this.wave = n;
     this.cfg = waveConfig(n, this.difficulty);
     this.roster = waveRoster(this.cfg);
     this.spawnTimer = 0.8;
     this.waveKills = 0;
-    this.repairPoints = 0; // tope de puntos por reparar barricadas en cada oleada
+    this.repairPoints = 0;
     this.state = 'wave';
     this.emit('waveStart', { wave: n, count: this.cfg.count, runnerNight: this.cfg.runnerNight });
   }
 
   update(dt) {
-    super.update(dt); // zombis y retirada de los muertos
+    super.update(dt);
     this.updateHeads(dt);
     this.resolveCrowd();
     this.barHitT -= dt;
@@ -154,11 +137,6 @@ export class ZombieRun extends Phase {
     }
   }
 
-  /*
-    Colisión firme de la horda (después de que todos se movieron): ningún zombi queda dentro de otro
-    ni del jugador. Se reparten el empujón según el tamaño (el bruto casi no se mueve) y, si eso los
-    metió en una pared, la pared manda.
-  */
   resolveCrowd() {
     const list = this.bots;
     const p = this.game.player.position;
@@ -178,7 +156,7 @@ export class ZombieRun extends Phase {
           if (d2 >= min * min) continue;
           const d = Math.sqrt(d2) || 1e-4;
           const push = min - d;
-          const wa = b.radius / min; // el más grande se mueve menos
+          const wa = b.radius / min;
           const nx = d2 > 1e-8 ? dx / d : 1;
           const nz = d2 > 1e-8 ? dz / d : 0;
           pa.x -= nx * push * wa;
@@ -186,7 +164,6 @@ export class ZombieRun extends Phase {
           pb.x += nx * push * (1 - wa);
           pb.z += nz * push * (1 - wa);
         }
-        // Fuera del jugador.
         const dx = pa.x - p.x;
         const dz = pa.z - p.z;
         const min = a.radius + PLAYER_RADIUS;
@@ -202,7 +179,6 @@ export class ZombieRun extends Phase {
     for (const z of list) if (z.alive) z.group.updateMatrixWorld(true);
   }
 
-  // --- Defensa de la barra ----------------------------------------------------------------------
   onZombieAttackBar(z) {
     if (this.died || !this.bar) return;
     const broke = this.bar.damage(z.stats.damage, z.position);
@@ -218,7 +194,6 @@ export class ZombieRun extends Phase {
     }
   }
 
-  // Campo de flujo hacia el jugador: se rehace cada NAV_EVERY s o al cambiar de celda.
   updateNav(dt) {
     this.navT -= dt;
     const p = this.game.player.position;
@@ -229,9 +204,6 @@ export class ZombieRun extends Phase {
     this.nav.build(p.x, p.z);
   }
 
-  // Entrada: solo de las secciones abiertas y, entre ellas, de las más cercanas al jugador (la horda
-  // llega a donde estás, no al otro lado del mapa). No repetir la anterior; en oleadas altas, mejor
-  // fuera de la vista.
   pickEntry() {
     const w = this.world;
     const p = this.game.player.position;
@@ -254,8 +226,8 @@ export class ZombieRun extends Phase {
     pos.x += rand(-1.2, 1.2);
     pos.z += rand(-1.2, 1.2);
     const z = new Zombie(this, zombieStats(type, this.cfg), pos);
-    z.entry = entry; // para arrancar los tablones de su barricada
-    if (entry.rise) z.rise(); // las ventanas del vestíbulo: salen de la tierra
+    z.entry = entry;
+    if (entry.rise) z.rise();
     this.bots.push(z);
     if (z.stats.boss) {
       this.boss = z;
@@ -264,7 +236,6 @@ export class ZombieRun extends Phase {
     return z;
   }
 
-  // Un zombi arranca un tablón de su barricada (crujido de madera, ubicado en estéreo).
   onTearBoard(z, b) {
     if (!this.world.removeBoard?.(b)) return;
     const g = this.game;
@@ -272,7 +243,6 @@ export class ZombieRun extends Phase {
     this.emit('tear', { barricade: b });
   }
 
-  /** Repara un tablón (el jugador mantiene la tecla de usar). Devuelve true si se clavó uno. */
   repairBoard(b) {
     if (!this.world.addBoard?.(b)) return false;
     if (this.repairPoints < BARRICADE.repairCapPerWave) {
@@ -282,8 +252,6 @@ export class ZombieRun extends Phase {
     return true;
   }
 
-  // --- Daño a los zombis ------------------------------------------------------------------------
-  // Zombis vivos a la vez: el de la ronda, sin pasar el tope de la calidad gráfica (rendimiento).
   maxAlive() {
     return Math.min(this.cfg.maxAlive, ALIVE_BY_DETAIL[this.game.engine?.detail] ?? Infinity);
   }
@@ -292,11 +260,8 @@ export class ZombieRun extends Phase {
     return this.dmgMul;
   }
 
-  // Aplica daño a un zombi y reparte puntos (impacto y baja). Devuelve si murió.
-  // tick: daño continuo (fuego): solo da los puntos de la baja, no los de cada impacto.
   hitZombie(z, amount, part, { melee = false, grenade = false, tick = false } = {}) {
     if (!z.alive) return false;
-    // El cuchillo tiene daño fijo (las bebidas de daño solo afectan a las armas).
     const dmg = this.timers.instakill > 0 ? z.hp + 1 : amount * (melee ? 1 : this.dmgMul);
     const { killed } = z.damage(dmg, part);
     const mul = this.cfg?.pointsMul ?? 1;
@@ -317,13 +282,11 @@ export class ZombieRun extends Phase {
     return killed;
   }
 
-  // Disparo del jugador (sin penalización por fallar: aquí se gana o no se gana).
   handleShot(hit, time = performance.now()) {
     const s = this.stats;
     const { hud, sfx } = this.game;
     this.shotTime = time;
     s.shots++;
-    // Una botella de la barra: el tiro la rompe (y se pierde).
     if (hit?.object?.userData.bottle && this.bar) {
       const b = this.bar.bottleOf(hit.object, hit.instanceId);
       if (b && this.bar.breakBottle(b)) {
@@ -344,12 +307,10 @@ export class ZombieRun extends Phase {
     const base = w.stats.damage[part] * (hit.pelletHits ?? 1) * (this.upgraded.has(w.stats.id) ? FORGE.damage : 1);
     const before = bot.hp;
     if (hit.point) {
-      bot.wound(hit.point, part); // la herida queda en el cuerpo, donde entró la bala
+      bot.wound(hit.point, part);
       this.blood?.hit(hit.point, _v.copy(hit.point).sub(this.game.player.eye).normalize(), part === 'head' ? 1.3 : 1);
     }
     const killed = this.hitZombie(bot, base, part);
-    // Tiro a la cabeza: si lo mata, la cabeza sale volando; si no, a veces también (un golpe fuerte) y
-    // el zombi sigue caminando sin ella hasta desangrarse, como en los clásicos.
     if (part === 'head' && !bot.heavy) {
       const strong = (before - Math.max(0, bot.hp)) >= bot.maxHp * 0.25;
       if (killed || (strong && Math.random() < 0.45)) this.decapitate(bot, hit);
@@ -360,8 +321,6 @@ export class ZombieRun extends Phase {
     if (killed) sfx.kill();
   }
 
-  // Cuchillo: daño fijo KNIFE_DAMAGE (1 golpe en la ronda 1, 2 en la 2, 3 en la 3…).
-  // La cabeza sale volando: salpicadura y la cabeza que cae rodando (y la hitbox desaparece).
   decapitate(z, hit) {
     if (!z.decapitate()) return;
     const g = this.game;
@@ -377,12 +336,10 @@ export class ZombieRun extends Phase {
     g.sfx.meleeHit?.();
   }
 
-  // Sin cabeza se desangra: daño continuo que solo da los puntos de la baja (a la cabeza).
   onBleed(z, amount) {
     if (this.hitZombie(z, amount, 'head', { tick: true })) this.game.hud.hitmarker('kill');
   }
 
-  // Chorro de sangre del cuello de un zombi sin cabeza (mientras sigue caminando).
   onNeckSpurt(z) {
     const neck = z.chestPosition(_to);
     neck.y += 0.42 * z.scale;
@@ -418,8 +375,6 @@ export class ZombieRun extends Phase {
     if (killed) this.game.sfx.kill();
   }
 
-  // Granada: daño por distancia al pecho, solo con línea de visión. A los que sobreviven cerca del
-  // estallido a veces les arranca las piernas: siguen arrastrándose (como en los clásicos).
   onExplosion(point, radius, los, { damageAt = explosionDamage } = {}) {
     let kills = 0;
     for (const z of this.bots) {
@@ -438,7 +393,6 @@ export class ZombieRun extends Phase {
     if (kills >= 3) this.emit('multi', { kills });
   }
 
-  // Incendiaria: daño continuo a quien pise el fuego (distancia en el plano).
   onFireTick(point, radius, damage, los) {
     for (const z of this.bots) {
       if (!z.alive) continue;
@@ -449,7 +403,6 @@ export class ZombieRun extends Phase {
     }
   }
 
-  // Aturdidora: frena a los que estén cerca y a la vista del estallido.
   onStun(point, radius, seconds, los) {
     let n = 0;
     for (const z of this.bots) {
@@ -460,13 +413,10 @@ export class ZombieRun extends Phase {
     if (n) this.game.hud.flash(`${n} aturdido${n === 1 ? '' : 's'}`, 'good');
   }
 
-  // Señuelo: la horda lo persigue mientras pita.
   setDecoy(point) {
     this.ctx.decoy = point ? { x: point.x, z: point.z } : null;
   }
 
-  // --- Compras en el mapa (puertas, armas de la pared, bebidas) -----------------------------------
-  /** Precio y texto de algo comprable del mapa, o null si ya no se puede usar (puerta abierta). */
   offer(it) {
     const powered = this.world.powered ?? true;
     if (it.kind === 'door') {
@@ -499,13 +449,12 @@ export class ZombieRun extends Phase {
     return { price: WALL_BUYS[it.id], label: `Comprar ${name}${this.swapNote()}` };
   }
 
-  /** Compra algo del mapa. Devuelve null si se compró o el motivo si no. */
   buy(it) {
     const o = this.offer(it);
     if (!o) return 'Ya está abierta';
     if (o.done) return o.reason ?? 'Ya la tienes';
     if (o.ammo && this.reserveFullFor(it.id)) return 'Munición llena';
-    if (o.keypad) return 'keypad'; // caja fuerte cerrada: el modo abre el teclado
+    if (o.keypad) return 'keypad';
     if (this.cash < o.price) return it.kind === 'door' ? 'Dinero insuficiente' : 'Faltan puntos';
     const g = this.game;
     if (it.kind === 'box') {
@@ -536,7 +485,6 @@ export class ZombieRun extends Phase {
       this.world.openDoor(it.id);
       this.nav.setColliders(this.world.colliders);
       this.navT = 0;
-      // En la defensa, el camino hacia la barra también cambia al abrir una puerta.
       const obj = this.ctx.objective;
       if (obj) {
         obj.nav.setColliders(this.world.colliders);
@@ -561,7 +509,6 @@ export class ZombieRun extends Phase {
     return null;
   }
 
-  // Con las manos llenas, lo que se compre cambia el arma de la mano (se dice en el mensaje).
   swapNote() {
     if (this.slots.length < MAX_WEAPONS) return '';
     return ` (cambia tu ${WEAPONS[this.handSlotWeapon()]?.name ?? 'arma'})`;
@@ -572,10 +519,6 @@ export class ZombieRun extends Phase {
     return this.slots.includes(cur) ? cur : this.slots[this.slots.length - 1];
   }
 
-  /**
-   * Arma nueva con su cargador lleno y su reserva; queda en la mano. Si ya hay MAX_WEAPONS, reemplaza a
-   * la que está en la mano (en su mismo espacio) y la pierde con su forja. Devuelve la que dejó (o null).
-   */
   giveWeapon(id) {
     const w = this.game.weapon;
     let dropped = null;
@@ -596,7 +539,6 @@ export class ZombieRun extends Phase {
     return dropped;
   }
 
-  // Reserva máxima de un arma (más grande si está forjada); null = infinita.
   reserveMax(id) {
     const r = RESERVE[id];
     return r === null || r === undefined ? r : Math.round(r * (this.upgraded.has(id) ? FORGE.reserve : 1));
@@ -607,9 +549,6 @@ export class ZombieRun extends Phase {
     return !res || RESERVE[id] === null || res[id] >= this.reserveMax(id);
   }
 
-  // --- Caja fuerte y el Jefe ------------------------------------------------------------------------
-  // El Jefe cayó: revela el código de la caja fuerte (queda en el HUD), estalla en sangre y suelta
-  // munición máxima (premio por la pelea).
   onBossKilled(z) {
     const code = this.safe.reveal();
     const g = this.game;
@@ -621,13 +560,6 @@ export class ZombieRun extends Phase {
     this.emit('bossKill', { zombie: z, code });
   }
 
-  /*
-    Ataques especiales del Jefe (los decide bossBrain.js; aquí se aplican):
-      chargeWind / slamWind: ruge preparando el ataque · chargeHit: la embestida te alcanzó (daño fuerte
-      y te lanza) · crash: se estrelló contra una pared · slam: pisotón (onda que daña y empuja; saltando
-      justo a tiempo se esquiva) · summon: salen corredores de la tierra a su alrededor · enrage: furia.
-    Avisa al modo con 'boss' { kind, zombie, ... } para el sonido y los avisos.
-  */
   bossAction(kind, z, data = {}) {
     if (this.died) return;
     const g = this.game;
@@ -651,7 +583,6 @@ export class ZombieRun extends Phase {
       _v.set(zp.x, (z.floorY ?? 0) + 0.1, zp.z);
       g.effects.burst(_v, _up, '#5a4a3a', 34, 7);
       g.effects.burst(_v, _up, '#2a2018', 18, 4);
-      // En el aire (saltó a tiempo) o fuera del radio: no le pasa nada.
       const airborne = !player.onGround && pp.y - (z.floorY ?? 0) > 0.25;
       if (dist <= data.radius && !airborne) {
         const k = 1 - dist / data.radius;
@@ -666,8 +597,6 @@ export class ZombieRun extends Phase {
     this.emit('boss', { kind, zombie: z, ...extra });
   }
 
-  // Zombis que salen de la tierra alrededor de `z` (en celdas libres del mapa). Son extra: no estaban
-  // en la ronda, pero hay que matarlos para terminarla.
   spawnAround(z, type, count) {
     let n = 0;
     const p = z.position;
@@ -680,7 +609,7 @@ export class ZombieRun extends Phase {
       const i = this.nav.index(x, zz);
       if (i < 0 || this.nav.blocked[i]) continue;
       const minion = new Zombie(this, zombieStats(type, this.cfg), new THREE.Vector3(x, p.y, zz));
-      minion.passed = true; // ya está adentro: no busca tablones
+      minion.passed = true;
       minion.rise();
       this.bots.push(minion);
       n++;
@@ -688,7 +617,6 @@ export class ZombieRun extends Phase {
     return n;
   }
 
-  /** Prueba el código escrito en el teclado de la caja fuerte (ver safe.SafeLock.submit). */
   submitSafeCode() {
     const r = this.safe.submit();
     if (r === 'open') {
@@ -698,7 +626,6 @@ export class ZombieRun extends Phase {
     return r;
   }
 
-  // La caja se muda a otro lugar (al azar, nunca el mismo) y la horda recalcula sus caminos.
   moveBox() {
     const w = this.world;
     const n = w.boxSpots?.length ?? 0;
@@ -713,7 +640,6 @@ export class ZombieRun extends Phase {
     this.emit('boxMove', { where: spot.where });
   }
 
-  // Efectos de las bebidas en el jugador y el arma.
   applyPerks() {
     const s = perkStats(this.perks);
     this.maxHealth = s.maxHealth;
@@ -727,7 +653,6 @@ export class ZombieRun extends Phase {
 
   onZombieDeath() {}
 
-  // --- Jugador ------------------------------------------------------------------------------------
   onZombieAttack(z) {
     if (this.died) return;
     this.takeDamage(z.stats.damage, z.chestPosition(_v));
@@ -742,7 +667,6 @@ export class ZombieRun extends Phase {
     this.sinceHurt = 0;
     g.hud.damage(g.angleTo(from));
     g.sfx.hurt();
-    // Último Aliento: en vez de caer, te levantas una vez con toda la vida (y se gasta la bebida).
     if (this.health <= 0 && this.perks.has('aliento')) {
       this.perks.delete('aliento');
       this.applyPerks();
@@ -758,7 +682,6 @@ export class ZombieRun extends Phase {
     }
   }
 
-  // Regeneración tras unos segundos sin recibir daño.
   updateHealth(dt) {
     this.sinceHurt += dt;
     if (this.died || this.health >= this.maxHealth || this.sinceHurt < this.regenDelay) return;
@@ -777,13 +700,12 @@ export class ZombieRun extends Phase {
     this.emit('cash', { amount: n });
   }
 
-  // --- Potenciadores ------------------------------------------------------------------------------
   maybeDrop(z) {
     const id = rollDrop(this.sinceDrop);
     if (!id) return;
     this.sinceDrop = 0;
     const mesh = new THREE.Mesh(powerGeo, glow(POWERUPS[id].color));
-    const base = (z.floorY ?? 0) + 0.9; // sobre el piso donde cayó (también en los pisos altos)
+    const base = (z.floorY ?? 0) + 0.9;
     mesh.position.copy(z.position).setY(base);
     this.root.add(mesh);
     this.drops.push({ id, mesh, t: 0, base });
@@ -796,7 +718,6 @@ export class ZombieRun extends Phase {
       d.t += dt;
       d.mesh.rotation.y += dt * 2.2;
       d.mesh.position.y = d.base + Math.sin(d.t * 3) * 0.12;
-      // Parpadea antes de desaparecer.
       const left = DROP.lifetime - d.t;
       d.mesh.visible = left > DROP.blinkFrom || Math.floor(left * 6) % 2 === 0;
       const near = Math.hypot(d.mesh.position.x - p.x, d.mesh.position.z - p.z) < DROP.pickupRadius && Math.abs(d.base - 0.9 - p.y) < 1.5;
@@ -833,7 +754,6 @@ export class ZombieRun extends Phase {
     this.emit('powerup', { id });
   }
 
-  // Reserva completa de todas las armas que se tienen.
   refillReserves() {
     const res = this.game.weapon.reserveBy;
     if (!res) return;
@@ -846,10 +766,7 @@ export class ZombieRun extends Phase {
     return [...this.owned].every((id) => RESERVE[id] === null || res[id] >= this.reserveMax(id));
   }
 
-  // --- Interfaz / resultados ----------------------------------------------------------------------
   hudStats() {
-    // Los puntos para gastar van en su propio panel (dorado); arriba, las bajas.
-    // Sin precisión: aquí no se puntúa la puntería, se sobrevive (accLabel null oculta ese dato).
     return { score: this.stats.kills, scoreLabel: 'Bajas', accLabel: null, accText: '', time: clock(this.elapsed) };
   }
 

@@ -13,24 +13,6 @@ const BODY_HEIGHT = 1.78;
 const _v = new THREE.Vector3();
 const _head = new THREE.Vector3();
 
-/*
-  Bot humanoide con hitboxes de cabeza, cuerpo y piernas.
-
-  opts = {
-    position: Vector3 (pies), color, hp = 100,
-    scale: 1                   → tamaño relativo a 1.77 m (campaña / infinito usan < 1); escala
-                                 modelo, hitboxes, línea de visión, salto y colisión
-    appear: bool               → aparece con una animación rápida (no hay "peek" previo)
-    lifetime: s | null         → si sigue vivo al cumplirse, se esconde o desaparece (escapa)
-    behavior:
-      { type: 'static' }
-      { type: 'strafe', range, speed: [a, b], change: [a, b], crouchChance, jumpChance, stopChance }
-      { type: 'peek', spot, delay, outSpeed, hold: [a, b], wide, jiggles, then: 'hide' | 'strafe', strafe: {...} }
-    shooter: { reaction, interval, damage, accuracy } | null
-  }
-
-  ctx de update = { playerPos, playerEye, playerSpeed, playerCrouch, ballistics, onBotFire(bot, hit, damage) }
-*/
 export class Bot {
   constructor(parent, world, opts) {
     this.world = world;
@@ -51,7 +33,7 @@ export class Bot {
     this.group.position.copy(opts.position);
     this.hp = opts.hp ?? 100;
     this.maxHp = this.hp;
-    this.state = 'alive'; // alive | dying | leaving | gone
+    this.state = 'alive';
     this.escaped = false;
     this.age = 0;
     this.crouch = 0;
@@ -73,7 +55,6 @@ export class Bot {
     parent.add(this.group);
     this.group.updateMatrixWorld(true);
 
-    // Apariencia: soldado animado (botSkin.js). Las cajas siguen siendo las hitboxes, ahora invisibles.
     this.skin = null;
     this.shotT = 9;
     this.moveSpeed = 0;
@@ -81,8 +62,6 @@ export class Bot {
     loadSoldier(opts.color).then((template) => {
       if (!template || this.disposed || this.state === 'gone') return;
       this.skin = acquireSkin(template, opts.color);
-      // Va junto al grupo de hitboxes, no dentro: así applyPose (que actualiza las matrices de las
-      // hitboxes cada cuadro) no recalcula también los 62 huesos; el render lo hace una sola vez.
       (this.group.parent ?? parent).add(this.skin.root);
       this.syncSkin();
       for (const m of Object.values(this.mats)) m.visible = false;
@@ -106,7 +85,6 @@ export class Bot {
     return out.set(p.x, p.y + (BOT_DIMENSIONS.headCenter - BOT_DIMENSIONS.crouchDrop * this.crouch) * this.scale, p.z);
   }
 
-  // Cilindro de colisión para el jugador (pies en y0, altura h). Escribe en `out` y lo devuelve.
   bodyCollider(out) {
     const p = this.group.position;
     out.x = p.x;
@@ -147,10 +125,9 @@ export class Bot {
     b.offset = 0;
     b.vel = randSign() * rand(...b.speed);
     b.timer = rand(...b.change);
-    b.lateral = null; // se fija en el primer update, perpendicular a la línea hacia el jugador
+    b.lateral = null;
   }
 
-  // Daño recibido. Devuelve { killed }.
   damage(amount) {
     if (!this.alive) return { killed: false };
     this.hp -= amount;
@@ -163,7 +140,6 @@ export class Bot {
     return { killed: false };
   }
 
-  // Se va sin morir: vuelve a su escondite si lo tiene, si no se desvanece.
   leave() {
     if (!this.alive) return;
     const b = this.behavior;
@@ -209,7 +185,6 @@ export class Bot {
     this.updateSkin(dt);
   }
 
-  // El soldado copia la posición, el giro y la escala (aparecer / irse) del grupo de hitboxes.
   syncSkin() {
     const r = this.skin.root;
     r.position.copy(this.group.position);
@@ -217,7 +192,6 @@ export class Bot {
     r.scale.copy(this.group.scale);
   }
 
-  // Animación del soldado según el movimiento real del bot (en su espacio: adelante y lateral).
   updateSkin(dt) {
     if (!this.skin) return;
     this.syncSkin();
@@ -311,7 +285,6 @@ export class Bot {
         b.timer -= dt;
         if (b.timer > 0) break;
         if (b.jiggles > 0) {
-          // Jiggle: asomarse un instante y volver a cubrirse antes del peek real.
           b.jiggles--;
           b.phase = 'back';
         } else if (b.then === 'strafe') {
@@ -351,7 +324,6 @@ export class Bot {
     if (this.fireCooldown > 0) return;
     this.fireCooldown = s.interval * rand(0.8, 1.2);
     this.shotT = 0;
-    // Moverse rápido o agacharse hace más difícil que el bot acierte.
     const moving = Math.min(1, ctx.playerSpeed / 5.4);
     const chance = s.accuracy * (1 - 0.5 * moving) * (ctx.playerCrouch > 0.5 ? 0.85 : 1);
     ctx.onBotFire(this, Math.random() < chance, s.damage);
@@ -360,7 +332,7 @@ export class Bot {
   updateDeath(dt) {
     this.deathT += dt;
     const k = Math.min(1, this.deathT / 0.35);
-    if (!this.skin) this.group.rotation.x = -k * k * 1.45; // el soldado tiene su animación de muerte
+    if (!this.skin) this.group.rotation.x = -k * k * 1.45;
     if (this.deathT > 0.55) this.group.position.y = this.baseY - (this.deathT - 0.55) * 2.5;
     if (this.deathT > DEATH_TIME) this.state = 'gone';
     this.flashT -= dt;
@@ -396,7 +368,7 @@ export class Bot {
 
   dispose() {
     this.disposed = true;
-    if (this.skin) releaseSkin(this.skin); // vuelve a la reserva para el próximo bot
+    if (this.skin) releaseSkin(this.skin);
     this.skin = null;
     this.group.removeFromParent();
     for (const m of Object.values(this.mats)) m.dispose();

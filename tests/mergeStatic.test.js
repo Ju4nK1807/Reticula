@@ -14,9 +14,9 @@ function world() {
   const scene = new THREE.Scene();
   const concrete = new THREE.MeshStandardMaterial();
   const lamp = new THREE.MeshBasicMaterial();
-  const solids = [box(scene, concrete, 2, 2), box(scene, concrete, 6, 4), box(scene, concrete, 9, 7)]; // misma zona de 30 m
-  const far = box(scene, concrete, 100, 100); // otra zona
-  const unique = box(scene, lamp, 4, 1); // material propio: no se une
+  const solids = [box(scene, concrete, 2, 2), box(scene, concrete, 6, 4), box(scene, concrete, 9, 7)];
+  const far = box(scene, concrete, 100, 100);
+  const unique = box(scene, lamp, 4, 1);
   const dynamic = box(scene, concrete, 5, 8, { userData: { dynamic: true } });
   scene.add(new THREE.HemisphereLight());
   return { scene, solids: [...solids, far, unique], concrete, unique, dynamic };
@@ -33,7 +33,6 @@ describe('geometría estática unida', () => {
     expect(merged).toHaveLength(1);
     expect(merged[0].material).toBe(w.concrete);
     expect(merged[0].userData.merged).toBe(3);
-    // La de otra zona (sola en su zona), la de material propio y la dinámica siguen en la escena.
     expect(meshes).toContain(w.unique);
     expect(meshes).toContain(w.dynamic);
     expect(meshes.some((m) => m.position.x === 100)).toBe(true);

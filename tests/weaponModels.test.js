@@ -7,7 +7,6 @@ import { WEAPON_ORDER } from '../src/combat/weapons.js';
 
 const DIR = path.resolve(__dirname, '../public/models/weapons');
 
-// Arma de prueba: cuerpo de 30 cm y un cañón fino que sobresale 20 cm hacia -Z a 4 cm de altura.
 function fakeGun() {
   const root = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.3), new THREE.MeshStandardMaterial({ name: 'M_PCL_Flat_Black' }));
@@ -42,7 +41,6 @@ describe('modelos 3D de las armas', () => {
     const muzzle = fitWeaponModel(root, { scale: 1, back: 0.3, top: 0.1 });
     const box = new THREE.Box3().setFromObject(root);
     expect(muzzle.z).toBeCloseTo(box.min.z - 0.01, 3);
-    // Cañón a 4 cm sobre el centro del cuerpo (que mide 10 cm y tiene el lomo en 0.1): y ≈ 0.09.
     expect(muzzle.y).toBeCloseTo(0.09, 2);
     expect(Math.abs(muzzle.x)).toBeLessThan(0.01);
   });
@@ -53,8 +51,8 @@ describe('modelos 3D de las armas', () => {
     const [body, barrel] = root.children;
     expect(body.material.isMeshStandardMaterial).toBe(true);
     expect(body.material.metalness).toBeGreaterThan(0);
-    expect(barrel.material.metalness).toBe(0); // madera
+    expect(barrel.material.metalness).toBe(0);
     const size = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
-    expect(size.z).toBeCloseTo((0.3 / 2 + 0.25 + 0.1) * 2, 3); // de la culata a la punta, ×2
+    expect(size.z).toBeCloseTo((0.3 / 2 + 0.25 + 0.1) * 2, 3);
   });
 });

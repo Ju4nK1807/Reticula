@@ -4,26 +4,10 @@ import { glow } from '../../gfx/surfaces.js';
 import { signTexture } from '../../gfx/canvasTextures.js';
 import { DEFENSE } from './zombieData.js';
 
-/*
-  La barra del modo «Defensa de la barra»: la fuente de la plaza llena de botellas de licor.
-
-  - Las botellas (vino, whisky, vodka, ron, ginebra y tequila) van sobre el borde de la fuente y en la
-    columna del centro, con un letrero «BAR» encendido.
-  - Los golpes de los zombis acumulan daño: cada DEFENSE.hpPerBottle se rompe la botella más cercana al
-    que golpea (vidrio y licor saltando). Sin botellas, se pierde la partida.
-  - Las botellas son sólidas para las balas: un tiro que se escapa también rompe la que toca.
-  - Rendimiento: una malla instanciada por tipo de botella (6 llamadas de dibujo para 46 botellas) y la
-    guirnalda de bombillas unida en una sola malla.
-  - restock(n) repone botellas rotas (armería).
-  Los zombis buscan el contorno de la barra con su propio campo de flujo (attackPoints).
-*/
-
-// Contorno exterior de la fuente (ver ZombieMap: anillo de 6 × 6 m centrado en (0, -3)).
 export const BAR_RECT = { minX: -3.0, maxX: 3.0, minZ: -6.3, maxZ: 0.3 };
 const RIM_Y = 0.75;
 const PILLAR_Y = 1.6;
 
-// Tipos de botella: color del vidrio, alto, radio, forma (lados del torno: 4 = cuadrada) y cuello.
 const KINDS = [
   { name: 'vino', color: '#1d5a2c', h: 0.33, r: 0.042, sides: 12, neck: 0.4 },
   { name: 'whisky', color: '#b8641b', h: 0.27, r: 0.055, sides: 4, neck: 0.22 },
@@ -62,10 +46,6 @@ const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const UP = new THREE.Vector3(0, 1, 0);
 
 export class Bar {
-  /**
-   * @param {import('../../core/Game.js').Game} game
-   * @param {THREE.Object3D} root grupo del modo (se limpia al salir)
-   */
   constructor(game, root) {
     this.game = game;
     this.root = root;
@@ -82,7 +62,7 @@ export class Bar {
           transparent: true,
           opacity: 0.86,
           emissive: k.color,
-          emissiveIntensity: 0.22, // se ven de noche
+          emissiveIntensity: 0.22,
         }),
     );
     this.mats = mats;
@@ -93,7 +73,6 @@ export class Bar {
       n++;
       spots.push({ ki, pos: new THREE.Vector3(x, y, z), rot: (n * 1.7) % (Math.PI * 2) });
     };
-    // Borde de la fuente: muros norte y sur (a lo largo de x) y este y oeste (a lo largo de z).
     for (let x = -2.5; x <= 2.51; x += 0.5) {
       put(x, RIM_Y, 0);
       put(x, RIM_Y, -6);
@@ -102,9 +81,7 @@ export class Bar {
       put(-2.7, RIM_Y, z);
       put(2.7, RIM_Y, z);
     }
-    // Columna del centro.
     for (const [dx, dz] of [[-0.3, -0.25], [0, -0.3], [0.3, -0.25], [-0.3, 0.25], [0, 0.3], [0.3, 0.25]]) put(dx, PILLAR_Y, -3 + dz);
-    // Una malla instanciada por tipo: cada botella es una instancia (se esconde al romperse).
     this.meshes = KINDS.map((k, ki) => {
       const list = spots.filter((s) => s.ki === ki);
       const mesh = new THREE.InstancedMesh(geos[ki], mats[ki], Math.max(1, list.length));
@@ -124,7 +101,6 @@ export class Bar {
     });
     this.total = this.bottles.length;
 
-    // Letrero «BAR» sobre la columna, hacia el jugador (sur) y hacia el norte.
     const tex = signTexture('Bar', '#ffb54d');
     const signMat = glow('#ffd9a0');
     if (tex) signMat.map = tex;
@@ -135,7 +111,6 @@ export class Bar {
       sign.userData.dynamic = true;
       root.add(sign);
     }
-    // Guirnalda de bombillas cálidas sobre el borde (solo brillo: sin luces reales que encarezcan).
     const bulbs = [];
     for (let x = -3; x <= 3.01; x += 0.6) {
       for (const z of [0.3, -6.3]) bulbs.push(new THREE.SphereGeometry(0.035, 8, 6).translate(x, 1.25 + Math.sin(x * 2.1) * 0.05, z));
@@ -144,7 +119,6 @@ export class Bar {
     garland.userData.dynamic = true;
     root.add(garland);
 
-    // Puntos alrededor de la barra (a 0.8 m del borde) para el campo de flujo de los zombis.
     const pts = [];
     const R = BAR_RECT;
     for (let x = R.minX; x <= R.maxX + 0.01; x += 1) pts.push({ x, z: R.maxZ + 0.8 }, { x, z: R.minZ - 0.8 });
@@ -166,7 +140,6 @@ export class Bar {
     return this.left === 0;
   }
 
-  // Matriz de la instancia de una botella (en su sitio, o a escala cero si está rota).
   place(b) {
     if (b.broken) b.mesh.setMatrixAt(b.index, ZERO);
     else b.mesh.setMatrixAt(b.index, _m.compose(b.pos, _q.setFromAxisAngle(UP, b.rot), _one));
@@ -177,7 +150,6 @@ export class Bar {
     return _v.set(0, 1, -3);
   }
 
-  /** Distancia en planta desde (x, z) hasta el borde de la barra (0 si está encima). */
   distance(x, z) {
     const R = BAR_RECT;
     const dx = Math.max(R.minX - x, 0, x - R.maxX);
@@ -185,7 +157,6 @@ export class Bar {
     return Math.hypot(dx, dz);
   }
 
-  /** Punto del borde más cercano a (x, z). */
   nearest(x, z, out = { x: 0, z: 0 }) {
     const R = BAR_RECT;
     out.x = Math.max(R.minX, Math.min(x, R.maxX));
@@ -193,7 +164,6 @@ export class Bar {
     return out;
   }
 
-  /** Golpe de un zombi desde `from` (posición): rompe botellas cada DEFENSE.hpPerBottle de daño. */
   damage(amount, from) {
     this.acc += amount;
     let broke = 0;
@@ -222,7 +192,6 @@ export class Bar {
     return best;
   }
 
-  /** Rompe una botella (golpe o balazo): vidrio y licor saltando, sonido de cristal. */
   breakBottle(b) {
     if (b.broken) return false;
     b.broken = true;
@@ -235,12 +204,10 @@ export class Bar {
     return true;
   }
 
-  /** Botella que tocó una bala (por su malla instanciada y el número de instancia). */
   bottleOf(mesh, instanceId) {
     return this.bottles.find((b) => b.mesh === mesh && b.index === instanceId) ?? null;
   }
 
-  /** Repone hasta n botellas rotas. Devuelve cuántas volvieron. */
   restock(n) {
     let k = 0;
     for (const b of this.bottles) {

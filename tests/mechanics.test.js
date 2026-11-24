@@ -96,7 +96,6 @@ describe('golpe cuerpo a cuerpo', () => {
     game.melee.trigger();
     game.melee.update(0.2);
     expect(calls.melee).toHaveLength(1);
-    // El alcance se pasa al raycast (no golpea a 10 m).
     const fars = [];
     const g2 = fakeGame({ cast: (d, far) => (fars.push(far), null) }).game;
     g2.melee.trigger();
@@ -120,7 +119,6 @@ describe('golpe cuerpo a cuerpo', () => {
 });
 
 describe('munición de reserva', () => {
-  // Saca el arma y espera a que termine de desenfundarla.
   const ready = (weapon, id) => {
     weapon.setWeapon(id, { force: true });
     weapon.update(weapon.stats.drawTime + 0.01);

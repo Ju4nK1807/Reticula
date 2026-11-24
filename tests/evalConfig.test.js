@@ -1,5 +1,3 @@
-// Personalización de las evaluaciones: valores válidos, qué da rango y qué es práctica, fases elegidas y
-// cómo se aplica a las fases (cantidad, tamaño, velocidad, color, intentos, disparos enemigos).
 import { describe, expect, it } from 'vitest';
 import { EVAL_DEFAULTS, customChanges, evalConfig, isRanked, scaleBehavior, stagesFor } from '../src/modes/evaluation/evalConfig.js';
 import { VARIANTS } from '../src/modes/evaluation/Evaluation.js';
@@ -24,7 +22,7 @@ describe('configuración de la evaluación', () => {
     expect(cfg.count).toBe(8);
     expect(cfg.size).toBe(0.5);
     expect(cfg.speed).toBe(1);
-    expect(cfg.duration).toBe(35); // pasos de 5 s
+    expect(cfg.duration).toBe(35);
     expect(cfg.targetColor).toBe('auto');
     expect(cfg.skip.targets).toEqual([]);
   });
@@ -40,7 +38,6 @@ describe('configuración de la evaluación', () => {
       expect(customChanges(targets, cfg).length).toBeGreaterThan(0);
     }
     expect(customChanges(targets, evalConfig({ weapon: 'sniper' }))[0]).toContain('Francotirador');
-    // Los intentos de reacción solo cuentan en Dianas; las asomadas y los disparos enemigos, en Enemigos.
     expect(isRanked(bots, evalConfig({ reactionTrials: 12 }))).toBe(true);
     expect(isRanked(targets, evalConfig({ enemyFire: 0 }))).toBe(true);
     expect(isRanked(bots, evalConfig({ enemyFire: 0 }))).toBe(false);
@@ -62,7 +59,6 @@ describe('configuración de la evaluación', () => {
 });
 
 describe('la configuración llega a las fases', () => {
-  // Evaluación mínima: las fases solo leen ev.evalCfg y ev.game.
   const fakeEv = (evalCfg) => ({ evalCfg, game: { world: {}, ballistics: {}, settings: { enemyColor: '#ff3b4f' } }, root: null });
 
   it('intentos de reacción elegidos', () => {
@@ -75,7 +71,6 @@ describe('la configuración llega a las fases', () => {
     const spawned = [];
     phase.sphereSpot = () => ({ pos: { x: 0, y: 2, z: -10 }, angles: { yaw: 0, pitch: 0 } });
     phase.spawnSphere = function (opts) {
-      // Lo mismo que Phase.spawnSphere hace con la configuración, sin crear la malla.
       const { size, targetColor } = this.evalCfg;
       spawned.push({ ...opts, radius: opts.radius * size, color: targetColor === 'auto' ? opts.color : targetColor });
       return {};

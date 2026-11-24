@@ -2,29 +2,18 @@ import * as THREE from 'three';
 import { Bot } from '../../bots/Bot.js';
 import { rand } from '../../utils/math.js';
 
-const ARRIVE_DIST = 0.15; // m: distancia para dar por alcanzado un punto
-const PATH_STEP = 0.5; // m: resolución al comprobar que un camino está libre
-const STUCK_TIME = 1.5; // s sin acercarse al destino → se considera atascado y combate ahí
-const MIN_PLAYER_DIST = 6; // nunca avanza a menos de esto del jugador (no "se le pega")
-const ADVANCE_DIST = [3, 7]; // m que avanza en cada empuje
-const ADVANCE_SPREAD = 1.0; // rad: desvío máximo respecto a la línea hacia el jugador (flanqueo)
+const ARRIVE_DIST = 0.15;
+const PATH_STEP = 0.5;
+const STUCK_TIME = 1.5;
+const MIN_PLAYER_DIST = 6;
+const ADVANCE_DIST = [3, 7];
+const ADVANCE_SPREAD = 1.0;
 const ADVANCE_TRIES = 14;
-const RETRY_ENGAGE = [1, 2]; // s de combate extra si no encontró a dónde avanzar
+const RETRY_ENGAGE = [1, 2];
 
 const _dir = new THREE.Vector3();
 const _next = new THREE.Vector3();
 
-/*
-  Bot de asalto del modo infinito. Reutiliza todo Bot (hitboxes, disparo, strafing, agacharse, saltar)
-  y añade un ciclo de presión sobre el jugador:
-
-    enter   → camina desde fuera del muro hasta la entrada de su puerta (carril libre por diseño)
-    engage  → combate en el sitio: strafing de Bot + disparo, durante engageTime
-    advance → elige un punto más cerca del jugador, con desvío lateral (flanqueo) y camino libre,
-              camina hasta él → engage → advance …
-
-  opts.behavior = { type: 'assault', entry: Vector3, walkSpeed, engageTime: [a, b], strafe: {…}, botArea }
-*/
 export class AssaultBot extends Bot {
   constructor(parent, world, opts) {
     super(parent, world, opts);
@@ -40,7 +29,7 @@ export class AssaultBot extends Bot {
 
   walkTo(target, phase) {
     const b = this.behavior;
-    b.type = 'assault'; // Bot.update no mueve al bot con este tipo: lo hace updateAssault
+    b.type = 'assault';
     b.phase = phase;
     b.target = target;
     b.stuckT = 0;
@@ -65,7 +54,6 @@ export class AssaultBot extends Bot {
     }
     const step = Math.min(dist, b.walkSpeed * dt);
     _next.copy(p).addScaledVector(_dir.divideScalar(dist), step);
-    // Al entrar, el carril de la puerta está libre por diseño (y fuera del muro no hay colisiones).
     if (b.phase === 'enter' || this.world.isFree(_next.x, _next.z, this.radius, this.baseY)) {
       p.x = _next.x;
       p.z = _next.z;
@@ -83,7 +71,7 @@ export class AssaultBot extends Bot {
     b.phase = 'engage';
     b.engageLeft = rand(...b.engageTime);
     Object.assign(b, b.strafe);
-    this.initStrafe(b); // b.type = 'strafe': Bot.update hace el strafing
+    this.initStrafe(b);
   }
 
   advance(ctx) {
@@ -92,8 +80,6 @@ export class AssaultBot extends Bot {
     else this.behavior.engageLeft = rand(...RETRY_ENGAGE);
   }
 
-  // Punto más cerca del jugador (o alrededor de él si ya está cerca), dentro de botArea y con
-  // camino libre. null si no hay ninguno: el bot sigue combatiendo donde está.
   pickAdvance(player) {
     const p = this.group.position;
     const area = this.behavior.botArea;

@@ -1,9 +1,5 @@
-/* Modo zombi: HUD propio (zh-*), armería y resultados. Se carga con el modo. */
-
 .zh-root[hidden] { display: none; }
 
-/* Número de la ronda (arriba a la izquierda): solo el número, en letra de terror que chorrea sangre,
-   sin recuadro. Late al cambiar de ronda. */
 .zh-panel { position: absolute; left: 24px; top: 40px; pointer-events: none; }
 .zh-wave { line-height: 1; }
 .zh-wave strong {
@@ -19,8 +15,6 @@
 }
 @keyframes zh-wave-throb { 50% { color: #c21812; text-shadow: 0 3px 0 #2a0302, 0 0 20px rgba(200, 16, 10, 0.9), 0 0 44px rgba(140, 0, 0, 0.6); } }
 
-/* Vida (centrada abajo): una vena de sangre dentro de un marco oxidado, con el número en letra de
-   terror. Late con el pulso, se sacude al recibir un golpe y con poca vida late rápido y brilla. */
 .zh-on .hud-health { display: none !important; }
 .zh-life {
   position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
@@ -43,7 +37,6 @@
   transition: width 0.12s ease-out;
   animation: zh-life-pulse 1.1s ease-in-out infinite;
 }
-/* Grietas oscuras que cruzan la barra. */
 .zh-life-veins {
   position: absolute; inset: 0;
   background:
@@ -51,7 +44,6 @@
     repeating-linear-gradient(-58deg, transparent 0 31px, rgba(0, 0, 0, 0.35) 31px 32px, transparent 32px 57px),
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 40%, rgba(0, 0, 0, 0.35));
 }
-/* Calavera a la izquierda: blanca hueso; con poca vida, roja y temblando. */
 .zh-life-skull { width: 30px; height: 30px; color: #d6ccbc; filter: drop-shadow(0 0 6px rgba(200, 10, 8, 0.8)); }
 .zh-life.low .zh-life-skull { color: #ff2a1c; animation: zh-life-shiver 0.12s linear infinite; }
 @keyframes zh-life-shiver { 25% { transform: translate(1px, -1px) rotate(-3deg); } 75% { transform: translate(-1px, 1px) rotate(3deg); } }
@@ -59,7 +51,6 @@
   min-width: 2.2em; font: 400 40px 'Creepster', var(--font-display); line-height: 1; color: #c0140e; text-align: left;
   text-shadow: 0 2px 0 #2a0302, 0 0 12px rgba(190, 10, 8, 0.8);
 }
-/* Gotas que caen del borde inferior de la barra. */
 .zh-life::after {
   content: ''; position: absolute; left: 6%; right: calc(2.2em + 22px); top: 100%; height: 14px; pointer-events: none;
   background:
@@ -84,7 +75,6 @@
   70% { transform: translateX(calc(-50% - 3px)); }
 }
 
-/* Viñeta (calidad media y baja: en alta la pone el postproceso) y bordes rojos al estar herido. */
 .zh-vignette, .zh-hurt { position: absolute; inset: 0; pointer-events: none; }
 .zh-vignette { background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%); }
 .zh-vignette[hidden] { display: none; }
@@ -99,7 +89,6 @@
 }
 .zh-nopower[hidden] { display: none; }
 
-/* Puntos para la armería (arriba a la derecha). */
 .zh-cash {
   position: absolute; right: 22px; top: 44px; display: flex; flex-direction: column; align-items: flex-end;
   padding: 8px 14px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.7); border: 1px solid var(--line);
@@ -113,7 +102,6 @@
   100% { opacity: 0; transform: translateY(-14px); }
 }
 
-/* Defensa: botellas que quedan en la barra (bajo los puntos). */
 .zh-barbox {
   position: absolute; right: 22px; top: 112px; min-width: 170px; display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
   padding: 8px 14px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.7); border: 1px solid rgba(255, 181, 77, 0.35);
@@ -128,7 +116,6 @@
 .zh-barbox.low strong { background: none; }
 @keyframes zh-pulse { from { box-shadow: 0 0 0 rgba(255, 77, 77, 0); } to { box-shadow: 0 0 18px rgba(255, 77, 77, 0.35); } }
 
-/* Dificultad (pantalla de inicio). */
 .zh-diffs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 6px; }
 .zh-diff {
   display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; text-align: left; cursor: pointer; color: var(--text-2);
@@ -142,7 +129,6 @@
 .zh-diff.active strong { color: var(--c, var(--accent)); }
 .zh-diff .zh-best { font: 600 11px var(--mono); color: var(--text-2); }
 
-/* Granadas y potenciadores (encima de la munición). */
 .zh-side { position: absolute; right: 22px; bottom: 146px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .zh-nades { font: 600 12px var(--font-display); letter-spacing: 0.08em; color: var(--text-2); padding: 4px 10px; border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.65); }
 .zh-powers { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
@@ -151,7 +137,6 @@
   color: var(--c); padding: 4px 10px; border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.75); border: 1px solid var(--c);
 }
 
-/* Bebidas tomadas (iconos de color). */
 .zh-perks { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 .zh-perk {
   font: 700 11px var(--font-display); letter-spacing: 0.06em; text-transform: uppercase;
@@ -159,7 +144,6 @@
   border: 1px solid var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 35%, transparent);
 }
 
-/* Aviso de compra (bajo la mira): tecla, qué se compra y su precio. */
 .zh-prompt {
   position: absolute; left: 50%; top: 62%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
   max-width: min(620px, 90vw); padding: 8px 14px; border-radius: var(--r-md);
@@ -172,7 +156,6 @@
 .zh-prompt.poor .zh-p-price,
 .zh-prompt.poor .zh-p-text { color: #ff6b6b; }
 
-/* Flechas de amenaza alrededor de la mira. */
 .zh-arrows { position: absolute; left: 50%; top: 50%; }
 .zh-arrow {
   position: absolute; left: 0; top: 0; width: 0; height: 0;
@@ -180,7 +163,6 @@
   filter: drop-shadow(0 0 6px rgba(255, 60, 60, 0.7));
 }
 
-/* Récords en la pantalla de inicio. */
 .zh-records { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 4px; }
 .zh-records div { display: flex; flex-direction: column; padding: 8px 10px; border-radius: var(--r-md); background: var(--surface-2); }
 .zh-records small { font-size: 11px; color: var(--muted); }
@@ -188,7 +170,6 @@
 
 .zh-credit { margin: 4px 0 0; font-size: 11px; color: var(--muted); }
 
-/* Armería. */
 .screen.zh-shop { width: min(1100px, 100%); }
 .zh-shop-cash { display: flex; flex-direction: column; align-items: flex-end; }
 .zh-shop-cash small { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
@@ -201,7 +182,6 @@
 .zh-item-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .zh-item-head strong { font: 700 15px var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; }
 .zh-price { font: 700 13px var(--mono); color: #ffd166; white-space: nowrap; }
-/* Cabecera fija al desplazarse: puntos y "Continuar combate" siempre a mano aunque la lista no quepa. */
 .zh-shop-head {
   position: sticky; top: 0; z-index: 2; align-items: center;
   padding: 12px 16px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.95); border: 1px solid var(--line);
@@ -212,7 +192,6 @@
 .zh-result-hero { text-align: center; }
 .zh-result-hero h2 { font-size: 44px; color: #ff5a4a; letter-spacing: 0.1em; }
 
-/* Teléfonos en horizontal. */
 @media (max-height: 520px) {
   .zh-panel { top: 30px; }
   .zh-wave strong { font-size: 48px; }
@@ -225,8 +204,6 @@
   .zh-shop-cash strong { font-size: 22px; }
   .zh-shop-head { padding: 8px 12px; }
 }
-/* Modo táctil: la derecha es de la munición, la vida y los botones; abajo a la izquierda va el pulgar
-   del joystick. Puntos, granadas y potenciadores van en columna bajo el panel de oleada. */
 .touch-mode .zh-panel { left: 72px; top: 36px; }
 .touch-mode .zh-wave strong { font-size: 56px; }
 .touch-mode .zh-cash { right: auto; left: 72px; top: 108px; align-items: flex-start; }
@@ -244,7 +221,6 @@
   .zh-diffs { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* Linterna: ícono, tecla, estado y batería (abajo a la izquierda, sobre la vida). */
 .zh-light {
   position: absolute; left: 22px; bottom: 22px; display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 7px;
   border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--muted);
@@ -272,7 +248,6 @@
   .zh-life-bar { height: 14px; }
 }
 
-/* Código de la caja fuerte (lo soltó el Jefe): bajo los puntos. */
 .zh-code {
   position: absolute; right: 22px; top: 118px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
   padding: 6px 12px; border-radius: var(--r-md); background: rgba(6, 16, 10, 0.78); border: 1px solid rgba(61, 255, 138, 0.5);
@@ -281,7 +256,6 @@
 .zh-code small { font-size: 11px; color: var(--muted); }
 .zh-code strong { font: 700 22px var(--mono); letter-spacing: 0.18em; color: #3dff8a; }
 
-/* Teclado de la caja fuerte: encima de todo (también de los controles táctiles). */
 .zh-keypad {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 8; width: 236px;
   display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 14px; pointer-events: auto;

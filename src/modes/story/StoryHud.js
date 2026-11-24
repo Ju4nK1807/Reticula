@@ -1,12 +1,6 @@
 import { h } from '../../ui/dom.js';
 import { SPEAKERS, lineDuration } from './storyData.js';
 
-/*
-  HUD de la Historia (dentro de la capa de juego del HUD general):
-  - Objetivo del capítulo arriba a la izquierda, con el progreso.
-  - Subtítulos de radio abajo: quién habla (con su color) y lo que dice. Las líneas se encolan y cada
-    una dura según su largo (lineDuration). Las de la transmisión de números las lee una voz sintética.
-*/
 export class StoryHud {
   constructor(hud) {
     const layer = hud.refs.crosshair.parentElement;
@@ -80,11 +74,8 @@ export class StoryHud {
   }
 }
 
-// --- Voz de la estación de números (speechSynthesis; si no hay, solo subtítulo) ---------------------
-
 const DIGITS = ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
 
-/** "7 · 3 · 9" → "siete. tres. nueve." (lo que lee la voz). */
 export function numbersToSpeech(text) {
   const words = (text.match(/\d/g) ?? []).map((d) => DIGITS[Number(d)]);
   return words.length ? `${words.join('. ')}.` : text;
@@ -104,7 +95,6 @@ export function speakNumbers(text) {
     if (voice) u.voice = voice;
     synth.speak(u);
   } catch {
-    // sin voz: queda el subtítulo
   }
 }
 
@@ -112,6 +102,5 @@ export function stopVoice() {
   try {
     globalThis.speechSynthesis?.cancel();
   } catch {
-    // nada
   }
 }

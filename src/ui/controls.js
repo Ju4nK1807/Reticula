@@ -1,4 +1,3 @@
-// Controles de formulario compartidos por las pantallas de configuración y el editor de retícula.
 import { h } from './dom.js';
 
 export function field(label, control, hint) {
@@ -13,7 +12,6 @@ export function select(options, value, onChange) {
   );
 }
 
-// Slider con valor visible a la derecha. Devuelve el contenedor; `.sync()` relee el valor.
 export function slider(obj, key, { min, max, step = 1, fmt = (v) => v }, onChange) {
   const out = h('output', {}, fmt(obj[key]));
   const input = h('input', {

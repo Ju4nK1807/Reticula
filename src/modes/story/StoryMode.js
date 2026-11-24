@@ -9,18 +9,11 @@ import { storyChaptersScreen, storyFailedScreen, storySceneScreen } from './stor
 
 export const MODE_ID = 'story';
 
-const BRIEF_TIME = 3; // s de cuenta antes de cada misión
+const BRIEF_TIME = 3;
 const DEATH_TIME = 1.6;
 const DEATH_SLOWMO = 0.3;
-const END_DELAY = 1.8; // s tras la última baja (se oye la radio) antes de la escena final
+const END_DELAY = 1.8;
 
-/*
-  Historia «ECO». Estados:
-    chapters → scene (intro) → [clic: captura del mouse] → brief → running → ending → scene (outro) → …
-                                                                    ↘ dying → failed
-  Cada capítulo tiene su mapa, sus armas y su tipo de fase (storyPhases.js); los diálogos de radio
-  salen de los eventos de la fase (bajas, encuentros, rondas). El progreso va en store.records.story.
-*/
 export class StoryMode extends Mode {
   constructor(game) {
     super(game);
@@ -49,8 +42,6 @@ export class StoryMode extends Mode {
     this.showChapters();
   }
 
-  // --- Pantallas -----------------------------------------------------------------------------------
-
   showChapters() {
     const g = this.game;
     this.state = 'chapters';
@@ -66,7 +57,7 @@ export class StoryMode extends Mode {
     const ch = getChapter(id);
     this.chapter = ch;
     this.state = 'scene';
-    g.useWorld(ch.world); // el mapa del capítulo se ve detrás de la escena
+    g.useWorld(ch.world);
     const rec = this.record;
     const lines = ch.number === 1 ? [...PROLOGUE, ...ch.intro] : ch.intro;
     if (ch.number === 1 && !rec.prologueSeen) {
@@ -104,13 +95,10 @@ export class StoryMode extends Mode {
     );
   }
 
-  // Desde un clic: guarda el capítulo y captura el mouse; la misión empieza en onLock.
   prepare(id) {
     this.pending = getChapter(id);
     this.game.input.lock();
   }
-
-  // --- Interfaz de modo --------------------------------------------------------------------------
 
   wantsLock() {
     return this.state === 'brief' || this.state === 'running' || this.state === 'ending';
@@ -120,7 +108,6 @@ export class StoryMode extends Mode {
     return this.wantsLock();
   }
 
-  // Munición real: hay que recargar (la reserva no se acaba).
   infiniteAmmo() {
     return false;
   }
@@ -170,9 +157,6 @@ export class StoryMode extends Mode {
     this.phase?.onPause();
   }
 
-  // --- Mapa -----------------------------------------------------------------------------------------
-
-  // Ajustes del capítulo sobre el mapa (p. ej. el barrio de los zombis con todas las puertas abiertas).
   setupWorld(ch) {
     const w = this.game.world;
     if (ch?.setup?.openDoors) for (const id of Object.keys(w.doors ?? {})) w.openDoor(id);
@@ -183,8 +167,6 @@ export class StoryMode extends Mode {
     const s = ch.setup?.spawn;
     return s ? new THREE.Vector3(s[0], 0, s[1]) : this.game.world.spawn;
   }
-
-  // --- Misión -----------------------------------------------------------------------------------------
 
   begin(ch) {
     const g = this.game;
@@ -201,7 +183,7 @@ export class StoryMode extends Mode {
     this.lastBeep = null;
     this.radioKills = new Set();
     g.player.reset(this.spawnPoint(ch));
-    g.player.movementEnabled = ch.kind !== 'numbers'; // en la Cúpula, atado a la silla
+    g.player.movementEnabled = ch.kind !== 'numbers';
     g.weapon.setWeapon(ch.loadout.find((id) => WEAPONS[id]) ?? 'pistol', { force: true });
     g.weapon.refill();
     g.onWeaponChange();
@@ -254,7 +236,6 @@ export class StoryMode extends Mode {
     }
   }
 
-  // Diálogos de radio según lo que pasa en la fase.
   radio() {
     const r = this.chapter.radio ?? {};
     for (const ev of this.phase.events.splice(0)) {
@@ -270,7 +251,6 @@ export class StoryMode extends Mode {
     }
   }
 
-  // Misión cumplida: suena la última línea de radio y luego la escena.
   ending() {
     const g = this.game;
     this.state = 'ending';

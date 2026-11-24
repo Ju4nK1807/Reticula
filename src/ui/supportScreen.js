@@ -1,10 +1,6 @@
 import { h } from './dom.js';
 import { LOGO_SVG } from './components.js';
 
-// Comprobación de compatibilidad antes de arrancar el motor.
-// - webgl: Three.js (r163+) necesita WebGL 2; sin él no hay juego.
-// - pointerLock: sin él no se puede apuntar (Safari en iOS, algunos navegadores embebidos).
-// - finePointer: hay un mouse o trackpad; en pantallas táctiles el juego no es jugable.
 export function checkSupport() {
   let webgl = false;
   try {
@@ -18,7 +14,6 @@ export function checkSupport() {
   return { webgl, pointerLock, finePointer };
 }
 
-// Avisos no bloqueantes según el resultado de checkSupport().
 export function supportWarnings({ pointerLock, finePointer }) {
   const out = [];
   if (!pointerLock) out.push('Tu navegador no permite capturar el mouse (Pointer Lock). Usa Chrome, Edge o Firefox en un computador.');
@@ -26,7 +21,6 @@ export function supportWarnings({ pointerLock, finePointer }) {
   return out;
 }
 
-// Pantalla de error cuando el juego no puede arrancar.
 export function fatalScreen(root, { title, message, detail = null }) {
   root.replaceChildren(
     h(
@@ -45,7 +39,6 @@ export function fatalScreen(root, { title, message, detail = null }) {
   );
 }
 
-// Aviso persistente (se puede cerrar) para problemas que no impiden abrir el juego.
 export function supportNotice(messages) {
   const el = h(
     'div',

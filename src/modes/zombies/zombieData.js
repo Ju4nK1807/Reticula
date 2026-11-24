@@ -1,18 +1,5 @@
-/*
-  Datos del modo zombi: tipos de zombi, oleadas, economía (puntos y armería) y potenciadores.
-  Todo son funciones puras (sin Three.js ni DOM): ver tests/zombieData.test.js.
-*/
 import { FIRST_COUNTDOWN, INTERMISSION, ROUNDS } from './roundConfig.js';
 
-// --- Tipos de zombi -----------------------------------------------------------------------------
-// height: altura en m · hpScale: vida respecto a la de la ronda (roundHp) · speed: m/s · damage: daño
-// por golpe · attackRange: m · attackEvery: s entre golpes · points: puntos al matarlo · low: se
-// arrastra (hitboxes cerca del suelo) · look: aspecto (zombieLook.js: ojos y tonos) · bulk: corpulencia
-// heavy: pesado (no se tambalea, no pierde la cabeza ni las piernas, ruge al aparecer y no acelera con
-// las rondas) · boss: el Jefe (uno en ciertas rondas; tiene ataques especiales, bossBrain.js, y al morir
-// suelta el código de la caja fuerte)
-// Todos usan el mismo modelo realista (zombieSkin.js); cambian su tamaño, su aspecto y su animación.
-// La vida, la velocidad y el daño de cada ronda multiplican estos valores (roundConfig.js).
 export const ZOMBIE_TYPES = {
   walker: { name: 'Caminante', height: 1.78, hpScale: 1, speed: 1.6, damage: 45, attackRange: 1.3, attackEvery: 1.35, points: 60, look: 'normal', bulk: 1 },
   runner: { name: 'Corredor', height: 1.74, hpScale: 0.7, speed: 4.1, damage: 34, attackRange: 1.25, attackEvery: 0.95, points: 80, look: 'runner', bulk: 0.94 },
@@ -21,32 +8,25 @@ export const ZOMBIE_TYPES = {
   boss: { name: 'El Jefe', height: 2.6, hpScale: 30, speed: 1.55, damage: 90, attackRange: 1.95, attackEvery: 1.7, points: 1000, look: 'boss', bulk: 1.3, heavy: true, boss: true },
 };
 
-/** Vida de un caminante en la ronda n (fórmula y valores en roundConfig.js). */
 export function roundHp(n) {
   const r = Math.max(1, Math.floor(n));
   const R = ROUNDS;
   return Math.round(R.hpBase * (1 + R.hpPerRound * (r - 1)) * R.hpLate ** Math.max(0, r - R.hpLateFrom));
 }
 
-// Cuchillo en este modo: daño fijo de 150 (mata de un golpe en la ronda 1, de dos en la 2…). Las
-// bebidas de daño no lo afectan.
 export const KNIFE_DAMAGE = 150;
 
 export const PLAYER = {
   maxHealth: 100,
-  regenDelay: 5, // s sin recibir daño antes de regenerar
-  regenRate: 9, // vida por segundo (de casi muerto a entero en ~11 s)
+  regenDelay: 5,
+  regenRate: 9,
   startPoints: 500,
   startGrenades: 2,
-  maxGrenades: 6, // de fragmentación
+  maxGrenades: 6,
 };
 
-// Máximo de cada tipo de granada que se puede llevar (combat/Grenades.js).
 export const GRENADE_MAX = { frag: PLAYER.maxGrenades, fire: 4, stun: 4, decoy: 2 };
 
-// --- Bebidas (máquinas del mapa) --------------------------------------------------------------------
-// Mejoras permanentes durante la partida (se pierden al morir). Nombres propios del juego.
-// Las máquinas necesitan la electricidad del generador (Subestación), salvo las de power: false.
 export const PERKS = {
   coraza: { name: 'Coraza', desc: 'Vida máxima 100 → 250: aguantas más del doble de golpes.', price: 2500, color: '#ff5a3d' },
   plomo: { name: 'Doble Plomo', desc: '+50 % de daño y +25 % de cadencia con todas las armas.', price: 2000, color: '#ffb020' },
@@ -63,7 +43,6 @@ export const PERK_EFFECTS = {
   aire: { regenDelay: 2.5, regenRate: 20 },
 };
 
-/** Valores del jugador con las bebidas que tiene (Set de ids). */
 export function perkStats(perks) {
   const has = (id) => perks.has(id);
   return {
@@ -77,24 +56,15 @@ export function perkStats(perks) {
   };
 }
 
-// --- Armas de la pared --------------------------------------------------------------------------------
-// Se cargan hasta MAX_WEAPONS armas: con las manos llenas, comprar (o sacar de la caja) una nueva cambia
-// la que tienes en la mano.
 export const MAX_WEAPONS = 3;
-// Precio del arma (cada una el suyo); con el arma ya comprada, el mismo puesto vende su munición a
-// mitad de precio. El Desintegrador (especial) solo está en la terraza de la Feria y en la caja.
 export const WALL_BUYS = { magnum: 900, smg: 1000, shotgun: 1500, rifle: 1600, burst: 1800, dmr: 2000, lmg: 2500, sniper: 2750, ray: 6000 };
 export const wallAmmoPrice = (id) => Math.round((WALL_BUYS[id] ?? 1000) / 2 / 50) * 50;
 
-// --- Caja fuerte (la caja de armas) y barricadas ------------------------------------------------------------------------
-export const BOX_PRICE = 950; // un arma al azar de las que no tienes
-// Cada tantas tiradas (entre min y max, al azar) la caja se muda a otro lugar del mapa.
+export const BOX_PRICE = 950;
 export const BOX_MOVE = { min: 4, max: 7 };
 export const BOX_POOL = ['smg', 'rifle', 'shotgun', 'sniper', 'magnum', 'burst', 'lmg', 'dmr', 'ray'];
-// Probabilidad relativa (1 = normal): el arma especial sale poco.
 export const BOX_WEIGHT = { ray: 0.35 };
 
-/** Arma de la caja: una al azar entre las que no se tienen (null si ya se tienen todas). */
 export function rollBox(owned, rng = Math.random) {
   const pool = BOX_POOL.filter((id) => !owned.has(id));
   if (!pool.length) return null;
@@ -104,20 +74,15 @@ export function rollBox(owned, rng = Math.random) {
   return pool[pool.length - 1];
 }
 
-// Barricadas en las entradas de zombis: tablones que arrancan para entrar y que el jugador repara.
 export const BARRICADE = {
   boards: 6,
-  tearEvery: 1.1, // s que tarda un zombi en arrancar un tablón
-  repairEvery: 0.55, // s por tablón al mantener la tecla de usar
-  repairPoints: 10, // puntos por tablón reparado
-  repairCapPerWave: 500, // tope de puntos por reparar en cada oleada
-  reach: 2.2, // m: distancia para reparar (desde dentro)
+  tearEvery: 1.1,
+  repairEvery: 0.55,
+  repairPoints: 10,
+  repairCapPerWave: 500,
+  reach: 2.2,
 };
 
-// --- Puertas entre secciones del mapa ------------------------------------------------------------------
-// section: la sección que abre (por defecto, la de su mismo id). Más caras cuanto más lejos del circo
-// (el inicio) y cuanto mejor la zona: la plaza es la más barata y la Feria (con el segundo piso) la más
-// cara. El Hospital y la Feria tienen dos puertas cada uno (el mapa forma circuitos).
 export const DOORS = {
   plaza: { name: 'Plaza', price: 500 },
   iglesia: { name: 'Iglesia', price: 750 },
@@ -131,15 +96,8 @@ export const DOORS = {
 };
 export const doorSection = (id) => DOORS[id]?.section ?? id;
 
-// --- Forja (mejora de armas) ------------------------------------------------------------------------------
-// En el quirófano del Hospital; necesita la electricidad. Forja el arma que tienes en la mano: doble
-// de daño, cargador y reserva más grandes y un brillo propio. Cada arma se forja una vez.
 export const FORGE = { price: 5000, damage: 2, reserve: 1.5, magazine: 1.5, suffix: 'forjada' };
 
-// --- Dificultad ---------------------------------------------------------------------------------
-// Multiplicadores sobre la oleada: vida, velocidad y daño de los zombis, cuántos son, cuántos a la vez,
-// cada cuánto aparecen (spawn > 1 = más espaciados), puntos que dan y regeneración del jugador.
-// runners: corredores extra · brutesFrom: oleada desde la que llegan los brutos.
 export const DIFFICULTIES = {
   facil: { name: 'Fácil', desc: 'Zombis lentos y frágiles que pegan la mitad. Para aprender el modo.', hp: 0.7, speed: 0.85, damage: 0.5, count: 0.75, alive: 0.8, spawn: 1.3, points: 0.8, regen: 1.5, runners: 0, brutesFrom: 7 },
   normal: { name: 'Normal', desc: 'La horda tal como fue pensada.', hp: 1, speed: 1, damage: 1, count: 1, alive: 1, spawn: 1, points: 1, regen: 1, runners: 0, brutesFrom: 5 },
@@ -149,18 +107,14 @@ export const DIFFICULTIES = {
 export const DIFFICULTY_ORDER = ['facil', 'normal', 'dificil', 'locura'];
 export const difficultyOf = (id) => DIFFICULTIES[id] ?? DIFFICULTIES.normal;
 
-// --- Rondas ------------------------------------------------------------------------------------
-// Los valores de balance (cantidad, vida, velocidad, daño, vivos a la vez, pausas) están en
-// roundConfig.js.
 export { FIRST_COUNTDOWN, INTERMISSION, ROUNDS };
 
-/** Configuración de la oleada n (1, 2, …) en una dificultad ('facil' | 'normal' | 'dificil' | 'locura'). */
 export function waveConfig(n, difficulty = 'normal') {
   const d = difficultyOf(difficulty);
   const R = ROUNDS;
   const w = Math.max(1, Math.floor(n));
-  const k = w - 1; // rondas desde la primera
-  const runnerNight = w % R.runnerNightEvery === 0; // noche de corredores
+  const k = w - 1;
+  const runnerNight = w % R.runnerNightEvery === 0;
   const lerpGap = (i) => Math.max(R.spawnGapMin[i], (R.spawnGapStart[i] + R.spawnGapPerRound[i] * w) * d.spawn);
   return {
     wave: w,
@@ -169,11 +123,11 @@ export function waveConfig(n, difficulty = 'normal') {
     count: Math.max(3, Math.round(Math.min(R.countMax, R.countBase + R.countPerRound * w + R.countCurve * w * w) * d.count)),
     maxAlive: Math.round(Math.min(R.aliveMax, R.aliveBase + R.alivePerRound * k) * d.alive),
     spawnGap: [lerpGap(0), lerpGap(1)],
-    hp: Math.round(roundHp(w) * d.hp), // vida de un caminante en esta ronda (y dificultad)
+    hp: Math.round(roundHp(w) * d.hp),
     hpMul: (roundHp(w) / roundHp(1)) * d.hp,
     speedMul: Math.min(R.speedMax, R.speedBase + R.speedPerRound * k) * d.speed,
     damageMul: Math.min(R.damageMax, R.damageBase + R.damagePerRound * k) * d.damage,
-    diffSpeed: d.speed, // el bruto no acelera con las rondas, solo con la dificultad
+    diffSpeed: d.speed,
     runnerShare: runnerNight ? 0.7 : Math.min(0.5, (w >= R.runnersFrom ? Math.min(R.runnerMax, R.runnerPerRound * (w - R.runnersFrom + 1)) : 0) + d.runners),
     crawlerShare: w >= R.crawlersFrom ? Math.min(R.crawlerMax, R.crawlerPerRound * (w - R.crawlersFrom + 1)) : 0,
     brutes: w >= d.brutesFrom ? 1 + Math.floor((w - d.brutesFrom) / R.brutesEvery) : 0,
@@ -184,18 +138,11 @@ export function waveConfig(n, difficulty = 'normal') {
   };
 }
 
-/** ¿Llega el Jefe en la ronda n? En la ronda ROUNDS.bossFrom y luego cada ROUNDS.bossEvery. */
 export function isBossRound(n) {
   const w = Math.floor(n);
   return w >= ROUNDS.bossFrom && (w - ROUNDS.bossFrom) % ROUNDS.bossEvery === 0;
 }
 
-/**
- * Lista de tipos de la oleada en orden de aparición (los brutos, repartidos en la segunda mitad; el
- * Jefe, pasada la mitad de la ronda).
- * @param {ReturnType<typeof waveConfig>} cfg
- * @param {() => number} rng
- */
 export function waveRoster(cfg, rng = Math.random) {
   const list = [];
   const boss = cfg.boss ?? 0;
@@ -212,7 +159,6 @@ export function waveRoster(cfg, rng = Math.random) {
   return list;
 }
 
-/** Estadísticas de un zombi de `type` en la oleada `cfg`. */
 export function zombieStats(type, cfg) {
   const t = ZOMBIE_TYPES[type];
   return {
@@ -224,10 +170,8 @@ export function zombieStats(type, cfg) {
   };
 }
 
-// --- Puntos -------------------------------------------------------------------------------------
 export const POINTS = { hit: 10, headHit: 20, headKill: 40, meleeKill: 50 };
 
-/** Puntos por un impacto o una baja (con doble puntos activo, el doble; `mul` = dificultad). */
 export function pointsFor({ part, killed, type, melee = false }, double = false, mul = 1) {
   let p = part === 'head' ? POINTS.headHit : POINTS.hit;
   if (killed) {
@@ -238,10 +182,6 @@ export function pointsFor({ part, killed, type, melee = false }, double = false,
   return Math.round((double ? p * 2 : p) * mul);
 }
 
-// --- Armería (entre oleadas): suministros y granadas ----------------------------------------------------
-// Las armas ya no se compran aquí: están en las paredes del mapa (WALL_BUYS), como en los modos de
-// supervivencia clásicos; las mejoras son las bebidas de las máquinas (PERKS).
-// Munición de reserva al comprar el arma o rellenarla (la pistola es infinita: nunca te quedas sin nada).
 export const RESERVE = { pistol: null, smg: 180, shotgun: 36, rifle: 150, sniper: 30, magnum: 42, burst: 210, lmg: 300, dmr: 72, ray: 40 };
 
 export const SHOP = [
@@ -254,20 +194,14 @@ export const SHOP = [
   { id: 'restock', kind: 'restock', name: 'Reponer licor', desc: 'Vuelven a la barra 8 botellas rotas.', price: 700, defenseOnly: true },
 ];
 
-// --- Defensa de la barra -------------------------------------------------------------------------
-// La fuente de la plaza es una barra llena de botellas: los zombis van primero por ella.
 export const DEFENSE = {
-  hpPerBottle: 30, // daño de zombi que rompe una botella (un caminante rompe una cada dos golpes)
-  aggroRange: 3.2, // m: más cerca que esto, el zombi deja la barra y va por el jugador
-  aggroTime: 4, // s que persigue al jugador después de recibir un disparo
-  aggroLeash: 12, // m: si el jugador se aleja más que esto, vuelve a la barra
-  restock: 8, // botellas que repone la armería
+  hpPerBottle: 30,
+  aggroRange: 3.2,
+  aggroTime: 4,
+  aggroLeash: 12,
+  restock: 8,
 };
 
-/**
- * ¿Se puede comprar? Devuelve null si sí o el motivo si no.
- * state = { points, owned: Set, perks: Set, bag: { frag, fire, stun, decoy }, health, maxHealth, reserveFull }
- */
 export function cannotBuy(item, state) {
   if (item.kind === 'weapon' && state.owned.has(item.id)) return 'Ya la tienes';
   if (item.kind === 'perk' && state.perks?.has(item.id)) return 'Ya la tienes';
@@ -279,7 +213,6 @@ export function cannotBuy(item, state) {
   return null;
 }
 
-// --- Potenciadores ------------------------------------------------------------------------------
 export const POWERUPS = {
   ammo: { name: 'Munición máxima', color: '#ffd166', duration: 0 },
   double: { name: 'Doble puntos', color: '#36d6ff', duration: 20 },
@@ -289,25 +222,16 @@ export const POWERUPS = {
 };
 export const DROP = { chance: 0.055, cooldown: 12, lifetime: 22, blinkFrom: 5, pickupRadius: 1.4, nukePoints: 400 };
 
-/**
- * ¿Suelta un potenciador esta baja? Devuelve su id o null.
- * @param {number} sinceLast s desde el último · @param {() => number} rng
- */
 export function rollDrop(sinceLast, rng = Math.random) {
   if (sinceLast < DROP.cooldown || rng() >= DROP.chance) return null;
   const ids = Object.keys(POWERUPS);
   return ids[Math.min(ids.length - 1, Math.floor(rng() * ids.length))];
 }
 
-// --- Récords ------------------------------------------------------------------------------------
 export function emptyRecord() {
   return { bestWave: 0, bestScore: 0, bestKills: 0, totalRuns: 0, totalKills: 0, history: [], byDifficulty: {}, difficulty: 'normal' };
 }
 
-/**
- * Actualiza el récord con una partida terminada (y el de su dificultad, si la trae). Devuelve true si
- * es la mejor oleada (de esa dificultad, cuando la hay).
- */
 export function updateRecord(record, run) {
   const r = Object.assign(record, { ...emptyRecord(), ...record });
   let best = run.wave > r.bestWave || (run.wave === r.bestWave && run.score > r.bestScore);

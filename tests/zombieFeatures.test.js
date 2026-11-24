@@ -1,5 +1,3 @@
-// Electricidad, bebidas, Forja, caja fuerte (código del Jefe) que se muda y Último Aliento, con la partida real
-// (ZombieRun) sobre el mapa real y el arma real (sin navegador: los modelos no se cargan).
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { ZombieMap } from '../src/modes/zombies/ZombieMap.js';
@@ -51,7 +49,7 @@ describe('electricidad', () => {
     const { run } = makeRun();
     run.cash = 99999;
     expect(run.offer(find('perk', 'coraza')).done).toBe(true);
-    expect(run.buy(find('perk', 'coraza'))).toBe('Sin electricidad'); // no se puede usar (no cobra)
+    expect(run.buy(find('perk', 'coraza'))).toBe('Sin electricidad');
     expect(run.perks.has('coraza')).toBe(false);
     expect(run.offer(find('perk', 'aire'))).toMatchObject({ price: PERKS.aire.price });
     world.setPower(true);
@@ -75,11 +73,10 @@ describe('Forja', () => {
     expect(run.cash).toBe(100);
     expect(run.upgraded.has('rifle')).toBe(true);
     expect(events.some(([t, d]) => t === 'forge' && d.id === 'rifle')).toBe(true);
-    // Cargador y reserva más grandes.
     expect(game.weapon.magazine).toBe(Math.round(WEAPONS.rifle.magazine * FORGE.magazine));
     expect(game.weapon.ammo).toBe(game.weapon.magazine);
     expect(game.weapon.reserveBy.rifle).toBe(Math.round(RESERVE.rifle * FORGE.reserve));
-    expect(run.offer(forge).done).toBe(true); // ya forjada
+    expect(run.offer(forge).done).toBe(true);
     world.setPower(false);
   });
 
@@ -87,7 +84,7 @@ describe('Forja', () => {
     world.setPower(true);
     const { run, game } = makeRun();
     run.giveWeapon('rifle');
-    run.startWave(30); // mucha vida: ninguno de los dos tiros mata
+    run.startWave(30);
     const shot = (forged) => {
       if (forged) run.upgraded.add('rifle');
       else run.upgraded.delete('rifle');
@@ -118,7 +115,7 @@ describe('caja fuerte', () => {
     expect(run.submitSafeCode()).toBe('wrong');
     expect(events.some(([t]) => t === 'safeWrong')).toBe(true);
     expect(run.safe.unlocked).toBe(false);
-    for (const d of run.safe.code) run.safe.press(d); // bloqueado: no escribe
+    for (const d of run.safe.code) run.safe.press(d);
     expect(run.safe.entry).toBe('');
   });
 
@@ -216,7 +213,7 @@ describe('zombis sin piernas', () => {
     expect(z.stats.speed).toBeLessThan(1);
     expect(Math.max(...z.hitMeshes.map((m) => m.position.y))).toBeLessThan(0.6);
     expect(z.animKey()).toBe('drag');
-    expect(z.loseLegs()).toBe(false); // solo una vez
+    expect(z.loseLegs()).toBe(false);
     const brute = new Zombie(run, zombieStats('brute', waveConfig(5)), new THREE.Vector3(2, 0, 5));
     expect(brute.loseLegs()).toBe(false);
   });
@@ -231,14 +228,12 @@ describe('armas: límite de 3, cambio al comprar y arma especial', () => {
     expect(run.buy(find('wallbuy', 'smg'))).toBeNull();
     expect(run.buy(find('wallbuy', 'shotgun'))).toBeNull();
     expect(run.slots).toEqual(['pistol', 'smg', 'shotgun']);
-    // Con la escopeta en la mano, el rifle la reemplaza (y se avisa).
     expect(run.offer(find('wallbuy', 'rifle')).label).toContain('cambia tu Escopeta');
     expect(run.buy(find('wallbuy', 'rifle'))).toBeNull();
     expect(run.slots).toEqual(['pistol', 'smg', 'rifle']);
     expect(run.owned.has('shotgun')).toBe(false);
     expect(game.weapon.id).toBe('rifle');
     expect(events.at(-1)).toEqual(['weapon', { id: 'rifle', dropped: 'shotgun' }]);
-    // Con la pistola en la mano, la caja cambia la pistola.
     game.weapon.setWeapon('pistol', { force: true });
     run.giveWeapon('ray');
     expect(run.slots).toEqual(['ray', 'smg', 'rifle']);
@@ -253,7 +248,6 @@ describe('armas: límite de 3, cambio al comprar y arma especial', () => {
     for (const k of ['magazine', 'rps', 'reloadTime']) expect(new Set(ids.map((id) => WEAPONS[id][k])).size, k).toBeGreaterThan(ids.length / 2);
     expect(WEAPONS.ray.special).toBe(true);
     expect(RESERVE.ray).toBeGreaterThan(0);
-    // La caja da el arma especial, pero poco.
     let rays = 0;
     let s = 1;
     const rng = () => ((s = (s * 9301 + 49297) % 233280) / 233280);

@@ -1,4 +1,3 @@
-// Trazadoras (balas visibles): deben recorrer su camino y desaparecer siempre.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Effects } from '../src/effects/Effects.js';
@@ -14,7 +13,6 @@ describe('trazadoras', () => {
     const fx = new Effects();
     fx.tracer(v(0, 1.6, 0), v(0, 1.6, -dist));
     expect(active(fx)).toBe(1);
-    // A 280 m/s tarda dist/280 s en llegar y la cola 2.4 m más: con 1 s sobra en todos los casos.
     run(fx, 1 + dist / 280);
     expect(active(fx)).toBe(0);
     expect(fx.tracers.every((t) => !t.mesh.visible)).toBe(true);
@@ -34,7 +32,7 @@ describe('trazadoras', () => {
     const fx = new Effects();
     for (let i = 0; i < fx.tracers.length; i++) fx.tracer(v(0, 0, 0), v(0, 0, -50));
     fx.update(0.01);
-    fx.tracer(v(0, 0, 0), v(0, 0, -0.2)); // < 0.5 m
+    fx.tracer(v(0, 0, 0), v(0, 0, -0.2));
     run(fx, 1);
     expect(active(fx)).toBe(0);
   });
@@ -46,6 +44,6 @@ describe('trazadoras', () => {
     const oldest = fx.tracers[0];
     for (let i = 1; i < fx.tracers.length; i++) fx.tracer(v(0, 0, 0), v(0, 0, -100));
     fx.tracer(v(0, 0, 0), v(5, 0, -100));
-    expect(oldest.t).toBe(0); // la más antigua se reutilizó para la nueva
+    expect(oldest.t).toBe(0);
   });
 });

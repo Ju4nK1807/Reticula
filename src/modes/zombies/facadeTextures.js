@@ -1,13 +1,5 @@
 import * as THREE from 'three';
 
-/*
-  Texturas dibujadas en canvas para las fachadas del Barrio en ruinas (no hay que descargar nada):
-  - litWindow: ventana encendida (interior cálido, cortina a medio correr, marco y travesaño).
-  - darkWindow: ventana a oscuras (interior negro azulado, marco, reflejo y a veces un vidrio roto).
-  - grimeStrip: chorreones de mugre bajo cornisas y alféizares (alfa).
-  Sin navegador (pruebas en Node) devuelven una textura vacía: el mapa se construye igual.
-*/
-
 function canvas(w, h, draw) {
   if (typeof document === 'undefined') return new THREE.Texture();
   const c = document.createElement('canvas');
@@ -27,8 +19,8 @@ function frame(g, w, h, color) {
   g.fillRect(0, h - t, w, t);
   g.fillRect(0, 0, t, h);
   g.fillRect(w - t, 0, t, h);
-  g.fillRect(w / 2 - t / 2, 0, t, h); // parteluz
-  g.fillRect(0, h * 0.38, w, t * 0.8); // travesaño
+  g.fillRect(w / 2 - t / 2, 0, t, h);
+  g.fillRect(0, h * 0.38, w, t * 0.8);
 }
 
 export function litWindow() {
@@ -39,7 +31,6 @@ export function litWindow() {
     grad.addColorStop(1, '#ffd08a');
     g.fillStyle = grad;
     g.fillRect(0, 0, w, h);
-    // Lámpara de techo (punto caliente) y una silueta de mueble al fondo.
     const lamp = g.createRadialGradient(w * 0.62, h * 0.18, 2, w * 0.62, h * 0.18, w * 0.5);
     lamp.addColorStop(0, 'rgba(255,240,200,0.9)');
     lamp.addColorStop(1, 'rgba(255,200,120,0)');
@@ -47,7 +38,6 @@ export function litWindow() {
     g.fillRect(0, 0, w, h);
     g.fillStyle = 'rgba(40,20,10,0.55)';
     g.fillRect(w * 0.55, h * 0.62, w * 0.4, h * 0.38);
-    // Cortina a medio correr (con pliegues).
     for (let i = 0; i < 6; i++) {
       g.fillStyle = i % 2 ? 'rgba(90,30,20,0.85)' : 'rgba(120,45,28,0.85)';
       g.fillRect(i * 7, 0, 7, h);
@@ -63,7 +53,6 @@ export function darkWindow() {
     grad.addColorStop(1, '#05070a');
     g.fillStyle = grad;
     g.fillRect(0, 0, w, h);
-    // Reflejo en diagonal.
     g.fillStyle = 'rgba(150,170,200,0.10)';
     g.beginPath();
     g.moveTo(w * 0.15, h);
@@ -72,7 +61,6 @@ export function darkWindow() {
     g.lineTo(w * 0.65, 0);
     g.closePath();
     g.fill();
-    // Vidrio roto (un agujero negro con grietas).
     g.fillStyle = '#000';
     g.beginPath();
     g.moveTo(w * 0.62, h * 0.55);
@@ -111,10 +99,6 @@ export function grimeStrip() {
   return tex;
 }
 
-/**
- * Manchas para el suelo (alfa o color): splat (sangre con gotas), blob (charco o mancha de aceite de
- * borde suave e irregular), litter (papeles, hojas y colillas sobre transparente).
- */
 export function decalTexture(kind) {
   if (kind === 'litter') {
     return canvas(256, 256, (g, w, h) => {
@@ -126,11 +110,10 @@ export function decalTexture(kind) {
         g.rotate(Math.random() * Math.PI);
         g.fillStyle = colors[i % colors.length];
         if (i % 3 === 0) {
-          // Hoja seca: elipse con nervio.
           g.beginPath();
           g.ellipse(0, 0, 9 + Math.random() * 6, 4 + Math.random() * 3, 0, 0, Math.PI * 2);
           g.fill();
-        } else g.fillRect(-8, -5, 10 + Math.random() * 14, 6 + Math.random() * 10); // papel
+        } else g.fillRect(-8, -5, 10 + Math.random() * 14, 6 + Math.random() * 10);
         g.restore();
       }
     });

@@ -1,5 +1,3 @@
-// Paredes que se ven y bloquean de verdad: en el hospital no queda ninguna que se atraviese, y las
-// ventanas del circo dejan pasar al jugador cuando ya no les quedan tablones.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { ZombieMap } from '../src/modes/zombies/ZombieMap.js';
@@ -7,9 +5,8 @@ import { HOSPITAL } from '../src/modes/zombies/sections.js';
 import { pushCircleOut } from '../src/physics/obb.js';
 
 const world = new ZombieMap();
-const R = 0.32; // radio del jugador (PlayerController)
+const R = 0.32;
 
-// ¿El jugador puede estar en (x, z) sin chocar con nada?
 function blockedAt(x, z, boxes) {
   return boxes.some((b) => b.max.y > 0.05 && b.min.y < 1.7 && pushCircleOut(b, x, z, R));
 }
@@ -20,14 +17,12 @@ describe('hospital', () => {
     const loose = [];
     world.scene.updateMatrixWorld(true);
     world.scene.traverse((o) => {
-      if (!o.isMesh || o.isInstancedMesh || o.geometry.type !== 'BoxGeometry') return; // los tablones (instancias) van aparte
+      if (!o.isMesh || o.isInstancedMesh || o.geometry.type !== 'BoxGeometry') return;
       const bb = new THREE.Box3().setFromObject(o);
       if (bb.max.x < HOSPITAL.minX || bb.min.x > HOSPITAL.maxX || bb.max.z < HOSPITAL.minZ || bb.min.z > HOSPITAL.maxZ) return;
       const sx = bb.max.x - bb.min.x;
       const sz = bb.max.z - bb.min.z;
-      // Paneles verticales que llegan del piso a la altura del pecho (paredes, zócalos, cortinas).
       if (bb.min.y > 0.6 || bb.max.y < 1 || Math.max(sx, sz) < 0.5) return;
-      // ¿Hay algo sólido en su centro y a lo largo (si no está pegado a una pared)?
       for (let t = 0.1; t <= 0.9; t += 0.2) {
         const x = sx > sz ? bb.min.x + t * sx : (bb.min.x + bb.max.x) / 2;
         const z = sx > sz ? (bb.min.z + bb.max.z) / 2 : bb.min.z + t * sz;
@@ -63,7 +58,6 @@ describe('ventanas del circo', () => {
     world.removeBoard(b);
     expect(b.boards).toBe(0);
     expect(blockedAt(at.x, at.z, world.playerBlockers)).toBe(false);
-    // Ni el muro ni el dintel tapan el hueco.
     expect(blockedAt(at.x, at.z, world.colliders)).toBe(false);
     world.addBoard(b);
     expect(blockedAt(at.x, at.z, world.playerBlockers)).toBe(true);

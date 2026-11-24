@@ -1,6 +1,3 @@
-// Arsenal: lista de armas a la izquierda (mismo menú que la pantalla de título) y la ficha del arma
-// enfocada a la derecha. Moverse por la lista la previsualiza; Enter o clic la equipa.
-// La evaluación usa el rifle para dar rango (otra arma, en «Personalizar», es práctica); el arma elegida vale para el resto.
 import './menu.css';
 import './arsenal.css';
 import { h } from './dom.js';
@@ -43,7 +40,6 @@ export function arsenalScreen(game, { onBack, onCrosshair }) {
     render(id);
   };
 
-  // Ficha del arma (se rehace al enfocar otra: cambio instantáneo, sin animación).
   function showcase(id) {
     const s = game.settings;
     const w = WEAPONS[id];

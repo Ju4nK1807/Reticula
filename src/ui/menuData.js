@@ -1,5 +1,3 @@
-// Datos del menú principal a partir del guardado: el "siguiente paso" recomendado y el dato que
-// muestra cada modo. Funciones puras (probadas en tests/menuData.test.js).
 import { getRank } from '../config/ranks.js';
 import { CAMPAIGN_MAPS, levelsOf } from '../modes/campaign/campaignData.js';
 import { campaignSummary } from '../stats/history.js';
@@ -8,7 +6,6 @@ import { recommendedMap } from '../modes/campaign/progress.js';
 const DAY = 864e5;
 export const STALE_EVALUATION_DAYS = 7;
 
-// Resumen de una línea para cada modo (o null si no hay nada que contar).
 export function modeSummary(id, data) {
   const variants = data.profile?.variants ?? {};
   switch (id) {
@@ -50,7 +47,6 @@ export function modeSummary(id, data) {
   }
 }
 
-// Primer nivel de campaña abierto y sin estrellas, empezando por el mapa recomendado para el rango.
 function nextCampaignLevel(data) {
   const best = data.campaign?.best ?? {};
   const start = CAMPAIGN_MAPS.indexOf(recommendedMap(data.profile?.rank));
@@ -65,14 +61,6 @@ function nextCampaignLevel(data) {
   return null;
 }
 
-/*
-  Siguiente paso recomendado: lo más útil que puede hacer el jugador ahora.
-  1. Sin evaluación → hacer la de dianas (da el rango y desbloquea modos).
-  2. Le falta una de las dos variantes → completarla.
-  3. Evaluación de hace más de una semana → reevaluar.
-  4. Campaña con un nivel pendiente → continuarla.
-  5. Si no, batir el récord del modo infinito.
-*/
 export function nextStep(data, now = Date.now()) {
   const v = data.profile?.variants ?? {};
   if (!v.targets && !v.bots) {

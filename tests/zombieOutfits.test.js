@@ -1,9 +1,6 @@
-// Atuendos de los zombis: payasos y ciudadanos (oficinista, policía, médico, obrero, deportista,
-// bombero). La ropa la pinta el sombreador según los uniformes que elige ZombieLook.randomize.
 import { describe, expect, it } from 'vitest';
 import { OUTFITS, createZombieMaterial } from '../src/modes/zombies/zombieLook.js';
 
-// Generador repetible (para que la prueba no dependa del azar).
 function seeded(seed = 7) {
   let s = seed;
   return () => ((s = (s * 9301 + 49297) % 233280) / 233280);
@@ -19,7 +16,7 @@ describe('atuendos de los zombis', () => {
       seen.set(o, (seen.get(o) ?? 0) + 1);
     }
     for (const id of Object.keys(OUTFITS)) expect(seen.get(id) ?? 0).toBeGreaterThan(0);
-    expect(seen.get('clown') / 400).toBeLessThan(0.5); // la mayoría ya no son payasos
+    expect(seen.get('clown') / 400).toBeLessThan(0.5);
   });
 
   it('los ciudadanos no llevan traje ni cara de payaso y tienen su ropa', () => {
@@ -36,8 +33,8 @@ describe('atuendos de los zombis', () => {
         expect(u.uClown.value.z).toBe(0);
       }
       if (OUTFITS[o].id >= 2) {
-        expect(u.uOutfit.value.y).toBeGreaterThanOrEqual(36); // manga corta o larga
-        expect(u.uOutfit.value.w).toBeGreaterThan(0); // ropa rota
+        expect(u.uOutfit.value.y).toBeGreaterThanOrEqual(36);
+        expect(u.uOutfit.value.w).toBeGreaterThan(0);
       }
     }
   });

@@ -7,22 +7,14 @@ const HALF_W = 21;
 const BACK_Z = -46;
 const FRONT_Z = 11.5;
 const WALL_H = 7;
-const TOWER_H = 2; // torre central
+const TOWER_H = 2;
 const TOWER_HALF = 3;
 const TOWER_Z = -24;
-const LEDGE_Y = 3; // plataformas laterales
+const LEDGE_Y = 3;
 const LEDGE_INNER = 17;
 const PARAPET_H = 1.25;
 const LOW_H = 1.3;
 
-/*
-  Arena (mapa 3 · Élite): arena competitiva simétrica, iluminada y con acentos de neón.
-  - El jugador está detrás de una barrera en un extremo.
-  - Torre central con parapeto (los bots se levantan arriba) y dos plataformas laterales elevadas con
-    barandilla: muchas posiciones altas y ángulos cruzados.
-  - Pilares (se asoman de lado) y barreras bajas repartidas simétricamente.
-  - Túneles laterales (flancos y frente) y dos accesos detrás del jugador.
-*/
 export class ArenaMap extends CampaignWorld {
   constructor() {
     super({
@@ -37,7 +29,6 @@ export class ArenaMap extends CampaignWorld {
 
     const scene = this.scene;
     scene.add(new THREE.HemisphereLight('#e6ecff', '#2a2440', 1.8));
-    // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
     scene.add(createSky({ ...SKIES.neon, horizon: '#0f1220' }));
     const key = new THREE.DirectionalLight('#ffffff', 1.2);
     key.position.set(0, 24, 12);
@@ -58,7 +49,6 @@ export class ArenaMap extends CampaignWorld {
       dark: surface('metal', '#1a1d2c'),
     };
 
-    // --- Suelo a cuadros, muros con neón, túneles ------------------------------------------------------
     this.ground(100, 100, -17, M.floorA);
     for (let x = -HALF_W; x < HALF_W; x += 6) {
       for (let z = BACK_Z; z < FRONT_Z; z += 6) {
@@ -75,32 +65,28 @@ export class ArenaMap extends CampaignWorld {
     }
     this.box(-HALF_W, HALF_W, BACK_Z + 0.02, BACK_Z + 0.08, 0.12, M.accent, 5.4, false);
 
-    // --- Torre central ---------------------------------------------------------------------------------
     const tz0 = TOWER_Z - TOWER_HALF;
     const tz1 = TOWER_Z + TOWER_HALF;
     this.box(-TOWER_HALF, TOWER_HALF, tz0, tz1, TOWER_H, M.tower);
-    this.box(-TOWER_HALF, TOWER_HALF, tz1 - 0.3, tz1, PARAPET_H, M.block, TOWER_H); // parapeto frontal
+    this.box(-TOWER_HALF, TOWER_HALF, tz1 - 0.3, tz1, PARAPET_H, M.block, TOWER_H);
     this.box(-TOWER_HALF - 0.02, TOWER_HALF + 0.02, tz1 - 0.02, tz1 + 0.02, 0.1, M.accent, TOWER_H - 0.4, false);
     for (const x of [-1.6, 1.6]) this.addRiseSpot(x, TOWER_H, tz1 - 1.1, 'high');
     for (const x of [-2, 0, 2]) this.highSpots.push(new THREE.Vector3(x, TOWER_H, TOWER_Z - 1));
-    this.addSideSpots(0, TOWER_Z, TOWER_HALF * 2, TOWER_HALF * 2, 0, 'front'); // al pie de la torre
+    this.addSideSpots(0, TOWER_Z, TOWER_HALF * 2, TOWER_HALF * 2, 0, 'front');
 
-    // --- Plataformas laterales elevadas ------------------------------------------------------------------
     for (const side of [-1, 1]) {
       const [x0, x1] = side < 0 ? [-HALF_W, -LEDGE_INNER] : [LEDGE_INNER, HALF_W];
       this.box(x0, x1, -34, -12, 0.3, M.block, LEDGE_Y - 0.3);
       const rx = side < 0 ? -LEDGE_INNER : LEDGE_INNER - 0.25;
       this.box(rx, rx + 0.25, -34, -12, PARAPET_H, M.blockAlt, LEDGE_Y);
-      for (const z of [-34, -12.25]) this.box(x0, x1, z, z + 0.25, PARAPET_H, M.blockAlt, LEDGE_Y); // laterales cerrados
+      for (const z of [-34, -12.25]) this.box(x0, x1, z, z + 0.25, PARAPET_H, M.blockAlt, LEDGE_Y);
       this.box(rx - 0.01, rx + 0.26, -34, -12, 0.08, side < 0 ? M.cyan : M.magenta, LEDGE_Y + PARAPET_H, false);
       for (const z of [-16, -32]) this.box(side * 19 - 0.25, side * 19 + 0.25, z - 0.25, z + 0.25, LEDGE_Y - 0.3, M.dark, 0, false);
       const sx = side * (LEDGE_INNER + 1);
       for (const z of [-16, -23, -30]) this.addRiseSpot(sx, LEDGE_Y, z, 'high');
-      // Sin puntos más al fondo: los pilares laterales los tapan desde la zona del jugador (auditoría).
       for (const z of [-15, -19.5, -26.5]) this.highSpots.push(new THREE.Vector3(sx, LEDGE_Y, z));
     }
 
-    // --- Pilares y barreras bajas (simétricos) ------------------------------------------------------------
     const pillar = (cx, cz) => {
       this.box(cx - 1, cx + 1, cz - 1, cz + 1, 5, M.block);
       this.box(cx - 1.02, cx + 1.02, cz - 1.02, cz + 1.02, 0.1, M.accent, 2.4, false);
@@ -121,9 +107,8 @@ export class ArenaMap extends CampaignWorld {
     }
     low(0, -37, 5);
 
-    // --- Barrera del jugador (visual) y accesos -----------------------------------------------------------
     this.box(-HALF_W, HALF_W, 2.2, 2.5, 0.9, M.block, 0, false);
-    this.box(-HALF_W, HALF_W, 2.18, 2.52, 0.05, M.accentDim, 0.9, false); // tenue: está justo delante de la vista
+    this.box(-HALF_W, HALF_W, 2.18, 2.52, 0.05, M.accentDim, 0.9, false);
     for (const side of [-1, 1]) {
       this.addDoorSpot(side * 23.5, -8, side * 19.6, -8, 'flank');
       this.addDoorSpot(side * 23.5, -38, side * 19.6, -38, 'front');

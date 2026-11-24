@@ -1,11 +1,3 @@
-// Gráficas de línea en SVG, sin librerías. Siguen el método de visualización del proyecto:
-// - Colores categóricos en orden fijo, validados sobre la superficie oscura (#0d1219) con
-//   validate_palette.js: CVD ΔE ≥ 8.4, visión normal ΔE ≥ 19.8, contraste ≥ 3:1 (4 series).
-// - Un solo eje Y, cuadrícula discreta, líneas de 2 px, marcador de 8 px con anillo de superficie.
-// - Leyenda con trazo de línea si hay ≥ 2 series, y etiqueta directa del último valor (≤ 4 series).
-// - Interacción: línea vertical que sigue al puntero y salta al dato más cercano; tooltip con todas las
-//   series (valor primero). Lo mismo con teclado (flechas). Tabla de datos plegable para accesibilidad.
-// - Los textos (nombres, etiquetas) se insertan con textContent, nunca con innerHTML.
 import { shortDate } from '../utils/format.js';
 
 export const SERIES_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500'];
@@ -26,14 +18,6 @@ function div(cls, text = null) {
   return el;
 }
 
-/*
-  lineChart({
-    label: título accesible,
-    series: [{ id, label, points: [{ t: ms, v: número }] }],   (el color sigue el orden de la serie)
-    yMax = 100, yTicks = [0, 25, 50, 75, 100], height = 200,
-    format = (v) => texto del valor, empty = texto si no hay datos,
-  }) → elemento DOM
-*/
 export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 100], height = 200, format = (v) => String(v), empty = 'Aún no hay datos.' }) {
   const root = div('chart');
   const visible = series.filter((s) => s.points.length);
@@ -43,7 +27,6 @@ export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 
   }
   const colorOf = (s) => SERIES_COLORS[series.indexOf(s) % SERIES_COLORS.length];
 
-  // Leyenda (solo con 2 o más series): trazo de línea + nombre en tinta de texto.
   if (series.length >= 2) {
     const legend = div('chart-legend');
     for (const s of series) {
@@ -72,8 +55,6 @@ export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 
   let show = () => {};
   let hide = () => {};
 
-  // Se dibuja al ancho real del contenedor (y se redibuja si cambia): texto de 11 px y líneas de 2 px
-  // exactos a cualquier tamaño, en vez de escalar un viewBox fijo.
   const draw = (W) => {
     const plotW = Math.max(40, W - PAD.left - PAD.right);
     const plotH = H - PAD.top - PAD.bottom;
@@ -83,14 +64,12 @@ export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 
     const y = (v) => PAD.top + plotH - (Math.max(0, Math.min(yMax, v)) / yMax) * plotH;
     const svg = svgEl('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, class: 'chart-svg', role: 'img', 'aria-label': label });
 
-    // Cuadrícula y eje Y (recesivos).
     for (const tick of yTicks) {
       svg.append(svgEl('line', { x1: PAD.left, x2: PAD.left + plotW, y1: y(tick), y2: y(tick), class: tick === 0 ? 'chart-axis' : 'chart-grid' }));
       const t = svgEl('text', { x: PAD.left - 6, y: y(tick) + 4, 'text-anchor': 'end', class: 'chart-tick' });
       t.textContent = format(tick);
       svg.append(t);
     }
-    // Eje X: primera y última fecha.
     const dateLabel = (t, anchor, xPos) => {
       const el = svgEl('text', { x: xPos, y: H - 6, 'text-anchor': anchor, class: 'chart-tick' });
       el.textContent = shortDate(new Date(t).toISOString());
@@ -99,7 +78,6 @@ export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 
     dateLabel(t0, times.length > 1 ? 'start' : 'middle', x(t0));
     if (times.length > 1) dateLabel(t1, 'end', x(t1));
 
-    // Series: línea de 2 px, marcador del último punto y etiqueta directa (≤ 4 series).
     const direct = visible.length <= 4;
     const labelYs = [];
     for (const s of visible) {
@@ -112,7 +90,6 @@ export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 
       const last = pts.at(-1);
       svg.append(svgEl('circle', { cx: x(last.t), cy: y(last.v), r: 4, fill: color, class: 'chart-dot' }));
       if (direct) {
-        // Evita que dos etiquetas se monten (separación mínima de 12 px).
         let ly = y(last.v) + 4;
         for (const other of labelYs) if (Math.abs(other - ly) < 12) ly = other + (ly >= other ? 12 : -12);
         labelYs.push(ly);
@@ -122,7 +99,6 @@ export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 
       }
     }
 
-    // Capa de interacción: línea vertical + tooltip con todas las series en esa fecha.
     const cross = svgEl('line', { y1: PAD.top, y2: PAD.top + plotH, class: 'chart-cross', visibility: 'hidden' });
     svg.append(cross);
     const hit = svgEl('rect', { x: PAD.left - 8, y: 0, width: plotW + 16, height: H, fill: 'transparent' });
@@ -137,7 +113,6 @@ export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 
       cross.setAttribute('visibility', 'visible');
       tip.replaceChildren(div('chart-tip-date', shortDate(new Date(t).toISOString())));
       for (const s of visible) {
-        // Valor de cada serie en esa fecha, o el último anterior (la serie "sigue" ahí).
         const prev = s.points.filter((p) => p.t <= t).sort((a, b) => b.t - a.t)[0];
         if (!prev) continue;
         const row = div('chart-tip-row');
@@ -186,7 +161,6 @@ export function lineChart({ label, series, yMax = 100, yTicks = [0, 25, 50, 75, 
     }
   });
 
-  // Tabla de datos (accesible, sin depender del color ni del puntero).
   const details = document.createElement('details');
   details.className = 'chart-table';
   const summary = document.createElement('summary');

@@ -1,26 +1,10 @@
 import { insideBox } from '../../physics/obb.js';
-/*
-  Navegación de la horda: campo de flujo sobre una cuadrícula.
 
-  La cuadrícula cubre la zona de juego en celdas de `cell` metros; una celda está bloqueada si su centro
-  cae dentro de un colisionador (agrandado por el radio del zombi). build(x, z) calcula con Dijkstra
-  (8 vecinos, diagonales √2 y sin cortar esquinas) la distancia de cada celda al jugador y hacia qué
-  vecina seguir. Así 24 zombis rodean obstáculos con un solo cálculo compartido (unas pocas veces por
-  segundo), en vez de buscar un camino cada uno.
-  Lógica pura: ver tests/navGrid.test.js.
-*/
-
-// Vecinos (rectos y diagonales) en arreglos planos: el bucle de Dijkstra es lo más caliente de la
-// navegación y así no crea iteradores ni desestructura en cada paso.
 const DX = new Int8Array([1, -1, 0, 0, 1, 1, -1, -1]);
 const DZ = new Int8Array([0, 0, 1, -1, 1, -1, 1, -1]);
 const COST = new Float32Array([1, 1, 1, 1, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2]);
 
 export class NavGrid {
-  /**
-   * @param {{ minX:number, maxX:number, minZ:number, maxZ:number, cell?:number, radius?:number,
-   *           colliders?: Array<{min:{x,y,z},max:{x,y,z}}> }} opts
-   */
   constructor({ minX, maxX, minZ, maxZ, cell = 1, radius = 0.45, colliders = [] }) {
     this.cell = cell;
     this.minX = minX;
@@ -31,10 +15,9 @@ export class NavGrid {
     this.blocked = new Uint8Array(n);
     this.dist = new Float32Array(n).fill(Infinity);
     this.next = new Int32Array(n).fill(-1);
-    this.done = new Uint8Array(n); // celdas ya cerradas en el cálculo actual
-    this.heap = new Int32Array(n * 8 + 8); // cola de prioridad (índices, con repetidos) reutilizada
+    this.done = new Uint8Array(n);
+    this.heap = new Int32Array(n * 8 + 8);
     this.heapLen = 0;
-    // Solo cuenta lo que bloquea el paso a la altura de un cuerpo.
     this.setColliders(colliders, radius);
   }
 
@@ -51,7 +34,6 @@ export class NavGrid {
     return out;
   }
 
-  /** Campo de flujo hacia el punto (x, z). */
   build(x, z) {
     let t = this.index(x, z);
     if (t < 0) return false;
@@ -60,10 +42,6 @@ export class NavGrid {
     return this.buildFrom([t]);
   }
 
-  /**
-   * Campo de flujo hacia el más cercano de varios puntos [{ x, z }] (p. ej. todo el contorno de un
-   * objetivo: cada zombi va al lado que le queda más cerca).
-   */
   buildToMany(points) {
     const seeds = [];
     for (const p of points) {
@@ -88,7 +66,7 @@ export class NavGrid {
     }
     while (this.heapLen) {
       const i = this.pop();
-      if (done[i]) continue; // entrada vieja de la cola (la celda ya se cerró con menos distancia)
+      if (done[i]) continue;
       done[i] = 1;
       const ix = i % w;
       const iz = (i - ix) / w;
@@ -101,7 +79,6 @@ export class NavGrid {
         if (nx < 0 || nz < 0 || nx >= w || nz >= h) continue;
         const j = nz * w + nx;
         if (blocked[j] || done[j]) continue;
-        // Sin cortar esquinas: en diagonal, las dos celdas rectas también deben estar libres.
         if (dx && dz && (blocked[iz * w + nx] || blocked[nz * w + ix])) continue;
         const d = di + COST[k];
         if (d < dist[j]) {
@@ -114,10 +91,6 @@ export class NavGrid {
     return true;
   }
 
-  /**
-   * Dirección (normalizada, en out.x/out.z) para seguir el campo desde (x, z): hacia el centro de la
-   * celda que está DOS pasos más adelante (curvas más suaves). Devuelve false si no hay camino.
-   */
   direction(x, z, out) {
     let i = this.index(x, z);
     if (i < 0 || this.target < 0) return false;
@@ -125,7 +98,7 @@ export class NavGrid {
       i = this.nearestFree(i, true);
       if (i < 0) return false;
     }
-    if (this.dist[i] === 0) return false; // ya está en la celda de destino: que vaya directo
+    if (this.dist[i] === 0) return false;
     let j = this.next[i];
     if (j < 0) return false;
     if (this.next[j] >= 0 && this.dist[this.next[j]] > 0) j = this.next[j];
@@ -138,10 +111,6 @@ export class NavGrid {
     return true;
   }
 
-  /**
-   * ¿La recta entre (x0, z0) y (x1, z1) cruza solo celdas libres? (las celdas ya incluyen el radio
-   * del zombi). Con línea despejada el zombi va derecho, sin seguir el zigzag de la cuadrícula.
-   */
   clearLine(x0, z0, x1, z1) {
     const dx = x1 - x0;
     const dz = z1 - z0;
@@ -153,11 +122,6 @@ export class NavGrid {
     return true;
   }
 
-  /**
-   * Recalcula qué celdas bloquean (al abrir o cerrar una puerta del mapa). Cada colisionador solo
-   * revisa las celdas de su caja agrandada por el radio: con cientos de colisionadores en un mapa
-   * grande, recorrer todas las celdas por cada uno costaba cientos de ms (un tirón al abrir puertas).
-   */
   setColliders(colliders, radius = this.radius) {
     this.radius = radius;
     this.blocked.fill(0);
@@ -179,13 +143,11 @@ export class NavGrid {
     this.target = -1;
   }
 
-  /** Distancia por el campo (en m) desde (x, z) hasta el jugador, o Infinity. */
   pathDistance(x, z) {
     const i = this.index(x, z);
     return i < 0 ? Infinity : this.dist[i] * this.cell;
   }
 
-  // Celda libre más cercana (anillos crecientes). `reachable`: además con camino calculado.
   nearestFree(i, reachable = false) {
     const ix = i % this.w;
     const iz = Math.floor(i / this.w);
@@ -204,7 +166,6 @@ export class NavGrid {
     return -1;
   }
 
-  // Montículo binario mínimo por distancia (con entradas repetidas: se ignoran las viejas al sacarlas).
   push(i) {
     const h = this.heap;
     let k = this.heapLen++;

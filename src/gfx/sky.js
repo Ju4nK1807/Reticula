@@ -1,16 +1,6 @@
 import * as THREE from 'three';
 
-/*
-  Cielo procedural para los mapas al aire libre (un solo sombreador, sin texturas que descargar):
-  degradado del horizonte al cénit, resplandor en el horizonte (ciudad, fuego o neón), estrellas que
-  titilan y una luna con halo. El color del horizonte es el de la niebla del mapa: la geometría lejana
-  se funde con el cielo sin costura.
-
-  Es una esfera grande que sigue a la cámara, dibujada primero y sin escribir profundidad. No proyecta
-  sombras ni entra en los raycasts.
-*/
-
-const vertexShader = /* glsl */ `
+const vertexShader = `
   varying vec3 vDir;
   void main() {
     vDir = normalize(position);
@@ -19,7 +9,7 @@ const vertexShader = /* glsl */ `
   }
 `;
 
-const fragmentShader = /* glsl */ `
+const fragmentShader = `
   uniform vec3 uZenith;
   uniform vec3 uHorizon;
   uniform vec3 uGlow;
@@ -70,13 +60,8 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-/**
- * @param {{ zenith: string, horizon: string, glow?: string, glowAmount?: number, glowDir?: number,
- *   moonDir?: [number, number, number] | null, moon?: number, stars?: number }} opts
- *   glowDir: ángulo (rad, en planta) hacia donde el resplandor es más fuerte.
- */
 export function createSky({ zenith, horizon, glow = '#000000', glowAmount = 0, glowDir = 0, moonDir = null, moon = 1, stars = 1 }) {
-  const lin = (c) => new THREE.Color(c); // los colores de THREE.Color ya están en lineal
+  const lin = (c) => new THREE.Color(c);
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uZenith: { value: lin(zenith) },
@@ -99,12 +84,11 @@ export function createSky({ zenith, horizon, glow = '#000000', glowAmount = 0, g
   sky.name = 'Cielo';
   sky.frustumCulled = false;
   sky.renderOrder = -1000;
-  sky.userData.dynamic = true; // no se une a la geometría fija
+  sky.userData.dynamic = true;
   sky.userData.noShadow = true;
   sky.castShadow = false;
   sky.receiveShadow = false;
   const start = typeof performance !== 'undefined' ? performance.now() : 0;
-  // Sigue a la cámara (nunca se llega al borde) y hace titilar las estrellas.
   sky.onBeforeRender = (renderer, scene, camera) => {
     sky.position.copy(camera.position);
     sky.updateMatrixWorld();
@@ -113,7 +97,6 @@ export function createSky({ zenith, horizon, glow = '#000000', glowAmount = 0, g
   return sky;
 }
 
-// Paletas de cielo por ambiente (los mapas eligen una y pueden ajustar algo).
 export const SKIES = {
   night: { zenith: '#04070f', horizon: '#141c2a', glow: '#2a3f66', glowAmount: 0.35, moonDir: [-0.45, 0.55, -0.7], stars: 1 },
   city: { zenith: '#070a18', horizon: '#2a2238', glow: '#ff8a4c', glowAmount: 0.55, glowDir: 0, moonDir: [0.5, 0.42, -0.75], stars: 0.55 },

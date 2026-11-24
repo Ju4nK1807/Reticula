@@ -9,20 +9,14 @@ import { coordResultsScreen, coordSelectScreen } from './coordScreens.js';
 export const MODE_ID = 'coordination';
 export const WORLD_ID = 'dome';
 
-const BRIEF_TIME = 5; // s de instrucciones y cuenta regresiva antes de cada ejercicio
+const BRIEF_TIME = 5;
 
-/*
-  Coordinación ojo-mano: cuatro ejercicios (secuencia, color objetivo, periferia, doble tarea) que se
-  juegan sueltos o en circuito. Estados:
-    select → (captura del mouse) → brief → running → (brief → running)… → done
-  Mismo flujo que la evaluación: durante las instrucciones se puede disparar para calentar.
-*/
 export class Coordination extends Mode {
   constructor(game) {
     super(game);
     this.root = new THREE.Group();
     this.state = 'select';
-    this.kind = 'drill'; // 'drill' | 'circuit'
+    this.kind = 'drill';
     this.queue = [];
     this.index = 0;
     this.phase = null;
@@ -62,7 +56,6 @@ export class Coordination extends Mode {
     );
   }
 
-  // Elige qué jugar y pide capturar el mouse (desde el clic del botón: gesto del usuario).
   prepare(kind, queue) {
     this.kind = kind;
     this.queue = queue;
@@ -70,14 +63,10 @@ export class Coordination extends Mode {
     this.game.input.lock();
   }
 
-  // --- Interfaz de modo ---------------------------------------------------------------
-
   wantsLock() {
     return this.state === 'brief' || this.state === 'running';
   }
 
-  // Entrenamiento: munición infinita y sin recargas (una recarga a destiempo dejaba escapar
-  // enemigos y restaba puntos). Las armas se sienten igual: solo no se vacían.
   infiniteAmmo() {
     return true;
   }
@@ -101,7 +90,6 @@ export class Coordination extends Mode {
     this.beginStage(0);
   }
 
-  // Texto extra en el HUD del arma.
   weaponHudSuffix() {
     return ' · munición ilimitada';
   }
@@ -113,8 +101,6 @@ export class Coordination extends Mode {
   restartStage() {
     if (this.wantsLock()) this.beginStage(this.index);
   }
-
-  // --- Flujo ---------------------------------------------------------------------------
 
   beginStage(index) {
     const g = this.game;
@@ -154,15 +140,12 @@ export class Coordination extends Mode {
       if (this.briefT <= 0) {
         hud.brief(null);
         sfx.beep(true);
-        // Lo disparado durante el calentamiento no cuenta.
         this.game.weapon.refill();
         this.game.effects.clear();
         this.state = 'running';
         this.phase.begin();
       }
     } else if (this.state === 'running') {
-      // Munición ilimitada: aquí se mide la coordinación, no la gestión del cargador (una recarga en
-      // mal momento metería ruido en la escalera de periferia o en la doble tarea).
       const w = this.game.weapon;
       if (!w.reloading) w.ammo = w.stats.magazine;
       this.phase.update(dt);

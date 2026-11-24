@@ -1,29 +1,13 @@
-/*
-  Música de ambiente de terror, generada en vivo con Web Audio (sin archivos y nunca se repite igual).
-  Suena por el bus de música de Sfx (volumen propio en Ajustes → Audio).
-
-  Capas:
-  - Zumbido grave (re) con un filtro que respira despacio, y viento que va y viene.
-  - Tensión: disonancias (segunda menor y tritono) con trémolo; crece con la intensidad.
-  - Acordes disonantes que aparecen y se desvanecen cada tantos segundos.
-  - Cajita de música de circo desafinada: frases sueltas, que a veces se quedan sin cuerda.
-  - Latidos: más rápidos y fuertes con la intensidad y con poca vida.
-  - Sobresaltos: chirrido de cuerdas, metal que raspa, golpe lejano, susurros.
-
-  setIntensity(0…1): 0 calma (entre rondas), 1 horda encima. setHealth(0…1): vida del jugador.
-*/
-const ROOT = 73.42; // re2
+const ROOT = 73.42;
 const semi = (n) => Math.pow(2, n / 12);
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
-// Acordes disonantes (semitonos sobre re3).
 const CLUSTERS = [[0, 1, 6], [0, 3, 8, 9], [-2, 1, 5], [0, 6, 11], [-5, 0, 1], [3, 4, 10]];
-// Re menor armónica: la escala de la cajita de música.
 const SCALE = [0, 2, 3, 5, 7, 8, 11, 12, 14, 15, 17];
-const BOX_ROOT = 587.33; // re5
-const TICK = 0.2; // s entre vueltas del programador
-const AHEAD = 0.35; // s que agenda por adelantado
+const BOX_ROOT = 587.33;
+const TICK = 0.2;
+const AHEAD = 0.35;
 
 export class HorrorMusic {
   constructor(sfx, { paused = () => false } = {}) {
@@ -68,7 +52,6 @@ export class HorrorMusic {
     this.health = Math.max(0, Math.min(1, f));
   }
 
-  // Arma las capas continuas la primera vez que hay contexto de audio (tras el primer gesto).
   build() {
     const ctx = this.sfx.ctx;
     if (!ctx || !this.sfx.music) return false;
@@ -76,11 +59,10 @@ export class HorrorMusic {
     this.sources = [];
     this.bus = this.gain(0);
     this.bus.connect(this.sfx.music);
-    this.bus.gain.linearRampToValueAtTime(1, t + 6); // entra de a poco
+    this.bus.gain.linearRampToValueAtTime(1, t + 6);
     this.wet = this.gain(0.55);
     this.bus.connect(this.wet).connect(this.sfx.reverbIn);
 
-    // Zumbido: dos sierras casi iguales (baten) y un seno una octava abajo, con filtro que respira.
     const droneLp = this.filter('lowpass', 240, 3);
     this.lfo(0.035, 130, droneLp.frequency);
     this.droneGain = this.gain(0.12);
@@ -88,7 +70,6 @@ export class HorrorMusic {
     droneLp.connect(this.droneGain).connect(this.bus);
     this.lfo(0.06, 0.04, this.droneGain.gain);
 
-    // Tensión: segunda menor y tritono, con trémolo nervioso.
     const tensBp = this.filter('bandpass', 520, 1.6);
     this.lfo(0.09, 220, tensBp.frequency);
     for (const n of [13, 18, 25]) this.osc('sawtooth', ROOT * semi(n)).connect(this.gain(0.33)).connect(tensBp);
@@ -97,7 +78,6 @@ export class HorrorMusic {
     this.tensionGain = this.gain(0);
     tensBp.connect(trem).connect(this.tensionGain).connect(this.bus);
 
-    // Viento entre los edificios.
     const wind = this.sfx.ctx.createBufferSource();
     wind.buffer = this.sfx.noise;
     wind.loop = true;
@@ -121,7 +101,6 @@ export class HorrorMusic {
     this.intensity += (this.target - this.intensity) * 0.06;
     const I = this.intensity;
     const fear = 1 - this.health;
-    // En pausa la música baja; la tensión sigue la intensidad.
     this.bus.gain.setTargetAtTime(this.paused() ? 0.3 : 1, now, 0.4);
     this.tensionGain.gain.setTargetAtTime(Math.max(0, I - 0.25) * 0.14, now, 1.2);
     this.droneGain.gain.setTargetAtTime(0.1 + I * 0.06, now, 1.5);
@@ -133,9 +112,8 @@ export class HorrorMusic {
     }
     if (n.box < until) {
       this.musicBox(n.box, I);
-      n.box += rnd(22, 40) * (0.7 + I * 0.8); // más seguido en la calma
+      n.box += rnd(22, 40) * (0.7 + I * 0.8);
     }
-    // Latidos: desde intensidad media o con poca vida.
     const beatVol = Math.min(0.55, Math.max(0, I - 0.45) * 0.5 + Math.max(0, fear - 0.35) * 0.9);
     const bpm = 54 + I * 40 + fear * 50;
     while (n.beat < until) {
@@ -148,8 +126,6 @@ export class HorrorMusic {
     }
   }
 
-  // --- Eventos ---------------------------------------------------------------------------------------
-  // Acorde disonante que aparece despacio y se deshace.
   pad(t, I) {
     const dur = rnd(8, 12);
     const lp = this.filter('lowpass', 600 + I * 900, 0.8);
@@ -168,8 +144,6 @@ export class HorrorMusic {
     }
   }
 
-  // Cajita de música: una frase de vals inventada al azar; a veces se queda sin cuerda (se frena y
-  // se desafina hacia abajo).
   musicBox(t, I) {
     const notes = 6 + Math.floor(Math.random() * 6);
     const unwind = Math.random() < 0.45;
@@ -178,14 +152,14 @@ export class HorrorMusic {
     out.pan.value = pan;
     const g = this.gain(0.05 * (1 - I * 0.5));
     out.connect(g).connect(this.bus);
-    g.connect(this.gain(1.4)).connect(this.wet); // la cajita suena lejos: mucha reverb
+    g.connect(this.gain(1.4)).connect(this.wet);
     let step = Math.floor(rnd(3, 7));
     let at = t;
     let beat = rnd(0.34, 0.44);
     for (let i = 0; i < notes; i++) {
       step = Math.max(0, Math.min(SCALE.length - 1, step + pick([-2, -1, -1, 1, 1, 2, 3, -3])));
       const k = i / notes;
-      const drop = unwind ? -k * k * 90 : rnd(-12, 12); // centésimas
+      const drop = unwind ? -k * k * 90 : rnd(-12, 12);
       this.bell(BOX_ROOT * semi(SCALE[step]), at, drop, out);
       if (i % 3 === 0 && Math.random() < 0.5) this.bell(BOX_ROOT * semi(SCALE[Math.max(0, step - 7)] ?? 0) / 2, at, drop, out, 0.5);
       at += beat * (i % 3 === 2 ? 1.25 : 1);
@@ -205,7 +179,6 @@ export class HorrorMusic {
     }
   }
 
-  // Latido: dos golpes graves (lub-dub).
   heartbeat(t, vol) {
     for (const [dt, k] of [[0, 1], [0.27, 0.65]]) {
       const o = this.oneShot('sine', 60, t + dt, 0.25);
@@ -219,7 +192,6 @@ export class HorrorMusic {
     }
   }
 
-  // Sobresaltos sueltos.
   sting(t, I) {
     const kind = pick(I > 0.5 ? ['screech', 'screech', 'scrape', 'boom'] : ['scrape', 'boom', 'whisper', 'whisper', 'screech']);
     const pan = this.sfx.ctx.createStereoPanner();
@@ -227,7 +199,6 @@ export class HorrorMusic {
     pan.connect(this.bus);
     pan.connect(this.wet);
     if (kind === 'screech') {
-      // Cuerdas que chirrían y caen.
       const dur = rnd(2.2, 3.4);
       const f = rnd(1300, 1900);
       const bp = this.filter('bandpass', f, 6);
@@ -245,7 +216,6 @@ export class HorrorMusic {
       }
       bp.connect(trem).connect(env).connect(pan);
     } else if (kind === 'scrape') {
-      // Metal que raspa contra metal.
       const dur = rnd(1.6, 2.6);
       const bp = this.filter('bandpass', 500, 14);
       bp.frequency.setValueAtTime(rnd(350, 600), t);
@@ -253,7 +223,6 @@ export class HorrorMusic {
       bp.frequency.linearRampToValueAtTime(rnd(600, 900), t + dur);
       this.noiseShot(t, dur).connect(bp).connect(this.swell(t, dur, 0.22)).connect(pan);
     } else if (kind === 'boom') {
-      // Golpe lejano (una puerta, algo que cae).
       const o = this.oneShot('sine', 48, t, 2.2);
       o.frequency.exponentialRampToValueAtTime(30, t + 1.8);
       const env = this.gain(0);
@@ -263,7 +232,6 @@ export class HorrorMusic {
       o.connect(env).connect(pan);
       this.noiseShot(t, 1.2).connect(this.filter('lowpass', 220, 0.6)).connect(this.swell(t, 1.2, 0.18, 0.02)).connect(pan);
     } else {
-      // Susurros: sílabas de aire que no se entienden.
       const syll = 5 + Math.floor(Math.random() * 6);
       let at = t;
       for (let i = 0; i < syll; i++) {
@@ -275,7 +243,6 @@ export class HorrorMusic {
     }
   }
 
-  // --- Piezas ----------------------------------------------------------------------------------------
   gain(v) {
     const g = this.sfx.ctx.createGain();
     g.gain.value = v;
@@ -290,7 +257,6 @@ export class HorrorMusic {
     return b;
   }
 
-  // Oscilador continuo (capas que suenan todo el tiempo).
   osc(type, f) {
     const o = this.sfx.ctx.createOscillator();
     o.type = type;
@@ -299,7 +265,6 @@ export class HorrorMusic {
     return o;
   }
 
-  // Modulación lenta de un parámetro.
   lfo(rate, depth, param) {
     const o = this.osc('sine', rate * rnd(0.85, 1.15));
     o.connect(this.gain(depth)).connect(param);
@@ -323,7 +288,6 @@ export class HorrorMusic {
     return n;
   }
 
-  // Sube y baja (fracción `rise` de la duración subiendo).
   swell(t, dur, peak, rise = 0.4) {
     const env = this.gain(0);
     env.gain.setValueAtTime(0.0001, t);

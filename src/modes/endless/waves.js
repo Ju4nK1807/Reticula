@@ -1,29 +1,23 @@
-// Diseño del modo infinito: curva de dificultad por oleada, puntuación y récords.
-// Funciones puras (sin Three.js ni DOM) para poder probarlas en tests/endless.test.js.
-
 export const MAX_HEALTH = 100;
-export const WAVE_HEAL = 25; // vida recuperada al superar una oleada
-export const FIRST_COUNTDOWN = 3; // s antes de la primera oleada
-export const INTERMISSION = 6; // s de descanso entre oleadas
-export const GATE_WARNING = 0.9; // s de aviso (lámpara roja + sonido) antes de que entre un bot
-export const MAX_RUNS = 20; // partidas guardadas en el historial
+export const WAVE_HEAL = 25;
+export const FIRST_COUNTDOWN = 3;
+export const INTERMISSION = 6;
+export const GATE_WARNING = 0.9;
+export const MAX_RUNS = 20;
 
-// Botiquines: probabilidad de que un bot lo suelte al morir (más alta con poca vida).
 export const MEDKIT_HEAL = 20;
 export const MEDKIT_CHANCE = 0.12;
 export const MEDKIT_CHANCE_LOW = 0.3;
 export const MEDKIT_LOW_HEALTH = 40;
 export const MEDKIT_MAX = 3;
 
-// Puntuación base (se multiplica por oleada). Fallar resta poco: aquí se premia sobrevivir.
 export const BASE_POINTS = { head: 30, body: 15, legs: 10, kill: 100, miss: -10, escaped: 0 };
 export const HEADSHOT_KILL_BONUS = 50;
-export const STREAK_STEP = 10; // puntos extra por baja en racha (racha = bajas sin recibir daño)
+export const STREAK_STEP = 10;
 export const STREAK_CAP = 10;
 export const WAVE_CLEAR_BONUS = 200;
-export const PERFECT_WAVE_BONUS = 300; // oleada superada sin recibir daño
+export const PERFECT_WAVE_BONUS = 300;
 
-// Crece linealmente desde `start` y se detiene en `limit` (sirve para subir o bajar).
 function ramp(start, perWave, limit, d) {
   const v = start + perWave * d;
   return perWave >= 0 ? Math.min(limit, v) : Math.max(limit, v);
@@ -31,9 +25,6 @@ function ramp(start, perWave, limit, d) {
 
 const round2 = (v) => Math.round(v * 100) / 100;
 
-// Configuración de la oleada `n` (1, 2, 3…). d = oleadas superadas.
-// Ritmo: las primeras oleadas enseñan (pocos bots, lentos, de tamaño real); hacia la 15 los bots son
-// ~40 % más pequeños, el doble de rápidos, reaccionan en menos de 0.3 s y llegan varios a la vez.
 export function waveConfig(n) {
   const wave = Math.max(1, Math.floor(n));
   const d = wave - 1;
@@ -65,7 +56,6 @@ export function waveConfig(n) {
   };
 }
 
-// Puntos por impacto de la oleada (Phase.handleShot los usa directamente).
 export function wavePoints(cfg) {
   const m = cfg.pointsMultiplier;
   const out = {};
@@ -89,8 +79,6 @@ export function emptyRecord() {
   return { bestWave: 0, bestScore: 0, bestKills: 0, bestStreak: 0, totalRuns: 0, runs: [] };
 }
 
-// Actualiza el récord con una partida terminada. `run` = { wave, score, kills, bestStreak, ... }.
-// Devuelve qué marcas se superaron. Muta `record` (completando campos que falten en guardados viejos).
 export function updateRecord(record, run) {
   Object.assign(record, { ...emptyRecord(), ...record });
   const isBest = {

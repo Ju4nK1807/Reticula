@@ -20,7 +20,6 @@ function bestLine(entry) {
   return h('span', {}, `Récord ${entry.best}`, h('small', { class: 'muted' }, ` · última ${entry.last} · ${entry.plays} ${entry.plays === 1 ? 'vez' : 'veces'}`));
 }
 
-// Pantalla de selección: circuito completo o un ejercicio suelto.
 export function coordSelectScreen(game, { record, onDrill, onCircuit, onSettings, onBack }) {
   const circuit = record.circuit;
   return h(
@@ -72,7 +71,6 @@ export function coordSelectScreen(game, { record, onDrill, onCircuit, onSettings
   );
 }
 
-// Resultados de un ejercicio o del circuito.
 export function coordResultsScreen({ kind, drills, results, ratings, index, isBest, record, onRetry, onSelect, onMenu }) {
   const single = kind === 'drill';
   const D = drills[0];

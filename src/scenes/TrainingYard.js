@@ -3,9 +3,6 @@ import { SKIES, createSky } from '../gfx/sky.js';
 import { glow, surface } from '../gfx/surfaces.js';
 import { World } from './World.js';
 
-// Mapa de la evaluación con enemigos: patio exterior con coberturas, puertas laterales/traseras
-// y un balcón alto. El jugador mira hacia -Z; el campo enemigo va de z = -5 a z = -46.
-// coverSpots: lugares donde un bot puede esconderse y asomarse ("peek").
 export class TrainingYard extends World {
   constructor() {
     super({
@@ -20,7 +17,6 @@ export class TrainingYard extends World {
 
     const scene = this.scene;
     scene.add(new THREE.HemisphereLight('#dbe7ff', '#3a3226', 1.8));
-    // Cielo procedural (degradado, resplandor en el horizonte, estrellas y luna) que se funde con la niebla.
     scene.add(createSky({ ...SKIES.night, horizon: '#1c2636' }));
     const sun = new THREE.DirectionalLight('#fff4e0', 1.6);
     sun.position.set(-12, 20, 10);
@@ -46,15 +42,13 @@ export class TrainingYard extends World {
     const block = this.block.bind(this);
     const playerBlocker = this.playerBlocker.bind(this);
 
-    // --- Suelo -------------------------------------------------------------
     this.ground(160, 160, -18, M.ground);
     const grid = new THREE.GridHelper(160, 80, '#4a5260', '#424955');
     grid.material.transparent = true;
-    grid.material.opacity = 0.3; // guía tenue sobre el suelo con textura
+    grid.material.opacity = 0.3;
     grid.position.set(0, 0.01, -18);
     scene.add(grid);
 
-    // --- Muros perimetrales con puertas -------------------------------------------
     for (const side of [-1, 1]) {
       const x = side * 22.5;
       for (const [a, b] of [[-47, -12], [-10, 0], [2, 12]]) block(1, 6, b - a, M.wall, x, (a + b) / 2);
@@ -71,7 +65,6 @@ export class TrainingYard extends World {
       playerBlocker(x - 1, x + 1, 10.9, 13);
     }
 
-    // --- Fachada con balcón (posiciones altas) ------------------------------------
     block(46, 11, 1, M.wall, 0, -46.5);
     block(24, 0.3, 3, M.concrete, 0, -44.5, 3.3);
     block(24, 1.25, 0.25, M.concrete, 0, -43.1, 3.6);
@@ -81,7 +74,6 @@ export class TrainingYard extends World {
     for (const x of [-17, -12, 12, 17]) block(2.2, 1.6, 0.1, M.glass, x, -45.95, 5.5, false);
     for (const x of [-16, 16]) block(2.4, 2.9, 0.1, M.glass, x, -45.95, 0, false);
 
-    // --- Coberturas del campo -----------------------------------------------------
     const walls = [
       { x: -6, z: -14, w: 5 },
       { x: 9, z: -18, w: 4 },
@@ -106,7 +98,6 @@ export class TrainingYard extends World {
       for (const dx of [-c.w / 4, c.w / 4]) this.addRiseSpot(c.x + dx, 0, c.z - 0.75, 'front');
     }
 
-    // Pilas de cajas (2x2 cajas, una sola hitbox)
     for (const c of [{ x: -17, z: -12 }, { x: 17, z: -23 }, { x: -18, z: -38 }]) {
       block(2.4, 2.4, 1.2, M.crate, c.x, c.z);
       for (const [dx, dy] of [[-0.6, 0], [0.6, 0], [-0.6, 1.2], [0.6, 1.2]]) {
@@ -116,7 +107,6 @@ export class TrainingYard extends World {
     }
     block(2.6, 2.7, 6.5, M.container, 19, -30);
 
-    // Balcón: asomarse junto a las columnas o levantarse detrás del parapeto
     for (const x of [-8, 0, 8]) {
       for (const side of [-1, 1]) {
         this.coverSpots.push(this.spot(x, 3.6, -45.2, x + side * 1.3, 3.6, -45.2, 'side', 'high'));
@@ -125,14 +115,12 @@ export class TrainingYard extends World {
     for (const x of [-11, -4, 4, 11]) this.addRiseSpot(x, 3.6, -44, 'high');
     for (let x = -10.5; x <= 10.5; x += 3) this.highSpots.push(new THREE.Vector3(x, 3.6, -44));
 
-    // Puertas: los bots entran caminando desde fuera del mapa
     for (const side of [-1, 1]) {
       this.coverSpots.push(this.spot(side * 24, 0, -11, side * 20.6, 0, -11, 'door', 'front'));
       this.coverSpots.push(this.spot(side * 24, 0, 1, side * 20.4, 0, 1, 'door', 'flank'));
       this.coverSpots.push(this.spot(side * 8, 0, 13, side * 8, 0, 9.2, 'door', 'back'));
     }
 
-    // --- Zona del jugador -----------------------------------------------------------
     for (let x = -22; x <= 22; x += 2) block(0.1, 0.95, 0.1, M.trim, x, -3.3, 0, false);
     block(44, 0.07, 0.07, M.accent, 0, -3.3, 0.92, false);
     playerBlocker(-22, 22, -3.6, -3.05);
@@ -141,7 +129,6 @@ export class TrainingYard extends World {
     block(1, 3, 1, M.trim, -14, 6);
     block(1, 3, 1, M.trim, 15, 3);
 
-    // --- Decoración lejana ----------------------------------------------------------
     const hillGeo = new THREE.ConeGeometry(1, 1, 5);
     for (let i = 0; i < 14; i++) {
       const hill = new THREE.Mesh(hillGeo, M.hill);
@@ -166,14 +153,12 @@ export class TrainingYard extends World {
     };
   }
 
-  // Bordes izquierdo y derecho de una cobertura ancha: el bot se oculta detrás y sale de lado.
   addSideSpots(cx, cz, w, d, y, area) {
     const z = cz - d / 2 - 0.7;
     this.coverSpots.push(this.spot(cx - w / 2 + 0.6, y, z, cx - w / 2 - 1.1, y, z, 'side', area));
     this.coverSpots.push(this.spot(cx + w / 2 - 0.6, y, z, cx + w / 2 + 1.1, y, z, 'side', area));
   }
 
-  // Cobertura baja: el bot espera agachado y se levanta.
   addRiseSpot(x, y, z, area) {
     this.coverSpots.push(this.spot(x, y, z, x, y, z, 'rise', area));
   }

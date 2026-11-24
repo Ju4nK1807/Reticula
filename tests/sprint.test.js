@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { PlayerController } from '../src/core/PlayerController.js';
 import { DEFAULT_KEYS } from '../src/config/keybinds.js';
 
-// Jugador en un campo abierto; `held` = acciones pulsadas.
 function setup() {
   const camera = new THREE.PerspectiveCamera();
   camera.rotation.order = 'YXZ';
@@ -51,11 +50,11 @@ describe('sprint', () => {
     b.held.add('forward');
     b.run(0.3);
     expect(b.player.sprinting).toBe(true);
-    b.input.mouseDown = true; // disparar corta el sprint
+    b.input.mouseDown = true;
     b.run(0.1);
     expect(b.player.sprinting).toBe(false);
     b.input.mouseDown = false;
-    b.player.speedScale = 0.75; // apuntando
+    b.player.speedScale = 0.75;
     b.run(0.1);
     expect(b.player.sprinting).toBe(false);
     b.player.speedScale = 1;

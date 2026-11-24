@@ -1,29 +1,17 @@
 import * as THREE from 'three';
 
-/*
-  Cuerpo rígido simple para la utilería (cajas, barriles, latas, conos). Sin motor de física externo.
-
-  - Forma de colisión: una nube de puntos en el borde del objeto (las 8 esquinas de una caja, dos anillos
-    para un cilindro, un anillo y la punta para un cono). Cada punto que entra en el suelo o en una caja
-    fija del mapa genera un contacto; así los objetos caen de canto, se vuelcan y los cilindros ruedan.
-  - Contactos con impulsos: rebote (solo en choques fuertes, así lo que reposa no tiembla) y rozamiento
-    de Coulomb. La corrección de posición saca el objeto de lo que atraviesa sin acumular energía.
-  - Se duerme al quedar quieto (no gasta CPU) y despierta con un disparo, una explosión o un empujón.
-  Integración con subpasos fijos (STEP): estable aunque el juego vaya a pocos FPS.
-*/
-
 export const GRAVITY = 9.8;
 export const STEP = 1 / 120;
 const MAX_STEPS = 8;
-const SLEEP_V = 0.07; // m/s
-const SLEEP_W = 0.15; // rad/s
-const SLEEP_TIME = 0.5; // s quieto antes de dormirse
-const MAX_W = 40; // rad/s
-const BOUNCE_V = 1.2; // m/s: más lento que esto contra algo, no rebota
-const SLOP = 0.002; // m de interpenetración tolerada
+const SLEEP_V = 0.07;
+const SLEEP_W = 0.15;
+const SLEEP_TIME = 0.5;
+const MAX_W = 40;
+const BOUNCE_V = 1.2;
+const SLOP = 0.002;
 const LINEAR_DAMP = 0.08;
 const ANGULAR_DAMP = 0.6;
-const ROLL_DAMP = 2.4; // 1/s extra de giro y 0.9 de avance mientras toca algo (resistencia a rodar)
+const ROLL_DAMP = 2.4;
 
 const _r = new THREE.Vector3();
 const _p = new THREE.Vector3();
@@ -34,7 +22,6 @@ const _b = new THREE.Vector3();
 const _qi = new THREE.Quaternion();
 const _wq = new THREE.Quaternion();
 
-// --- Formas ---------------------------------------------------------------------------------------
 export function boxPoints(w, h, d) {
   const pts = [];
   for (const x of [-w / 2, w / 2]) for (const y of [-h / 2, h / 2]) for (const z of [-d / 2, d / 2]) pts.push(new THREE.Vector3(x, y, z));
@@ -66,11 +53,6 @@ export const boxInertia = (m, w, h, d) => new THREE.Vector3((m / 12) * (h * h + 
 export const cylinderInertia = (m, r, h) => new THREE.Vector3((m / 12) * (3 * r * r + h * h), (m / 2) * r * r, (m / 12) * (3 * r * r + h * h));
 
 export class RigidBody {
-  /**
-   * @param {{ mass: number, inertia: THREE.Vector3, points: THREE.Vector3[], restitution?: number,
-   *   friction?: number, radius: number, footprint?: number }} opts
-   * radius: esfera que lo contiene (para descartar choques) · footprint: radio en planta (empujones).
-   */
   constructor({ mass, inertia, points, restitution = 0.3, friction = 0.6, radius, footprint = radius, core = footprint, height = radius * 2 }) {
     this.mass = mass;
     this.invMass = 1 / mass;
@@ -80,7 +62,7 @@ export class RigidBody {
     this.friction = friction;
     this.radius = radius;
     this.footprint = footprint;
-    this.core = core; // radio en planta que choca con otros objetos (círculo inscrito: sin choques fantasma)
+    this.core = core;
     this.height = height;
     this.position = new THREE.Vector3();
     this.quaternion = new THREE.Quaternion();
@@ -88,8 +70,8 @@ export class RigidBody {
     this.angular = new THREE.Vector3();
     this.awake = false;
     this.sleepT = 0;
-    this.contacts = 0; // contactos del último paso (para saber si está apoyado)
-    this.lastImpact = 0; // velocidad del último choque fuerte (para el sonido)
+    this.contacts = 0;
+    this.lastImpact = 0;
   }
 
   wake() {
@@ -97,7 +79,6 @@ export class RigidBody {
     this.sleepT = 0;
   }
 
-  // I⁻¹ en el mundo aplicado a v: R · diag(invI) · Rᵀ · v.
   invInertiaMul(v, out) {
     _qi.copy(this.quaternion).invert();
     out.copy(v).applyQuaternion(_qi);
@@ -105,7 +86,6 @@ export class RigidBody {
     return out.applyQuaternion(this.quaternion);
   }
 
-  /** Impulso (N·s, en el mundo) aplicado en un punto del mundo. Lo despierta. */
   applyImpulse(impulse, point) {
     this.velocity.addScaledVector(impulse, this.invMass);
     _r.subVectors(point, this.position);
@@ -116,7 +96,6 @@ export class RigidBody {
     this.wake();
   }
 
-  // Masa efectiva en la dirección n para un punto a distancia r del centro.
   effectiveInv(r, n) {
     _a.crossVectors(r, n);
     this.invInertiaMul(_a, _b);
@@ -125,7 +104,6 @@ export class RigidBody {
   }
 }
 
-// Contacto del punto P (mundo) con cajas fijas: devuelve la penetración y escribe la normal, o -1.
 function boxContact(P, box, normal) {
   if (P.x <= box.min.x || P.x >= box.max.x || P.y <= box.min.y || P.y >= box.max.y || P.z <= box.min.z || P.z >= box.max.z) return -1;
   let best = P.x - box.min.x;
@@ -150,13 +128,11 @@ const contactPool = [];
 const nearBoxes = [];
 const _n = new THREE.Vector3();
 
-/** Avanza un cuerpo `dt` segundos (en subpasos fijos) contra el suelo y las cajas fijas. */
 export function stepBody(body, dt, colliders = [], groundY = 0) {
   if (!body.awake) return;
   const steps = Math.min(MAX_STEPS, Math.max(1, Math.ceil(dt / STEP - 1e-6)));
   const h = dt / steps;
   for (let s = 0; s < steps; s++) substep(body, h, colliders, groundY);
-  // Dormir: quieto y apoyado durante un rato.
   if (body.contacts > 0 && body.velocity.length() < SLEEP_V && body.angular.length() < SLEEP_W) {
     body.sleepT += dt;
     if (body.sleepT > SLEEP_TIME) {
@@ -177,19 +153,16 @@ function substep(body, h, colliders, groundY) {
     const k = Math.exp(-0.9 * h);
     v.x *= k;
     v.z *= k;
-    // Casi en reposo y bien apoyado: amortiguación fuerte (sin balanceo eterno entre caras).
     if (body.contacts >= 2 && v.lengthSq() < 0.09) {
       w.multiplyScalar(Math.exp(-8 * h));
       v.multiplyScalar(Math.exp(-3 * h));
     }
   }
   body.position.addScaledVector(v, h);
-  // Orientación: q += ½ · (0, ω) · q · h
   _wq.set(w.x, w.y, w.z, 0).multiply(body.quaternion);
   const q = body.quaternion;
   q.set(q.x + 0.5 * _wq.x * h, q.y + 0.5 * _wq.y * h, q.z + 0.5 * _wq.z * h, q.w + 0.5 * _wq.w * h).normalize();
 
-  // Contactos de este subpaso.
   let n = 0;
   const near = nearBoxes;
   near.length = 0;
@@ -225,7 +198,6 @@ function substep(body, h, colliders, groundY) {
   body.contacts = n;
   if (!n) return;
 
-  // Impulsos: tres pasadas sobre todos los contactos.
   for (let it = 0; it < 3; it++) {
     for (let i = 0; i < n; i++) {
       const c = contactPool[i];
@@ -238,7 +210,6 @@ function substep(body, h, colliders, groundY) {
       const jn = (-(1 + e) * vn) / body.effectiveInv(_r, c.n);
       _a.copy(c.n).multiplyScalar(jn);
       applyAt(body, _a, _r);
-      // Rozamiento: frena el deslizamiento en el plano del contacto (sin pasarse del cono de Coulomb).
       _vr.crossVectors(w, _r).add(v);
       _t.copy(_vr).addScaledVector(c.n, -_vr.dot(c.n));
       const vt = _t.length();
@@ -250,7 +221,6 @@ function substep(body, h, colliders, groundY) {
       }
     }
   }
-  // Corrección de posición: por cada normal, la penetración más profunda (sin sumar contactos iguales).
   _a.set(0, 0, 0);
   const seen = [];
   for (let i = 0; i < n; i++) {
@@ -272,11 +242,6 @@ function applyAt(body, impulse, r) {
   if (body.angular.length() > MAX_W) body.angular.setLength(MAX_W);
 }
 
-/**
- * Separa dos cuerpos que se tocan, como cilindros verticales (radio inscrito en planta y su altura):
- * reparto del empujón según la masa y choque poco elástico. Un cuerpo dormido no se despierta por un
- * roce que casi no lo movería (una lata contra una caja).
- */
 export function separate(a, b) {
   const ha = a.height / 2;
   const hb = b.height / 2;

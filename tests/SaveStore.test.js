@@ -108,7 +108,6 @@ describe('migraciones', () => {
     const phone = load({ quality: 'media', renderScale: 0.85, touchTuned: true });
     expect(phone.quality).toBe('auto');
     expect(phone.touchTuned).toBeUndefined();
-    // Las elecciones explícitas se respetan.
     expect(load({ quality: 'baja', renderScale: 0.7 }).quality).toBe('baja');
     expect(load({ quality: 'media', renderScale: 0.85 }).quality).toBe('media');
     expect(load({ quality: 'custom', renderScale: 0.6, detail: 'baja' }).quality).toBe('custom');
@@ -125,13 +124,10 @@ describe('migraciones', () => {
       },
     };
     const s = load({ version: 4, settings }).data.settings;
-    // Solo punto: sin líneas aunque los valores por defecto nuevos traigan líneas.
     expect(s.crosshair).toMatchObject({ lines: false, dot: true, ring: false, dotSize: 3, color: '#ff0000', shape: 'dot' });
     expect(s.weaponCrosshairs.rifle).toMatchObject({ lines: true, tShape: true, size: 7, thickness: 1, gap: 2, shape: 't' });
-    // El círculo conserva su radio (separación + medio largo + 2) y su grosor.
     expect(s.weaponCrosshairs.shotgun).toMatchObject({ lines: false, ring: true, ringRadius: 13, ringThickness: 2, dot: true });
     expect(s.weaponCrosshairs.pistol).toMatchObject({ lines: true, dot: true, tShape: false });
-    // Las armas que no estaban en el guardado reciben su mira por defecto (ya en piezas).
     expect(s.weaponCrosshairs.sniper).toMatchObject({ lines: false, dot: true });
     expect(s.savedCrosshairs).toEqual([]);
   });

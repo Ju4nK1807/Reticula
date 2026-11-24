@@ -2,21 +2,11 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeStatic } from './mergeStatic.js';
 
-/*
-  Iluminación de los mapas:
-  - Luz de entorno (RoomEnvironment prefiltrado, compartido): reflejos suaves en metal y relleno
-    ambiental para los materiales PBR. No requiere descargar un HDRI.
-  - Sombras del sol (la primera DirectionalLight del mapa), ajustadas a la zona de juego, no a todo
-    el terreno: así cada texel de la sombra cubre pocos centímetros.
-  Calidad: alta = sombra 2048 suave · media = 1024 · baja = sin sombras.
-*/
-
 const SHADOW_SIZE = { alta: 2048, media: 1024, baja: 0 };
-const MAX_HALF_EXTENT = 48; // m: más allá, la sombra pierde definición y no aporta
+const MAX_HALF_EXTENT = 48;
 const ENV_INTENSITY = 0.35;
 let envTexture = null;
 
-/** Mapa de entorno compartido (reflejos de los materiales PBR). */
 export function environment(renderer) {
   if (!envTexture) {
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -36,7 +26,6 @@ function findSun(scene) {
   return sun;
 }
 
-// Zona de juego: unión de los colliders (muros, coberturas), recortada a un tamaño razonable.
 function playBounds(world) {
   const box = new THREE.Box3();
   for (const c of world.colliders) box.union(c);
@@ -44,7 +33,6 @@ function playBounds(world) {
   return box;
 }
 
-/** Prepara un mapa recién creado (una sola vez): entorno, sol y qué proyecta o recibe sombra. */
 export function prepareWorld(world, renderer) {
   if (world.gfx) return world.gfx;
   const scene = world.scene;
@@ -53,7 +41,7 @@ export function prepareWorld(world, renderer) {
 
   scene.traverse((o) => {
     if (!o.isMesh) return;
-    const lit = !o.material?.isMeshBasicMaterial && !o.userData.noShadow; // el cielo no proyecta sombra
+    const lit = !o.material?.isMeshBasicMaterial && !o.userData.noShadow;
     o.receiveShadow = lit;
     o.castShadow = lit && !o.userData.ground;
   });
@@ -81,26 +69,22 @@ export function prepareWorld(world, renderer) {
     sun.updateMatrixWorld(true);
     sun.target.updateMatrixWorld(true);
   }
-  // Geometría estática unida por material: muchas menos llamadas de dibujo (ver mergeStatic.js).
   const merge = mergeStatic(world);
   world.gfx = { sun, shadowSize: -1, merge };
   return world.gfx;
 }
 
-// Opción "Sombras" de la configuración (config/quality.js: auto | on | off).
 let shadowMode = 'auto';
 export function setShadowMode(mode) {
   shadowMode = mode === 'on' || mode === 'off' ? mode : 'auto';
 }
 
-/** Tamaño del mapa de sombras para un detalle y la opción de sombras (0 = sin sombras). */
 export function shadowSizeFor(detail, mode = shadowMode) {
   if (mode === 'off') return 0;
   const size = SHADOW_SIZE[detail] ?? SHADOW_SIZE.alta;
   return mode === 'on' && size === 0 ? SHADOW_SIZE.media : size;
 }
 
-/** Aplica la calidad de sombras a un mapa preparado. */
 export function applyShadowQuality(world, detail) {
   const gfx = world.gfx;
   if (!gfx?.sun) return;
@@ -115,7 +99,6 @@ export function applyShadowQuality(world, detail) {
   sun.shadow.map = null;
 }
 
-/** Marca un objeto dinámico (bots, dianas) para que proyecte sombra. */
 export function castsShadow(object) {
   object.traverse((o) => {
     if (o.isMesh && !o.material?.isMeshBasicMaterial) o.castShadow = true;

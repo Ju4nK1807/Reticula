@@ -57,15 +57,13 @@ describe('la barra (defensa)', () => {
     const g = fakeGame();
     const bar = new Bar(g, new THREE.Group());
     expect(bar.total).toBeGreaterThan(30);
-    expect(g.world.solids.length).toBeLessThanOrEqual(6); // una malla instanciada por tipo de botella
+    expect(g.world.solids.length).toBeLessThanOrEqual(6);
     expect(bar.damage(DEFENSE.hpPerBottle - 1, new THREE.Vector3(0, 0, 3))).toBe(0);
     expect(bar.damage(1, new THREE.Vector3(0, 0, 3))).toBe(1);
     expect(bar.left).toBe(bar.total - 1);
     expect(g.sounds).toContain('glass');
-    // Se rompe la más cercana al que golpea (del lado norte, z = 0).
     const broken = bar.bottles.find((b) => b.broken);
     expect(broken.pos.z).toBeGreaterThan(-1);
-    // La instancia rota queda a escala cero (no se ve ni la tocan las balas).
     const m = new THREE.Matrix4();
     broken.mesh.getMatrixAt(broken.index, m);
     expect(new THREE.Vector3().setFromMatrixScale(m).length()).toBe(0);
@@ -127,7 +125,7 @@ describe('zombis en la defensa', () => {
     const s2 = setup(new THREE.Vector3(14, 0, -3));
     s2.z.damage(5, 'body');
     s2.step(0.5);
-    expect(s2.z.position.x).toBeGreaterThan(9); // fue hacia el jugador (x mayor), no hacia la barra
+    expect(s2.z.position.x).toBeGreaterThan(9);
   });
 });
 
@@ -136,12 +134,12 @@ describe('colisión con cajas giradas', () => {
     const ry = Math.PI / 4;
     const box = new THREE.Box3(new THREE.Vector3(-1.4, 0, -1.4), new THREE.Vector3(1.4, 1, 1.4));
     withObb(box, 0, 0, 1.6, 0.3, ry);
-    expect(pushCircleOut(box, 1.2, 1.2, 0.3)).toBeNull(); // esquina vacía de la caja envolvente
+    expect(pushCircleOut(box, 1.2, 1.2, 0.3)).toBeNull();
     expect(insideBox(box, 1.2, 1.2, 0)).toBe(false);
     const out = pushCircleOut(box, 0.1, 0.1, 0.3);
     expect(out).not.toBeNull();
     const lz = Math.sin(ry) * out[0] + Math.cos(ry) * out[1];
-    expect(Math.abs(lz)).toBeCloseTo(0.6, 3); // justo fuera: medio fondo + radio
+    expect(Math.abs(lz)).toBeCloseTo(0.6, 3);
   });
 
   it('la navegación con varios destinos lleva a cada uno al más cercano', () => {

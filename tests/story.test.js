@@ -3,7 +3,6 @@ import { CHAPTERS, CHAPTER_KINDS, PROLOGUE, SPEAKERS, completeChapter, emptyStor
 import { WEAPONS } from '../src/combat/weapons.js';
 import { modeSummary } from '../src/ui/menuData.js';
 
-// Funciones puras de las fases y de la voz (los módulos importan Three.js, no el DOM al cargarse).
 const { sequenceStep, roundDigits } = await import('../src/modes/story/storyPhases.js');
 const { numbersToSpeech } = await import('../src/modes/story/StoryHud.js');
 

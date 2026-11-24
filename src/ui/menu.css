@@ -1,8 +1,3 @@
-/* Pantalla de título y listas de menú (también las usa la pausa). */
-
-/* ---------- Fondo cinematográfico ---------- */
-/* Sin desenfoque: la escena 3D en vivo es el fondo. Oscurece la izquierda (donde está el texto) y
-   el pie, con viñeta. El grano va en un pseudo-elemento estático (no se anima). */
 #ui:has(> .title-screen) {
   padding: 0;
   backdrop-filter: none;
@@ -11,13 +6,11 @@
     linear-gradient(0deg, rgba(4, 6, 9, 0.9) 0%, transparent 34%),
     linear-gradient(180deg, rgba(4, 6, 9, 0.55) 0%, transparent 22%),
     radial-gradient(ellipse 110% 90% at 62% 42%, transparent 45%, rgba(0, 0, 0, 0.55) 100%),
-    /* Luz ambiental fría en el fondo de la escena: da profundidad sin coste (no se anima). */
     radial-gradient(ellipse 40% 34% at 66% 36%, rgba(54, 214, 255, 0.13), transparent 70%),
     radial-gradient(ellipse 22% 30% at 98% 22%, rgba(255, 170, 80, 0.12), transparent 70%),
     radial-gradient(ellipse 18% 26% at 2% 30%, rgba(255, 170, 80, 0.08), transparent 70%),
     radial-gradient(ellipse 30% 22% at 64% 58%, rgba(0, 245, 160, 0.06), transparent 70%);
 }
-/* El contador de FPS es para la partida, no para los menús. */
 #app:has(#ui.active) .hud-fps { display: none; }
 
 .screen.title-screen {
@@ -46,7 +39,6 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* ---------- Marca ---------- */
 .ts-brand { grid-area: brand; display: flex; align-items: center; gap: clamp(14px, 1.6vw, 22px); }
 .ts-logo {
   flex: none; width: clamp(46px, 5.4vw, 74px); aspect-ratio: 1; color: var(--accent);
@@ -55,7 +47,6 @@
 }
 .ts-logo svg { display: block; width: 100%; height: 100%; }
 .ts-word { position: relative; }
-/* Líneas de escaneo sobre el título y trazos de "interferencia" a su izquierda: holograma. */
 .ts-word::before {
   content: ''; position: absolute; left: -0.1em; right: 0; top: 0; height: clamp(40px, 5.8vw, 82px); pointer-events: none;
   background: repeating-linear-gradient(180deg, transparent 0 3px, rgba(4, 6, 9, 0.28) 3px 4px);
@@ -67,7 +58,6 @@
     linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35)) 40% 55% / 60% 1px no-repeat,
     linear-gradient(90deg, transparent, rgba(0, 245, 160, 0.45)) 70% 100% / 30% 1px no-repeat;
 }
-/* Parpadeo: dos caídas de opacidad de un instante cada 9 s (solo opacity, sin coste de layout). */
 @keyframes holo-flicker {
   0%, 93.9%, 95%, 96.4%, 100% { opacity: 1; }
   94% { opacity: 0.55; }
@@ -79,7 +69,6 @@
   letter-spacing: 0.2em;
   line-height: 0.92;
   margin-right: -0.2em;
-  /* Relleno metálico: luz arriba, acero abajo. */
   background: linear-gradient(180deg, #ffffff 0%, #dfe7ef 46%, #8e9aa8 54%, #c7d1dc 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -97,8 +86,6 @@
   color: var(--text-2);
 }
 
-/* ---------- Rango (arriba a la derecha): panel biselado ---------- */
-/* El bisel es un clip-path; el borde es la capa de fondo y el relleno, una capa interior recortada igual. */
 .ts-rank { grid-area: profile; justify-self: end; align-self: start; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 .ts-profile {
   --cut: 12px;
@@ -118,7 +105,6 @@
 .ts-profile small { display: block; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
 .ts-profile strong { display: block; font-family: var(--font-display); font-size: 22px; letter-spacing: 0.12em; text-transform: uppercase; }
 .ts-rank-meta { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; color: var(--muted); }
-/* Regla de marcas finas (decorativa, estática). */
 .ts-ticks {
   flex: 1; height: 8px; opacity: 0.7;
   background:
@@ -133,7 +119,6 @@
 }
 .ts-help:active { transform: scale(0.95); }
 
-/* ---------- Menú ---------- */
 .ts-menu { grid-area: menu; align-self: center; display: flex; flex-direction: column; gap: 10px; padding: 24px 0; }
 .ts-heading { display: flex; align-items: baseline; gap: 12px; padding-left: 22px; }
 .ts-heading .eyebrow { margin: 0; }
@@ -166,8 +151,6 @@
 .ml-badge { flex: none; font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: none; color: var(--muted); }
 .ml-item.active .ml-badge { color: var(--text-2); }
 
-/* Recuadro de la opción activa: borde neón de 1.5 px con resplandor, degradado verde que se
-   desvanece a la derecha, esquinas tácticas en L por fuera y una marca de guía a la izquierda. */
 .ml-bar {
   position: absolute; left: 0; top: 0; width: 100%; height: 48px; pointer-events: none; opacity: 0;
   background: linear-gradient(90deg, rgba(0, 245, 160, 0.24), rgba(0, 245, 160, 0.08) 55%, rgba(0, 245, 160, 0.02));
@@ -187,14 +170,11 @@
 .menu-list.placed .ml-bar { opacity: 1; }
 .menu-list[data-instant] .ml-bar { transition: opacity 120ms ease; }
 
-/* Cambio de lista (principal ⇄ Jugar): entra desde el lado hacia el que se navega. */
 .menu-list.enter-right { animation: ml-in-right 200ms var(--ease-out) both; }
 .menu-list.enter-left { animation: ml-in-left 200ms var(--ease-out) both; }
 @keyframes ml-in-right { from { opacity: 0; transform: translateX(14px); } }
 @keyframes ml-in-left { from { opacity: 0; transform: translateX(-14px); } }
 
-/* ---------- Detalle de la opción enfocada ---------- */
-/* Cambia al instante: se actualiza con cada movimiento del teclado y animarlo lo haría lento. */
 .ts-detail {
   grid-area: detail; justify-self: end; align-self: end;
   position: relative; overflow: hidden;
@@ -204,7 +184,6 @@
   border: 1px solid rgba(0, 245, 160, 0.22); border-radius: 4px;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 24px rgba(0, 245, 160, 0.06);
 }
-/* Esquinas en L de acento (ocho degradados, sin elementos extra). */
 .ts-detail::after {
   --c: rgba(0, 245, 160, 0.8);
   content: ''; position: absolute; inset: 6px; pointer-events: none; opacity: 0.85;
@@ -234,7 +213,6 @@
 .td-rows dd { margin: 0; text-align: right; font-family: var(--mono); font-weight: 600; color: var(--text); }
 .ts-detail .history { position: relative; margin-top: 14px; }
 
-/* Tabla de modos: nombre · ícono · estado. */
 .td-table { position: relative; margin-top: 16px; font-size: 14px; }
 .td-tr { display: grid; grid-template-columns: 1fr 22px minmax(96px, auto); align-items: center; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line); }
 .td-tr:last-child { border-bottom: 1px solid var(--line); }
@@ -243,7 +221,6 @@
 .td-val { font-family: var(--mono); font-weight: 600; font-size: 13px; text-align: right; color: var(--text); }
 .td-tr.locked .td-name, .td-tr.locked .td-val, .td-tr.locked .td-ico { color: #5d6877; }
 
-/* ---------- Pie ---------- */
 .ts-footer {
   grid-area: foot; display: flex; justify-content: space-between; align-items: center; gap: 16px;
   padding-top: 14px; border-top: 1px solid var(--line);
@@ -260,7 +237,6 @@
 .ts-version { display: flex; gap: 16px; font-family: var(--mono); font-size: 11px; }
 .ts-version span + span::before { content: '·'; margin-right: 16px; color: var(--line-strong); }
 
-/* ---------- Entrada (solo la primera vez en la sesión) ---------- */
 .title-screen.intro .ts-brand { animation: ts-brand 900ms var(--ease-out) both 80ms; }
 .title-screen.intro .ml-item { animation: ts-item 420ms var(--ease-out) both; animation-delay: calc(380ms + var(--i) * 45ms); }
 .title-screen.intro .ts-detail { animation: ts-slide 520ms var(--ease-out) both 560ms; }
@@ -283,7 +259,6 @@
   .ml-bar { transition: opacity 120ms ease; }
 }
 
-/* ---------- Tamaños ---------- */
 @media (max-width: 860px) {
   .screen.title-screen {
     grid-template-columns: 1fr;
@@ -295,7 +270,6 @@
   #ui:has(> .title-screen) { background: rgba(4, 6, 9, 0.82); }
 }
 
-/* Teléfonos en horizontal y ventanas bajas. */
 @media (max-height: 520px) {
   .screen.title-screen { padding: 14px 20px 10px; column-gap: 20px; }
   .ts-logo { width: 34px; }
@@ -325,12 +299,9 @@
   .td-val { font-size: 11px; }
   .ml-bar::before { display: none; }
 }
-/* En teléfonos, sin desenfoque detrás del panel: la escena se mueve y lo recalcularía cada cuadro. */
 .touch-mode .ts-detail { backdrop-filter: none; background: rgba(6, 9, 13, 0.86); }
-/* En táctil los toques no necesitan pista de teclas: el pie solo lleva la versión. */
 .touch-mode .ts-footer { justify-content: flex-end; border-top: 0; padding-top: 0; }
 
-/* ---------- Pausa ---------- */
 .screen.pause-screen {
   width: min(1040px, 100%);
   display: grid; grid-template-columns: minmax(260px, 380px) minmax(0, 1fr); gap: 40px; align-items: center;

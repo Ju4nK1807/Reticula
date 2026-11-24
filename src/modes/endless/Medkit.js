@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 
-const LIFETIME = 12; // s antes de desaparecer
-const BLINK_FROM = 3; // s finales en los que parpadea
+const LIFETIME = 12;
+const BLINK_FROM = 3;
 const PICKUP_RADIUS = 1.1;
 const SPIN_SPEED = 1.8;
 const BOB_HEIGHT = 0.08;
 
-// Geometrías y materiales compartidos por todos los botiquines (low-poly, sin texturas).
 const GEO = {
   box: new THREE.BoxGeometry(0.5, 0.3, 0.42),
   barH: new THREE.BoxGeometry(0.3, 0.02, 0.09),
@@ -19,8 +18,6 @@ const MAT = {
   glow: new THREE.MeshBasicMaterial({ color: '#00ffa3', transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }),
 };
 
-// Botiquín que suelta un enemigo al morir: gira, flota, parpadea antes de desaparecer y se
-// recoge pasando por encima.
 export class Medkit {
   constructor(parent, position, heal) {
     this.heal = heal;
@@ -49,7 +46,6 @@ export class Medkit {
     return this.age >= LIFETIME;
   }
 
-  // ¿El jugador (pies en `pos`) está encima?
   touches(pos) {
     const p = this.group.position;
     return Math.hypot(pos.x - p.x, pos.z - p.z) < PICKUP_RADIUS && pos.y < 1.5;

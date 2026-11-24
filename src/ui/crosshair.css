@@ -1,15 +1,11 @@
-/* Editor de retícula (ui/crosshairScreen.js). */
-
 .xs-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
 .xs-preview-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 
-/* Escenario de la vista previa: la retícula a su tamaño real (o ampliada) sobre un fondo de prueba. */
 .xs-stage {
   position: relative; height: 300px; border-radius: var(--r-lg); overflow: hidden;
   border: 1px solid var(--line-2); isolation: isolate;
 }
 .xs-stage::before {
-  /* Cuadrícula tenue: ayuda a ver si la retícula queda centrada y simétrica. */
   content: ''; position: absolute; inset: 0; z-index: 0; opacity: 0.35;
   background-image: linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 24px 24px; background-position: center;
@@ -31,14 +27,12 @@
 .xs-stage-bar .chips { margin: 0; }
 .xs-editing { margin: 0; }
 
-/* Chips de arma con su retícula en miniatura. */
 .xs-weapons { margin: 0; }
 .xs-chip { display: inline-flex; align-items: center; gap: 8px; }
 .xs-chip-xh { display: grid; place-items: center; width: 26px; height: 22px; overflow: hidden; background: #0e141b; border-radius: 2px; }
 .xs-chip-xh svg { max-width: 24px; max-height: 20px; }
 .chip.active .xs-chip-xh { background: rgba(1, 38, 26, 0.85); }
 
-/* Editor por pestañas. */
 .xs-editor { padding-top: 10px; }
 .xs-tabs { margin-bottom: 4px; position: static; }
 .xs-tab-body .field { grid-template-columns: 150px 1fr; }
@@ -55,7 +49,6 @@
 .xs-swatch.active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
 .xs-actions { flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
-/* Biblioteca: presets y retículas guardadas. */
 .xs-library h3 { margin: 4px 0 10px; }
 .xs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
 .xs-card { position: relative; }
@@ -82,14 +75,12 @@
 .xs-save-row { display: flex; gap: 8px; align-items: center; }
 .xs-name { width: 200px !important; }
 
-/* Detalle del menú principal: la retícula actual, grande. */
 .td-xh {
   display: grid; place-items: center; height: 120px; margin: 4px 0 6px; border-radius: var(--r-md); overflow: hidden;
   background: radial-gradient(ellipse at 50% 40%, rgba(45, 255, 192, 0.08), transparent 70%), rgba(6, 9, 13, 0.6); border: 1px solid var(--line);
 }
 .td-xh svg { transform: scale(2.6); }
 
-/* Pantallas angostas y teléfonos en horizontal. */
 @media (max-width: 900px) {
   .xs-layout { grid-template-columns: 1fr; }
 }

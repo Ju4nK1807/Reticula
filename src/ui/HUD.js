@@ -2,7 +2,6 @@ import { crosshairSVG } from './Crosshair.js';
 import { WEAPONS } from '../combat/weapons.js';
 import { weaponIconEl } from './weaponIcons.js';
 
-// HUD en DOM. Solo toca el DOM cuando un valor cambia, para no costar FPS.
 export class HUD {
   constructor(el) {
     this.el = el;
@@ -58,7 +57,6 @@ export class HUD {
     this.setSpread(0);
   }
 
-  // Separación extra de la mira dinámica, en px (variable CSS que leen los brazos del SVG).
   setSpread(px) {
     const v = Math.round(px * 2) / 2;
     if (v === this.spread) return;
@@ -66,7 +64,6 @@ export class HUD {
     this.refs.crosshair.style.setProperty('--xh-spread', `${v}px`);
   }
 
-  // Visor de la mira telescópica (oculta la mira normal mientras se apunta).
   setScoped(on) {
     if (this.scoped === on) return;
     this.scoped = on;
@@ -74,8 +71,6 @@ export class HUD {
     this.updateCrosshairVisibility();
   }
 
-  // Apuntando con las miras de hierro: la retícula desaparece (se apunta con el arma, como en los
-  // shooters); vuelve al dejar el clic derecho.
   setAds(on) {
     if (this.ads === on) return;
     this.ads = on;
@@ -86,17 +81,13 @@ export class HUD {
     this.refs.crosshair.style.visibility = this.scoped || this.ads ? 'hidden' : '';
   }
 
-  // Barra de armas (teclas 1-9). weapons: [{ id, key, name }]; locked: no se puede cambiar.
-  // owned(id): false = no se tiene (modo zombi: se compra); se dibuja atenuada.
-  // Armas disponibles (solo las que tiene el jugador), cada una con su ícono, su tecla y su munición;
-  // la equipada, resaltada. weapons = [{ id, key }].
   setWeaponSlots(weapons, activeId, locked = false) {
     const key = `${activeId}|${locked}|${weapons.map((w) => `${w.id}:${w.key}`).join(',')}`;
     if (this.slotsKey === key) return;
     this.slotsKey = key;
     const el = this.refs.slots;
     el.classList.toggle('locked', locked);
-    el.classList.toggle('many', weapons.length > 4); // muchas (entrenamiento): munición solo en la equipada
+    el.classList.toggle('many', weapons.length > 4);
     this.slotAmmo = new Map();
     el.replaceChildren(
       ...weapons.map((w) => {
@@ -114,7 +105,6 @@ export class HUD {
     );
   }
 
-  // Munición junto a cada ícono: { [arma]: 'cargador / reserva' } (solo cambia el texto que cambió).
   setSlotAmmo(texts) {
     for (const [id, s] of this.slotAmmo ?? []) {
       const t = texts(id);
@@ -130,9 +120,6 @@ export class HUD {
     this.text('weapon', text);
   }
 
-  // reloadProgress: 0-1 mientras recarga, null si no. reserve: balas de reserva (Infinity = sin
-  // límite: se muestra el tamaño del cargador, como siempre).
-  // infinite: modos de entrenamiento (sin contar balas ni recargar).
   setAmmo(ammo, magazine, reloadProgress, reserve = Infinity, infinite = false) {
     this.text('ammo', infinite ? '∞' : ammo);
     this.text('mag', infinite ? 'sin recarga' : Number.isFinite(reserve) ? `/ ${reserve}` : `/ ${magazine}`);
@@ -143,7 +130,6 @@ export class HUD {
     if (reloading) this.refs.reloadFill.style.width = `${Math.round(reloadProgress * 100)}%`;
   }
 
-  // accLabel null: el modo no muestra ese dato (el modo zombi no puntúa la precisión).
   setStats({ score, scoreLabel = 'Puntos', accLabel, accText, time }) {
     this.text('scoreLabel', scoreLabel);
     this.text('score', score);
@@ -156,7 +142,6 @@ export class HUD {
     this.text('time', time);
   }
 
-  // value 0-1, o null para ocultar la barra de vida.
   setHealth(value) {
     const show = value !== null;
     this.refs.health.hidden = !show;
@@ -170,7 +155,6 @@ export class HUD {
     this.refs.fps.hidden = !on;
   }
 
-  // perf = { fps, ms, low1 } (ver core/PerfMeter.js). "1% low" = FPS de los cuadros más lentos.
   setFps({ fps, ms, low1 }) {
     this.text('fps', `${fps} FPS · ${ms} ms · 1% low ${low1}`);
   }
@@ -181,15 +165,12 @@ export class HUD {
     el.classList.add(className);
   }
 
-  // kind: 'hit' | 'head' | 'kill'
   hitmarker(kind = 'hit') {
     const el = this.refs.hitmarker;
     el.dataset.kind = kind;
     this.restartAnimation(el, 'show');
   }
 
-  // angle: radianes del atacante respecto a la mira (positivo = a la izquierda).
-  // Destello blanco de la granada aturdidora (k 0-1: cuanto más cerca, más fuerte).
   whiteout(k) {
     const el = this.refs.whiteout;
     el.style.setProperty('--k', String(Math.min(1, Math.max(0, k))));
@@ -210,7 +191,6 @@ export class HUD {
     this.restartAnimation(el, 'show');
   }
 
-  // Panel de instrucciones previo a cada fase; null lo oculta.
   brief(info) {
     const el = this.refs.brief;
     if (!info) {

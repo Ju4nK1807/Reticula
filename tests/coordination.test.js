@@ -47,9 +47,7 @@ describe('dificultad adaptativa', () => {
       for (let i = 0; i < 400; i++) w = nextWindow(w, pattern(i));
       return w;
     };
-    // 3 de cada 4: se mantiene estable cerca del inicio.
     expect(run((i) => i % 4 !== 3)).toBeCloseTo(PERIPHERAL_WINDOW.start, 1);
-    // Por debajo del 75 % la ventana se alarga; por encima, se acorta.
     expect(run((i) => i % 2 === 0)).toBe(PERIPHERAL_WINDOW.max);
     expect(run((i) => i % 10 !== 9)).toBeLessThan(PERIPHERAL_WINDOW.min * PERIPHERAL_WINDOW.onMiss + 1e-9);
   });

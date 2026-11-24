@@ -1,4 +1,3 @@
-// Fuentes empaquetadas con la app (sin depender de internet: funcionan en .exe y APK sin conexión).
 import '@fontsource/chakra-petch/latin-600.css';
 import '@fontsource/chakra-petch/latin-700.css';
 import '@fontsource-variable/inter/wght.css';
@@ -20,9 +19,7 @@ if (!support.webgl) {
   try {
     const game = new Game(root);
     game.start();
-    // Útil para depurar desde la consola del navegador.
     window.reticula = game;
-    // En modo táctil no se necesita mouse ni Pointer Lock: no hay nada que advertir.
     const warnings = game.touchMode ? [] : supportWarnings(support);
     if (warnings.length) root.append(supportNotice(warnings));
   } catch (err) {

@@ -1,12 +1,9 @@
-// Contenedor de pantallas (menú, ajustes, pausa, resultados) y avisos.
 export class UI {
   constructor(el, toastEl) {
     this.el = el;
     this.toastEl = toastEl;
     this.toastTimer = null;
-    this.onBack = null; // sonido de "volver" (lo asigna Game)
-    // Esc / Retroceso en cualquier pantalla con botón de volver ([data-back]). Va en window para
-    // ejecutarse después de las listas de menú, que lo marcan con preventDefault si ya lo usaron.
+    this.onBack = null;
     window.addEventListener('keydown', (e) => {
       if (e.defaultPrevented || !this.el.classList.contains('active')) return;
       if (e.code !== 'Escape' && e.code !== 'Backspace') return;
@@ -19,7 +16,6 @@ export class UI {
     });
   }
 
-  // Libera lo que dejó la pantalla anterior (escuchas de teclado de los menús, observadores).
   dispose() {
     for (const node of this.el.querySelectorAll('[data-disposable]')) node._dispose?.();
   }

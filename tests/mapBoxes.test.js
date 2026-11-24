@@ -1,5 +1,3 @@
-// Auditoría de las cajas y la utilería del mapa zombi: apoyadas en su piso, sin atravesar paredes y sin
-// tapar puertas, entradas de zombis, compras ni escaleras. Con el mapa y la física reales.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { BOX_SPOTS, ZombieMap } from '../src/modes/zombies/ZombieMap.js';
@@ -9,11 +7,9 @@ const world = new ZombieMap();
 const r2 = (v) => Math.round(v * 100) / 100;
 const label = (o) => `${o.type ?? 'caja'} (${r2(o.x)}, ${r2(o.z)})`;
 
-// Zonas que deben quedar libres: rectángulos { minX, maxX, minZ, maxZ, why }.
 function clearZones() {
   const zones = [];
   const rect = (cx, cz, hx, hz, why) => zones.push({ minX: cx - hx, maxX: cx + hx, minZ: cz - hz, maxZ: cz + hz, why });
-  // Puertas: el hueco y 3 m a cada lado.
   for (const d of Object.values(world.doors)) {
     const c = d.collider;
     const wide = c.max.x - c.min.x > c.max.z - c.min.z;
@@ -22,7 +18,6 @@ function clearZones() {
     if (wide) rect(cx, cz, (c.max.x - c.min.x) / 2, 3, `puerta ${d.id}`);
     else rect(cx, cz, 3, (c.max.z - c.min.z) / 2, `puerta ${d.id}`);
   }
-  // Entradas de zombis: la boca y 2.5 m hacia dentro.
   for (const b of world.barricades) {
     const i = b.inward;
     const cx = b.mouth.x + i.x * 1.25;
@@ -30,11 +25,8 @@ function clearZones() {
     if (Math.abs(i.z) > 0.5) rect(cx, cz, b.width / 2 + 0.3, 1.5, 'entrada de zombis');
     else rect(cx, cz, 1.5, b.width / 2 + 0.3, 'entrada de zombis');
   }
-  // Compras y lo que se usa con E: un círculo de ~1 m (como un cuadrado).
   for (const it of world.interactables) if (it.kind !== 'door') rect(it.pos.x, it.pos.z, 0.9, 0.9, `${it.kind} ${it.id}`);
-  // Inicio del jugador.
   rect(world.spawn.x, world.spawn.z, 1.5, 1.5, 'inicio');
-  // Escaleras de la Feria y 2 m delante de su pie.
   for (const f of world.floors.filter((x) => x.axis)) {
     const pad = f.axis === 'x' ? { x: 2, z: 0 } : { x: 0, z: 2 };
     zones.push({ minX: f.minX - pad.x, maxX: f.maxX, minZ: f.minZ - pad.z, maxZ: f.maxZ, why: 'escalera' });
@@ -44,8 +36,6 @@ function clearZones() {
 
 const overlaps = (a, z) => a.minX < z.maxX && a.maxX > z.minX && a.minZ < z.maxZ && a.maxZ > z.minZ;
 
-// Puntos de la base de una caja (centro, esquinas y lados, un poco hacia dentro) para ver si alguno cae
-// dentro de otro colisionador.
 function footprint(x, z, hx, hz, ry = 0) {
   const c = Math.cos(ry);
   const s = Math.sin(ry);
@@ -102,7 +92,6 @@ describe('utilería con física (cajas, munición, barriles, conos, basura)', ()
     const bad = [];
     for (const { it, p, q } of start) {
       const moved = it.body.position.distanceTo(p);
-      // Inclinación (girar sobre su eje vertical no se nota).
       const up0 = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
       const turned = up0.angleTo(new THREE.Vector3(0, 1, 0).applyQuaternion(it.body.quaternion));
       if (moved > 0.03 || turned > 0.1) bad.push(`${it.type} (${r2(p.x)}, ${r2(p.y)}, ${r2(p.z)}) se movió ${r2(moved)} m, giró ${r2(turned)}`);
@@ -136,7 +125,6 @@ describe('espacio libre: puertas, pasillos, entradas, compras y escaleras', () =
       const s = BOX_SPOTS[i];
       const hx = Math.abs(Math.cos(s.ry)) > 0.5 ? 0.85 : 0.43;
       const hz = Math.abs(Math.cos(s.ry)) > 0.5 ? 0.43 : 0.85;
-      // Apoyada en su piso: el mismo en todo el ancho de la caja (no a medias sobre una vereda).
       const y0 = world.floorAt(s.x, s.z, 0);
       const hit = penetrates(footprint(s.x, s.z, hx, hz), y0, y0 + 0.85, world.box.collider);
       if (hit) bad.push(`caja en ${s.where}`);
@@ -149,4 +137,3 @@ describe('espacio libre: puertas, pasillos, entradas, compras y escaleras', () =
     expect(bad).toEqual([]);
   });
 });
-

@@ -6,7 +6,6 @@ import { DEFAULT_SETTINGS } from '../src/config/defaults.js';
 import { normalizeCrosshair } from '../src/ui/Crosshair.js';
 import { Phase } from '../src/modes/evaluation/Phase.js';
 
-// Juego falso: la cámara mira a -Z; `castResult(dir)` decide qué toca cada perdigón.
 function fakeGame({ castResult = () => null, moving = 0 } = {}) {
   const camera = new THREE.PerspectiveCamera();
   camera.updateMatrixWorld();
@@ -45,7 +44,7 @@ describe('arsenal', () => {
       expect(w.id).toBe(id);
       expect(w.magazine).toBeGreaterThan(0);
       expect(w.fireModes.length).toBeGreaterThan(0);
-      expect(normalizeCrosshair(w.crosshair)).toEqual(w.crosshair); // su mira es válida
+      expect(normalizeCrosshair(w.crosshair)).toEqual(w.crosshair);
     }
   });
 
@@ -64,7 +63,7 @@ describe('arsenal', () => {
     const r = Object.fromEntries(WEAPON_ORDER.map((id) => [id, weaponRatings(WEAPONS[id])]));
     for (const v of Object.values(r)) for (const x of Object.values(v)) expect(x >= 0 && x <= 1).toBe(true);
     expect(r.smg.rate).toBe(1);
-    expect(r.sniper.damage).toBeLessThan(r.shotgun.damage); // escopeta: 9 perdigones de cerca
+    expect(r.sniper.damage).toBeLessThan(r.shotgun.damage);
     expect(r.smg.mobility).toBe(1);
     expect(shotDamage(WEAPONS.shotgun, 'body')).toBe(18 * 9);
   });
@@ -107,7 +106,7 @@ describe('Weapon', () => {
     expect(weapon.toggleMode()).toBe(false);
     weapon.setWeapon('shotgun');
     expect(weapon.canToggleMode).toBe(false);
-    expect(weapon.setMode(true)).toBe(false); // la escopeta no tiene automático
+    expect(weapon.setMode(true)).toBe(false);
     expect(weapon.toggleMode()).toBeNull();
   });
 
@@ -120,11 +119,11 @@ describe('Weapon', () => {
     weapon.setWeapon('shotgun', { force: true });
     fireReady(weapon);
     weapon.trigger();
-    expect(calls.shots).toHaveLength(1); // un disparo = un aviso, aunque sean 9 perdigones
+    expect(calls.shots).toHaveLength(1);
     const { hit } = calls.shots[0];
     expect(hit.bot).toBe(bot);
-    expect(hit.pelletHits).toBe(6); // 9 perdigones, 1 de cada 3 falla
-    expect(hit.part).toBe('head'); // se queda con la mejor zona alcanzada
+    expect(hit.pelletHits).toBe(6);
+    expect(hit.part).toBe('head');
     expect(calls.tracers).toBeLessThanOrEqual(5);
   });
 
@@ -157,10 +156,9 @@ describe('Weapon', () => {
       expect(weapon.auto, id).toBe(true);
       weapon.drawLeft = 0;
       game.input.mouseDown = true;
-      for (let i = 0; i < 60; i++) weapon.update(1 / 60); // 1 s con el clic mantenido
+      for (let i = 0; i < 60; i++) weapon.update(1 / 60);
       expect(calls.shots.length, id).toBeGreaterThan(WEAPONS[id].rps * 0.8);
     }
-    // Las de precisión siguen siendo de un clic por disparo.
     for (const id of ['pistol', 'magnum', 'shotgun', 'sniper', 'dmr']) {
       const { weapon } = fakeGame();
       weapon.setWeapon(id, { force: true });
@@ -176,7 +174,7 @@ describe('Weapon', () => {
     weapon.trigger();
     for (let i = 0; i < 20; i++) weapon.update(1 / 120);
     expect(calls.shots).toHaveLength(3);
-    weapon.trigger(); // durante la pausa no empieza otra
+    weapon.trigger();
     expect(calls.shots).toHaveLength(3);
     weapon.update(WEAPONS.burst.burstDelay + 0.05);
     weapon.trigger();
@@ -193,7 +191,7 @@ describe('Weapon', () => {
       fireReady(weapon);
       weapon.trigger();
     }
-    expect(calls.shots).toHaveLength(40); // más que un cargador de 12
+    expect(calls.shots).toHaveLength(40);
     expect(weapon.ammo).toBe(WEAPONS.pistol.magazine);
     weapon.reload();
     expect(weapon.reloading).toBe(false);

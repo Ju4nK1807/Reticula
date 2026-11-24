@@ -2,13 +2,11 @@ import { rankForScore } from '../../config/ranks.js';
 import { clamp, clamp01, norm } from '../../utils/math.js';
 import { fixed, ms, pct } from '../../utils/format.js';
 
-// Peso de cada fase en la puntuación global de cada variante (suman 1).
 export const WEIGHTS = {
   targets: { flick: 0.22, tracking: 0.2, reaction: 0.18, multi: 0.2, precision: 0.2 },
   bots: { flick: 0.22, tracking: 0.2, peek: 0.2, precision: 0.2, combat: 0.18 },
 };
 
-// Sub-puntuaciones 0-100 por fase. Los umbrales son exigentes: 100 pts ≈ nivel profesional.
 function targetSubscores({ flick: f, tracking: t, reaction: re, multi: m, precision: p }) {
   return {
     flick: 100 * (0.5 * norm(f.accuracy, 0.55, 0.95) + 0.5 * norm(f.kps, 0.45, 1.4)) - 3 * f.escaped,
@@ -48,7 +46,6 @@ function totals(results) {
   return { shots: sum('shots'), hits: sum('hits'), head: sum('head'), kills: sum('kills') };
 }
 
-// Métricas destacadas que se muestran en la pantalla de resultados.
 function targetTiles(r) {
   const t = totals(r);
   return [

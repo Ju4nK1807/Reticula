@@ -1,15 +1,5 @@
 import * as THREE from 'three';
 
-/*
-  Sangre del modo zombi (todo en dos llamadas de dibujo):
-  - Neblina: cada impacto suelta una nube roja oscura que se abre y se desvanece (puntos con textura
-    suave, mezcla normal: la sangre no brilla).
-  - Manchas en el suelo: salpicaduras detrás del zombi al recibir un tiro y charcos que se extienden
-    bajo los muertos. Húmedas (brillan con las luces) y con giro y tamaño al azar; las más viejas se
-    reciclan.
-  Las texturas se dibujan en un canvas al crear el efecto (no hay que descargar nada).
-*/
-
 const MIST = 128;
 const DECALS = 160;
 const FLOOR_Y = 0.025;
@@ -20,7 +10,6 @@ const _p = new THREE.Vector3();
 const FLAT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
-// Mancha: un charco central irregular con gotas alrededor (blanco sobre transparente).
 function splatTexture(seed = 1) {
   if (typeof document === 'undefined') return new THREE.Texture();
   const size = 256;
@@ -71,7 +60,7 @@ function softDot() {
   return new THREE.CanvasTexture(c);
 }
 
-const mistVertex = /* glsl */ `
+const mistVertex = `
 attribute float aSize;
 attribute float aAlpha;
 varying float vAlpha;
@@ -84,7 +73,7 @@ void main() {
   #include <fog_vertex>
 }
 `;
-const mistFragment = /* glsl */ `
+const mistFragment = `
 uniform sampler2D uMap;
 uniform vec3 uColor;
 varying float vAlpha;
@@ -101,7 +90,6 @@ export class BloodFx {
   constructor() {
     this.root = new THREE.Group();
     this.root.userData.dynamic = true;
-    // --- Neblina ---
     this.mist = [];
     const pos = new Float32Array(MIST * 3);
     const size = new Float32Array(MIST);
@@ -125,7 +113,6 @@ export class BloodFx {
     this.root.add(this.points);
     for (let i = 0; i < MIST; i++) this.mist.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), life: 0, max: 1, size: 0.3 });
     this.mistIndex = 0;
-    // --- Manchas en el suelo ---
     const decalMat = new THREE.MeshStandardMaterial({
       color: '#2a0303',
       alphaMap: splatTexture(3),
@@ -159,7 +146,6 @@ export class BloodFx {
     scene.add(this.root);
   }
 
-  /** Impacto de bala: neblina en el punto y, a veces, salpicadura en el suelo detrás. */
   hit(point, dir, strength = 1) {
     const n = Math.round(5 * strength);
     for (let i = 0; i < n; i++) {
@@ -170,7 +156,6 @@ export class BloodFx {
       m.max = m.life = 0.35 + Math.random() * 0.25;
       m.size = (0.22 + Math.random() * 0.18) * strength;
     }
-    // Salpicadura detrás (en la dirección del tiro) y goteo a los pies del zombi.
     if (Math.random() < 0.85) {
       _p.copy(point).addScaledVector(dir, 0.6 + Math.random() * 1.6);
       this.splat(_p, 0.45 + Math.random() * 0.6 * strength, 0);
@@ -181,14 +166,12 @@ export class BloodFx {
     }
   }
 
-  /** Charco bajo un cuerpo: crece durante unos segundos. */
   pool(pos, scale = 1) {
     this.splat(pos, (1.4 + Math.random() * 0.7) * scale, 3);
   }
 
   splat(pos, size, grow) {
     const d = this.decalData[this.decalIndex];
-    // Sobre el piso de ese lugar (pisos altos y rampas: floorAt, si el mapa los tiene).
     const floor = this.floorAt?.(pos.x, pos.z, pos.y ?? 0) ?? 0;
     d.pos.set(pos.x, floor + FLOOR_Y + this.decalIndex * 0.0004, pos.z);
     d.rot = Math.random() * Math.PI * 2;
@@ -237,7 +220,6 @@ export class BloodFx {
       size.needsUpdate = true;
       alpha.needsUpdate = true;
     }
-    // Charcos que crecen.
     for (let i = 0; i < DECALS; i++) {
       const d = this.decalData[i];
       if (d.t >= 1) continue;

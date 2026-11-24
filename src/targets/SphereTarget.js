@@ -4,16 +4,13 @@ const GEOMETRY = new THREE.IcosahedronGeometry(1, 2);
 const DEATH_TIME = 0.14;
 const LEAVE_TIME = 0.15;
 
-// Diana objetivo. Expone la misma interfaz que Bot (hitMeshes, alive, removable, escaped, damage,
-// update, dispose) para que las fases traten igual a dianas y enemigos.
-// `hp` cuenta impactos: 1 = muere al primer acierto; Infinity = nunca muere (tracking).
 export class SphereTarget {
   constructor(parent, { position, radius = 0.5, color = '#ff3d5a', hp = 1, lifetime = null, spawnTime = 0.07 }) {
     this.opts = { behavior: {}, lifetime };
     this.radius = radius;
     this.spawnTime = spawnTime;
     this.hp = hp;
-    this.state = 'alive'; // alive | dying | leaving | gone
+    this.state = 'alive';
     this.escaped = false;
     this.age = 0;
     this.t = 0;

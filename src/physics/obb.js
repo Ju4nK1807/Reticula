@@ -1,19 +1,8 @@
-/*
-  Cajas giradas en planta (OBB) para colisiones de círculos (jugador, zombis) y la navegación.
-
-  Los mapas registran sus colisionadores como Box3 alineadas a los ejes (balas, utilería, sombras). Una
-  barrera o un auto girados quedan dentro de una Box3 mucho más grande que el objeto: los cuerpos chocaban
-  contra un muro invisible. withObb() le agrega a esa Box3 su forma real ({ x, z, hx, hz, c, s }) y estas
-  funciones la usan cuando está.
-*/
-
-/** Agrega a la caja su forma girada: centro (x, z), medio largo hx y medio fondo hz, giro ry (rad). */
 export function withObb(box, x, z, hx, hz, ry) {
   box.obb = { x, z, hx, hz, c: Math.cos(ry), s: Math.sin(ry) };
   return box;
 }
 
-// Mundo → local: la rotación de Three.js en Y lleva el eje local x a (cos, -sin).
 const toLocal = (o, px, pz) => {
   const dx = px - o.x;
   const dz = pz - o.z;
@@ -21,7 +10,6 @@ const toLocal = (o, px, pz) => {
 };
 const toWorld = (o, lx, lz) => [o.x + o.c * lx + o.s * lz, o.z - o.s * lx + o.c * lz];
 
-/** ¿El punto (px, pz) cae en la caja agrandada en `pad` m? (para marcar celdas de navegación). */
 export function insideBox(b, px, pz, pad = 0) {
   if (b.obb) {
     const [lx, lz] = toLocal(b.obb, px, pz);
@@ -30,10 +18,6 @@ export function insideBox(b, px, pz, pad = 0) {
   return px > b.min.x - pad && px < b.max.x + pad && pz > b.min.z - pad && pz < b.max.z + pad;
 }
 
-/**
- * Saca un círculo (centro px, pz, radio r) de la caja. Devuelve [x, z] corregido o null si no se tocan.
- * Si el centro quedó dentro, sale por el lado más cercano.
- */
 export function pushCircleOut(b, px, pz, r) {
   if (b.obb) {
     const o = b.obb;

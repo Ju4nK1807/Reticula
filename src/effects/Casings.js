@@ -1,34 +1,24 @@
 import * as THREE from 'three';
 
-/*
-  Casquillos: cada disparo expulsa la vaina por la derecha del arma (la escopeta al accionar la corredera,
-  el francotirador al abrir el cerrojo). Caen con gravedad, giran, rebotan en el suelo y en las cajas del
-  mapa con su tintineo y quedan un rato en el piso.
-
-  Dos InstancedMesh (latón y cartuchos rojos de escopeta): una llamada de dibujo para todos.
-  Física de partícula con giro (no hace falta más para algo de 2 cm).
-*/
-
-// Calibre de cada arma: largo y radio (m), retraso de la expulsión (s) y tipo.
 export const CASINGS = {
   pistol: { length: 0.019, radius: 0.0048, delay: 0, kind: 'brass' },
   smg: { length: 0.019, radius: 0.0048, delay: 0, kind: 'brass' },
   rifle: { length: 0.045, radius: 0.0048, delay: 0, kind: 'brass' },
   sniper: { length: 0.064, radius: 0.0062, delay: 0.62, kind: 'brass' },
   shotgun: { length: 0.07, radius: 0.0105, delay: 0.34, kind: 'shell' },
-  magnum: null, // el revólver no expulsa vainas: quedan en el tambor
+  magnum: null,
   burst: { length: 0.045, radius: 0.0048, delay: 0, kind: 'brass' },
   lmg: { length: 0.051, radius: 0.0052, delay: 0, kind: 'brass' },
   dmr: { length: 0.051, radius: 0.0052, delay: 0, kind: 'brass' },
 };
 
 const MAX = { brass: 64, shell: 16 };
-const VISUAL = 1.6; // se dibujan algo más grandes que en la realidad: a 2 cm no se verían
+const VISUAL = 1.6;
 const GRAVITY = 9.8;
-const LIFE = 9; // s en el piso antes de desaparecer
+const LIFE = 9;
 const RESTITUTION = 0.38;
-const SOUND_MIN = 0.9; // m/s: rebotes más suaves no suenan
-const HEAR_DIST = 14; // m: más lejos no se oyen
+const SOUND_MIN = 0.9;
+const HEAR_DIST = 14;
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const _m = new THREE.Matrix4();
 const _s = new THREE.Vector3();
@@ -38,7 +28,6 @@ const _fwd = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** Avanza un casquillo `dt` s contra el suelo (y = groundY) y cajas fijas. Devuelve la velocidad del rebote (0 si no rebotó). */
 export function stepCasing(c, dt, colliders = [], groundY = 0) {
   c.vel.y -= GRAVITY * dt;
   c.pos.addScaledVector(c.vel, dt);
@@ -60,7 +49,6 @@ export function stepCasing(c, dt, colliders = [], groundY = 0) {
     }
   }
   for (const b of colliders) {
-    // Solo la cara de arriba de las cajas (sobre una mesa, una barrera…): de costado, rebota hacia atrás.
     if (c.pos.x < b.min.x || c.pos.x > b.max.x || c.pos.z < b.min.z || c.pos.z > b.max.z) continue;
     if (c.pos.y > b.max.y + r || c.pos.y < b.min.y) continue;
     if (c.vel.y <= 0 && c.pos.y >= b.max.y - 0.05) {
@@ -74,7 +62,6 @@ export function stepCasing(c, dt, colliders = [], groundY = 0) {
         c.resting = true;
       }
     } else {
-      // Contra un costado: sale por el lado más cercano y pierde la velocidad horizontal.
       const pens = [c.pos.x - b.min.x, b.max.x - c.pos.x, c.pos.z - b.min.z, b.max.z - c.pos.z];
       const k = pens.indexOf(Math.min(...pens));
       if (k === 0) c.pos.x = b.min.x - r;
@@ -94,9 +81,8 @@ export class Casings {
     this.game = game;
     this.root = new THREE.Group();
     const unit = new THREE.CylinderGeometry(1, 1, 1, 8);
-    unit.rotateZ(Math.PI / 2); // a lo largo de x
+    unit.rotateZ(Math.PI / 2);
     this.meshes = {
-      // Latón con un brillo propio leve: en mapas oscuros un metal puro solo refleja el entorno y se ve negro.
       brass: new THREE.InstancedMesh(unit, new THREE.MeshStandardMaterial({ color: '#d4a24a', roughness: 0.32, metalness: 0.55, emissive: '#7a5414', emissiveIntensity: 0.45 }), MAX.brass),
       shell: new THREE.InstancedMesh(unit, new THREE.MeshStandardMaterial({ color: '#c62a1f', roughness: 0.5, metalness: 0.1, emissive: '#4a0d08', emissiveIntensity: 0.4 }), MAX.shell),
     };
@@ -113,7 +99,7 @@ export class Casings {
       }
       this.root.add(mesh);
     }
-    this.queue = []; // expulsiones con retraso { t, weapon }
+    this.queue = [];
     this.dirty = { brass: false, shell: false };
   }
 
@@ -122,7 +108,6 @@ export class Casings {
     scene.add(this.root);
   }
 
-  /** Expulsa la vaina del arma (con el retraso de su mecanismo). */
   eject(weaponId) {
     const cfg = CASINGS[weaponId];
     if (!cfg) return;
@@ -145,9 +130,8 @@ export class Casings {
     c.life = LIFE;
     c.bounces = 0;
     c.sounded = 0;
-    c.radius = cfg.radius * VISUAL; // se apoya en el piso con su tamaño dibujado
+    c.radius = cfg.radius * VISUAL;
     c.length = cfg.length * VISUAL;
-    // Ventana de expulsión: a la derecha del arma, algo por delante de la cámara.
     c.pos.copy(cam.position).addScaledVector(_right, 0.12).addScaledVector(_up, -0.07).addScaledVector(_fwd, 0.36);
     c.vel
       .copy(_right)
@@ -187,7 +171,6 @@ export class Casings {
           continue;
         }
         if (!c.resting) {
-          // Dos subpasos: a 3 m/s no atraviesa el borde de una mesa entre cuadros.
           const h = dt / 2;
           for (let s = 0; s < 2; s++) {
             const impact = stepCasing(c, h, colliders, groundY);
@@ -198,7 +181,6 @@ export class Casings {
             }
           }
         }
-        // Tumbado en el piso cuando reposa (girado sobre sí); dando vueltas en el aire.
         _q.setFromAxisAngle(c.resting ? UP : c.axis, c.angle);
         const fade = Math.min(1, c.life / 0.5);
         _m.compose(c.pos, _q, _s.set(c.length * fade, c.radius * fade, c.radius * fade));

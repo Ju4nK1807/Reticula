@@ -8,7 +8,6 @@ import { ENEMY_COLORS } from '../config/defaults.js';
 import { WEAPONS } from '../combat/weapons.js';
 import { EVAL_DEFAULTS, EVAL_LIMITS, EVAL_WEAPONS, TARGET_COLORS, customChanges, evalConfig, isRanked } from '../modes/evaluation/evalConfig.js';
 
-// Resumen de la configuración en una línea (pantalla de inicio).
 function configLine(variant, cfg) {
   const parts = [WEAPONS[cfg.weapon].name];
   if (variant.id === 'targets') parts.push(cfg.targetColor === 'auto' ? 'dianas de colores' : `dianas ${TARGET_COLORS[cfg.targetColor].toLowerCase()}`);
@@ -70,10 +69,6 @@ export function evalIntroScreen(game, { variant, config, stages = variant.stages
   );
 }
 
-/*
-  Personalizar la evaluación: arma, colores, cantidad, tamaño, velocidad, duración, intentos, disparos
-  enemigos y fases. Cada cambio se guarda (onChange); onDone vuelve a la pantalla de inicio.
-*/
 export function evalConfigScreen(game, { variant, onChange, onDone }) {
   const s = game.store.data.settings;
   const cfg = evalConfig(s.evaluation);
@@ -94,7 +89,6 @@ export function evalConfigScreen(game, { variant, onChange, onDone }) {
   const weapons = Object.fromEntries(EVAL_WEAPONS.map((id) => [id, `${WEAPONS[id].name}${id === EVAL_DEFAULTS.weapon ? ' (estándar)' : ''}`]));
   const targets = variant.id === 'targets';
 
-  // Fases: casillas (si se desmarcan todas, se juegan todas).
   const phaseBoxes = h(
     'div',
     { class: 'eval-phases' },
@@ -160,7 +154,6 @@ export function evalConfigScreen(game, { variant, onChange, onDone }) {
         'div',
         { class: 'row' },
         button('Listo', onDone, { variant: 'primary' }),
-        // Vuelve a la estándar y a la pantalla de inicio (que ya la muestra).
         button('Restablecer estándar', () => {
           Object.assign(cfg, structuredClone(EVAL_DEFAULTS));
           save();
@@ -175,7 +168,6 @@ export function evalConfigScreen(game, { variant, onChange, onDone }) {
 
 const swatchBg = (v) => (v === 'auto' ? 'conic-gradient(#ff3d5a, #ffb020, #00e0a0, #36d6ff, #b46cff, #ff3d5a)' : v);
 
-/** Resultados de una práctica (configuración personalizada): cada fase, sin rango. */
 export function evalPracticeScreen({ variant, config, stages, results, onRetry, onMenu }) {
   return h(
     'div',

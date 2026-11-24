@@ -1,18 +1,8 @@
-// Retícula para escritorio (Windows): Electron carga la versión compilada (dist/) por un protocolo propio.
-// - reticula://app/… en vez de file://: los módulos ES funcionan y localStorage (progreso) tiene un
-//   origen estable.
-// - Pointer Lock con raw input (unadjustedMovement) funciona igual que en Chrome.
-// - F11: pantalla completa. Una sola instancia: abrir otra vez enfoca la ventana existente.
 const { app, BrowserWindow, Menu, net, protocol, shell } = require('electron');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 
-// Portátiles con dos GPU (integrada + NVIDIA/AMD): Windows decide cuál usa cada programa y por
-// defecto suele darle la integrada a apps como esta (mucho menos FPS). Se registra la preferencia
-// "Alto rendimiento" SOLO para este ejecutable, igual que haría el usuario en Configuración →
-// Sistema → Pantalla → Gráficos. Si ya hay una elección (del usuario o nuestra), no se toca.
-// Devuelve true si se acaba de registrar (Windows la aplica al volver a abrir el proceso).
 function preferHighPerformanceGpu() {
   if (process.platform !== 'win32') return false;
   const key = String.raw`HKCU\Software\Microsoft\DirectX\UserGpuPreferences`;
@@ -21,7 +11,6 @@ function preferHighPerformanceGpu() {
   try {
     if (/GpuPreference=/.test(execFileSync('reg', ['query', key, '/v', exe], opts))) return false;
   } catch {
-    // No existe todavía: se crea.
   }
   try {
     execFileSync('reg', ['add', key, '/v', exe, '/t', 'REG_SZ', '/d', 'GpuPreference=2;', '/f'], opts);
@@ -31,7 +20,6 @@ function preferHighPerformanceGpu() {
   }
 }
 
-// La primera vez se reinicia al instante (antes de abrir la ventana) para arrancar ya en la dedicada.
 if (preferHighPerformanceGpu() && !process.argv.includes('--gpu-relaunched')) {
   app.relaunch({ args: [...process.argv.slice(1), '--gpu-relaunched'] });
   app.exit(0);
@@ -44,7 +32,6 @@ protocol.registerSchemesAsPrivileged([
   { scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
 ]);
 
-// El juego tiene que ir fluido aunque la ventana pierda el foco un instante.
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 
 let win = null;
@@ -71,7 +58,6 @@ function createWindow() {
       event.preventDefault();
     }
   });
-  // Enlaces externos en el navegador del sistema, nunca dentro de la app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) shell.openExternal(url);
     return { action: 'deny' };
@@ -92,7 +78,6 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
-    // Sirve dist/ por reticula://app/… sin salir de la carpeta (evita rutas con ..).
     protocol.handle(SCHEME, (request) => {
       const { pathname } = new URL(request.url);
       const file = path.normalize(path.join(DIST, decodeURIComponent(pathname)));
