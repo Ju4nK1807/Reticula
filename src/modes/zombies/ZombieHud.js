@@ -11,11 +11,15 @@ const THREAT_RANGE = 7; // m: zombis más cerca que esto y fuera de pantalla →
 const EDGE = 0.9;
 const _v = new THREE.Vector3();
 const fmt = (n) => Math.round(n).toLocaleString('es');
+// Calavera de la barra de vida (color con currentColor).
+const SKULL_SVG =
+  '<svg viewBox="0 0 32 32" width="100%" height="100%" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M16 2C8.8 2 4 7.2 4 13.6c0 3.9 1.8 6.6 4.4 8.2V26a2 2 0 0 0 2 2h1.4v-3h2v3h4.4v-3h2v3h1.4a2 2 0 0 0 2-2v-4.2c2.6-1.6 4.4-4.3 4.4-8.2C28 7.2 23.2 2 16 2Zm-5.6 9.4a3.2 3.4 0 1 1 0 6.8 3.2 3.4 0 0 1 0-6.8Zm11.2 0a3.2 3.4 0 1 1 0 6.8 3.2 3.4 0 0 1 0-6.8ZM16 18.4l1.8 3.4h-3.6Z"/></svg>';
 
 /*
   Capa de HUD del modo zombi (dentro de la capa de juego del HUD general: se oculta con él).
   Solo escribe en el DOM cuando cambia un valor.
   - Número de la ronda, solo, con letra de terror (sin carteles de inicio ni zombis restantes).
+  - Vida: barra de terror centrada abajo (la general se oculta con la clase zh-on de la capa).
   - Puntos para la armería, con "+N" al ganar.
   - Granadas y potenciadores activos con su cuenta atrás.
   - Flechas de amenaza: zombis cerca y fuera de la vista.
@@ -70,8 +74,18 @@ export class ZombieHud {
     // Código de la caja fuerte (cuando el Jefe ya cayó y la caja sigue cerrada).
     this.codeVal = h('strong', {}, '');
     this.codeBox = h('div', { class: 'zh-code', hidden: true }, h('small', {}, 'Código de la caja fuerte'), this.codeVal);
-    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.lightBox, this.codeBox, this.prompt);
+    // Vida: barra de terror centrada abajo (reemplaza a la del HUD general en este modo). La franja
+    // oscura de atrás (lag) baja despacio y deja ver cuánto te acaban de quitar; sangre que gotea.
+    this.lifeNum = h('span', { class: 'zh-life-num' }, '100');
+    this.lifeFill = h('i', { class: 'zh-life-fill' });
+    this.lifeLag = h('i', { class: 'zh-life-lag' });
+    const skull = h('span', { class: 'zh-life-skull' });
+    skull.innerHTML = SKULL_SVG;
+    this.life = h('div', { class: 'zh-life' }, skull, h('div', { class: 'zh-life-bar' }, this.lifeLag, this.lifeFill, h('b', { class: 'zh-life-veins' })), this.lifeNum);
+    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.lightBox, this.codeBox, this.life, this.prompt);
     layer.append(this.root);
+    this.layer = layer;
+    layer.classList.add('zh-on'); // oculta la barra de vida general
     this.cache = new Map();
     this.buildKeypad(layer);
   }
@@ -142,6 +156,7 @@ export class ZombieHud {
 
   update(game, run, mode) {
     this.updateLight(game, mode.flashlight);
+    this.updateLife(run);
     const wave = String(Math.max(1, run.wave || mode.nextWave));
     if (this.cache.get('wave') !== wave) {
       this.set('wave', this.waveNum, wave);
@@ -243,7 +258,33 @@ export class ZombieHud {
     for (let i = n; i < MAX_ARROWS; i++) if (!this.arrows[i].hidden) this.arrows[i].hidden = true;
   }
 
+  // Barra de vida: ancho, número y estado (baja: late; golpe: sacudida corta).
+  updateLife(run) {
+    const k = Math.max(0, Math.min(1, run.health / run.maxHealth));
+    const pct = `${(k * 100).toFixed(1)}%`;
+    if (this.cache.get('lifePct') !== pct) {
+      const prev = this.cache.get('lifeK') ?? 1;
+      this.cache.set('lifePct', pct);
+      this.cache.set('lifeK', k);
+      this.lifeFill.style.width = pct;
+      this.lifeLag.style.width = pct;
+      if (k < prev - 0.01) {
+        this.life.classList.remove('hit');
+        void this.life.offsetWidth;
+        this.life.classList.add('hit');
+      }
+    }
+    this.set('lifeNum', this.lifeNum, String(Math.ceil(run.health)));
+    const state = k <= 0.3 ? 'low' : k <= 0.6 ? 'mid' : '';
+    if (this.cache.get('lifeState') !== state) {
+      this.cache.set('lifeState', state);
+      this.life.classList.toggle('low', state === 'low');
+      this.life.classList.toggle('mid', state === 'mid');
+    }
+  }
+
   dispose() {
+    this.layer?.classList.remove('zh-on');
     this.root.remove();
     this.keypad.remove();
   }

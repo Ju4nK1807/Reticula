@@ -12,6 +12,8 @@ import { patchHeightFog } from './atmosphere.js';
     pegan al cuerpo aunque se mueva). Sangre oscura y húmeda (brilla) con borde irregular.
   - Borde frío (luz de luna) en la silueta: se lee contra la oscuridad sin aplanar el sombreado.
   - Ojos que brillan (con el bloom de la calidad alta se ven como brasas).
+  - Ciudadanos (OUTFITS): oficinista, policía, médico, obrero, deportista y bombero; la ropa se pinta
+    por zonas del cuerpo y tiene desgarrones.
   - Payasos: traje de colores con lunares, rayas o rombos (sucio y ensangrentado), cara pintada de
     blanco descascarado, rombos negros en los ojos y una sonrisa roja. La nariz, el pelo, el sombrero y
     la gola son piezas aparte pegadas a los huesos (zombieSkin.js); la cara se ubica con setZombieFace.
@@ -98,6 +100,38 @@ const SUITS = [
   ['#8a3a0e', '#1c3a7a'],
   ['#5a1240', '#2f7a6a'],
 ];
+/*
+  Atuendos: payasos del circo y vecinos del barrio que se convirtieron con la ropa de ese día. La ropa
+  de los ciudadanos la pinta el sombreador por zonas del cuerpo (ver colorChunk); el pelo, las gorras y
+  los cascos son piezas de la cabeza (clownKit.js). Colores apagados: ropa vieja, sucia y con sangre.
+    id: número del atuendo en el sombreador · top / bottom / accent: listas de colores (arriba, abajo y
+    detalle: corbata, placa, franjas…) · sleeves: largo de manga (|x| en cm; 36 corta, 62 larga) ·
+    variant: probabilidad de la variante (altTop, altBottom, altSleeve).
+*/
+export const OUTFITS = {
+  rags: { id: 0, name: 'Harapos' },
+  clown: { id: 1, name: 'Payaso' },
+  office: { id: 2, name: 'Oficinista', top: ['#b4b4ac', '#8a9ab0', '#aca48c', '#a08c8c'], bottom: ['#1e2128', '#2a2a2e', '#3a3226', '#1c2230'], accent: ['#5a0e10', '#14284a', '#2a3a1a', '#4a3a10'], variant: 0.5 },
+  police: { id: 3, name: 'Policía', top: ['#1a2338', '#24324a'], altTop: ['#6c7f9c'], bottom: ['#141a28'], accent: ['#b08a2a'], sleeves: [62, 62, 38], variant: 0.3 },
+  medic: { id: 4, name: 'Médico', top: ['#2a6a6a', '#3a5a8a', '#4a7a4a', '#5a3a6a'], sameBottom: true, sleeves: [36], variant: 0.35, altTop: ['#c4c4bc'], altBottom: ['#2a2c34', '#3a3a40'], altSleeve: 62 },
+  worker: { id: 5, name: 'Obrero', top: ['#d0641a', '#b4c41a', '#d89a14'], bottom: ['#2a3a5a', '#3a3a3a', '#4a3a2a'], accent: ['#5a5a5a', '#2a3a5a', '#6a2a1a', '#7a6a4a'], sleeves: [38, 62] },
+  jogger: { id: 6, name: 'Deportista', top: ['#3a3a3e', '#5a1a1a', '#1a2a4a', '#2a4a2a', '#6a6a6a'], bottom: ['#1a1a1e', '#2a2a3a'], accent: ['#c8c8c0', '#b89a2a', '#a01818'] },
+  firefighter: { id: 7, name: 'Bombero', top: ['#7a6a3a', '#1e1e1e'], sameBottom: true, accent: ['#c8b81a'], sleeves: [64] },
+};
+// Cuántos de cada atuendo según el tipo de zombi (pesos). El circo sigue presente, pero la mayoría son
+// vecinos; los corredores suelen ser deportistas y los brutos, obreros, bomberos o policías.
+const OUTFIT_ODDS = {
+  normal: { clown: 3, rags: 1, office: 1.5, police: 1, medic: 1, worker: 1, jogger: 0.8, firefighter: 0.6 },
+  runner: { clown: 2, jogger: 3, office: 1, medic: 1, rags: 0.8, police: 0.6 },
+  brute: { worker: 2, firefighter: 1.5, police: 1.5, clown: 2, rags: 0.5 },
+};
+function pickOutfit(odds, rng) {
+  const total = Object.values(odds).reduce((s, w) => s + w, 0);
+  let r = rng() * total;
+  for (const [id, w] of Object.entries(odds)) if ((r -= w) < 0) return id;
+  return 'clown';
+}
+
 // Dónde está la cara en el modelo en reposo (cm): la nariz (xyz) y el ancho de la cabeza (w); la base
 // y la cima de la cabeza y la profundidad media (z). La calcula zombieSkin.js al cargar el modelo.
 const FACE = {
@@ -135,6 +169,10 @@ uniform vec3 uClownB;
 uniform vec4 uFace;
 uniform vec4 uFace2;
 uniform float uRimK;
+uniform vec4 uOutfit; // x: atuendo (0 harapos, 1 payaso, 2-7 ciudadanos) · y: largo de manga · z: variante · w: desgarrones
+uniform vec3 uOutA;
+uniform vec3 uOutB;
+uniform vec3 uOutC;
 float zHash(vec3 p) {
   p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
   p *= 17.0;
@@ -186,7 +224,65 @@ else {
   zPat = abs(zd.x - zd.y);
 }
 vec3 zClothCol = mix(uCloth, mix(uClownA, uClownB, zPat), uClown.x);
-vec3 zBase = mix(uSkin, zClothCol, zCloth) * zRel;
+vec3 zBody = mix(uSkin, zClothCol, zCloth);
+// Ciudadanos: la ropa se pinta por zonas del cuerpo en reposo (pose en T, cm): brazos estirados (|x| >
+// 19 sobre 118), piernas bajo la cadera (97), cabeza sobre la base del cráneo. Mangas hasta |x| =
+// uOutfit.y. Desgarrones donde asoma la piel.
+float zT = floor(uOutfit.x + 0.5);
+if (zT > 1.5) {
+  float zAx = abs(vBind.x - uFace.x);
+  float zY = vBind.y;
+  float zArm = step(19.0, zAx) * step(118.0, zY);
+  float zHead = step(uFace2.x - 1.0, zY) * (1.0 - zArm);
+  float zLeg = step(zY, 97.0) * (1.0 - zArm);
+  float zTorso = (1.0 - zArm) * (1.0 - zHead) * (1.0 - zLeg);
+  float zSleeve = zArm * step(zAx, uOutfit.y);
+  float zFrontS = smoothstep(1.0, 4.0, vBind.z);
+  float zShoe = zLeg * step(zY, 9.0);
+  float zCov = zTorso + zSleeve + zLeg;
+  vec3 zOut = mix(uOutA, uOutB, zLeg);
+  if (zT < 2.5) {
+    // Oficinista: camisa, pantalón, corbata; con saco, el saco (del color del pantalón) deja ver la
+    // camisa en una V.
+    float zV = zFrontS * zTorso * step(112.0, zY) * step(zAx, (zY - 112.0) * 0.42);
+    if (uOutfit.z > 0.5) zOut = mix(zOut, mix(uOutB * 1.15, uOutA, zV), zTorso + zSleeve);
+    float zTie = zFrontS * zTorso * step(108.0, zY) * step(zAx, 1.6 + (147.0 - zY) * 0.035);
+    zOut = mix(zOut, uOutC, zTie);
+  } else if (zT < 3.5) {
+    // Policía: cinturón negro y placa dorada en el pecho.
+    float zBelt = (zTorso + zLeg) * step(93.0, zY) * step(zY, 100.0);
+    float zBadge = zFrontS * zTorso * step(abs(vBind.x - uFace.x - 8.0), 2.4) * step(abs(zY - 136.0), 2.6);
+    zOut = mix(zOut, vec3(0.012, 0.011, 0.01), zBelt);
+    zOut = mix(zOut, uOutC * 1.6, zBadge);
+  } else if (zT < 4.5) {
+    // Médico: pijama quirúrgico (arriba y abajo del mismo color) o bata blanca larga sobre el pantalón.
+    if (uOutfit.z > 0.5) zOut = mix(zOut, uOutC, zLeg * step(62.0, zY) * (1.0 - zFrontS * step(zAx, 4.0)));
+  } else if (zT < 5.5) {
+    // Obrero: chaleco reflectivo (solo el torso) con dos franjas plateadas; camisa en los brazos.
+    zOut = mix(zOut, uOutC, zSleeve);
+    float zBand = zTorso * max(step(abs(zY - 114.0), 2.0), step(abs(zY - 130.0), 2.0));
+    zOut = mix(zOut, vec3(0.72, 0.74, 0.76), zBand);
+    zShoe = zLeg * step(zY, 14.0);
+  } else if (zT < 6.5) {
+    // Deportista: sudadera, pantalón de buzo con franja al costado y franja en el pecho.
+    float zStripe = zLeg * step(12.5, zAx) + zTorso * step(abs(zY - 128.0), 1.6);
+    zOut = mix(zOut, uOutC, min(zStripe, 1.0));
+  } else {
+    // Bombero: chaquetón y pantalón con franjas amarillas y plateadas (pecho, muñecas y rodillas).
+    float zB1 = (zTorso + zSleeve) * (1.0 - step(2.4, abs(zY - 121.0)));
+    float zB2 = zSleeve * (1.0 - step(2.4, abs(zAx - 54.0)));
+    float zB3 = zLeg * (1.0 - step(2.4, abs(zY - 45.0)));
+    float zBand = min(zB1 + zB2 + zB3, 1.0);
+    float zCore = (zTorso + zSleeve) * step(abs(zY - 121.0), 0.8) + zSleeve * step(abs(zAx - 54.0), 0.8) + zLeg * step(abs(zY - 45.0), 0.8);
+    zOut = mix(zOut, mix(uOutC, vec3(0.75, 0.77, 0.8), min(zCore, 1.0)), zBand);
+    zShoe = zLeg * step(zY, 16.0);
+  }
+  zOut = mix(zOut, vec3(0.022, 0.018, 0.015), zShoe); // zapatos o botas
+  float zTear = smoothstep(0.68, 0.74, zNoise(vBind * 0.13) * 0.7 + zNoise(vBind * 0.45) * 0.3) * uOutfit.w;
+  zCov = min(zCov, 1.0) * (1.0 - zTear * (1.0 - zShoe));
+  zBody = mix(zBody, zOut, zCov);
+}
+vec3 zBase = zBody * zRel;
 // Maquillaje: solo en la piel de la cara (delante y por encima del mentón).
 float zHH = uFace2.y - uFace2.x;
 float zFace = (1.0 - zCloth) * smoothstep(uFace2.x + 0.04 * zHH, uFace2.x + 0.16 * zHH, vBind.y) * smoothstep(uFace2.z - 1.0, uFace2.z + 4.0, vBind.z);
@@ -273,9 +369,13 @@ export function createZombieMaterial() {
     uFace: FACE.uFace,
     uFace2: FACE.uFace2,
     uRimK: FACE.uRimK,
+    uOutfit: { value: new THREE.Vector4(1, 62, 0, 0.5) },
+    uOutA: { value: new THREE.Color() },
+    uOutB: { value: new THREE.Color() },
+    uOutC: { value: new THREE.Color() },
   };
   mat.onBeforeCompile = (shader) => patch(shader, u);
-  mat.customProgramCacheKey = () => 'zombie-look-2|hfog1';
+  mat.customProgramCacheKey = () => 'zombie-look-3|hfog1';
   mat.look = new ZombieLook(u);
   applyTextures(mat);
   looks.add(mat);
@@ -290,7 +390,11 @@ export class ZombieLook {
     this.next = 0;
   }
 
-  /** Aspecto al azar según el tipo (normal | brute | runner | boss). */
+  /**
+   * Aspecto al azar según el tipo (normal | brute | runner | boss). Devuelve el atuendo elegido
+   * (OUTFITS: clown, rags, office, police, medic, worker, jogger, firefighter) para las piezas de la
+   * cabeza (pelo, gorra, casco: clownKit.js).
+   */
   randomize(kind = 'normal', rng = Math.random) {
     const pick = (list) => list[Math.floor(rng() * list.length) % list.length];
     this.u.uSkin.value.set(pick(SKINS));
@@ -320,6 +424,28 @@ export class ZombieLook {
     this.u.uEye.value.set(EYES[kind] ?? EYES.normal);
     this.u.uEyeGlow.value = kind === 'boss' ? 4 : kind === 'brute' ? 2.4 : 1.5 + rng() * 0.5;
     this.clearWounds();
+    // Atuendo: payaso (el circo) o un vecino del barrio con la ropa que llevaba ese día.
+    const outfit = kind === 'boss' ? 'clown' : pickOutfit(OUTFIT_ODDS[kind] ?? OUTFIT_ODDS.normal, rng);
+    this.outfit = outfit;
+    const o = OUTFITS[outfit];
+    if (outfit !== 'clown') this.u.uClown.value.set(0, 0, 0, 0); // ni traje ni cara pintada
+    if (o.id < 2) {
+      this.u.uOutfit.value.set(o.id, 62, 0, 0);
+      return outfit;
+    }
+    // Variante (saco del oficinista, camisa celeste del policía, bata del médico…).
+    const v = o.variant && rng() < o.variant ? 1 : 0;
+    const k = kind === 'brute' ? 0.75 : 1;
+    const { uOutA: A, uOutB: B, uOutC: C } = this.u;
+    A.value.set(pick(v && o.altTop ? o.altTop : o.top)).multiplyScalar(k);
+    if (v && o.altBottom) B.value.set(pick(o.altBottom)).multiplyScalar(k);
+    else if (o.sameBottom) B.value.copy(A.value);
+    else B.value.set(pick(o.bottom)).multiplyScalar(k);
+    if (o.accent) C.value.set(pick(o.accent)).multiplyScalar(k);
+    else C.value.copy(A.value);
+    const sleeve = v && o.altSleeve ? o.altSleeve : pick(o.sleeves ?? [62]);
+    this.u.uOutfit.value.set(o.id, sleeve, v, 0.35 + rng() * 0.6);
+    return outfit;
   }
 
   clearWounds() {
