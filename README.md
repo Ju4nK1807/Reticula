@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⌖ Retícula
+# Retícula
 
 **Entrenador de puntería 3D en el navegador**
 
@@ -11,10 +11,10 @@ descubre tu rango y entrena la coordinación ojo-mano. También tiene campaña, 
 ![Three.js](https://img.shields.io/badge/Three.js-0.186-black?logo=threedotjs)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-módulos%20ES-F7DF1E?logo=javascript&logoColor=black)
-![Pruebas](https://img.shields.io/badge/pruebas-425%20✓-2ea043?logo=vitest&logoColor=white)
+![Pruebas](https://img.shields.io/badge/pruebas-425%20pasan-2ea043?logo=vitest&logoColor=white)
 ![Plataformas](https://img.shields.io/badge/plataformas-Web%20·%20Windows%20·%20Mac%20·%20Android-36d6ff)
 
-**[▶ Jugar en el navegador](https://ju4nk1807.github.io/Reticula/)** ·
+**[Jugar en el navegador](https://ju4nk1807.github.io/Reticula/)** ·
 [Descargas (Releases)](https://github.com/Ju4nK1807/Reticula/releases) ·
 [Tráiler](#tráiler) ·
 [Capturas](#capturas) ·
@@ -66,7 +66,7 @@ desde tu juego (CS2, Valorant, etc.), así que lo que entrenas aquí se siente i
 
 [![Tráiler de Retícula (clic para verlo)](docs/video/trailer-portada.jpg)](docs/video/reticula-trailer.mp4)
 
-**[▶ Ver el tráiler (48 s)](docs/video/reticula-trailer.mp4)**: las dos evaluaciones (dianas y enemigos), la
+**[Ver el tráiler (48 s)](docs/video/reticula-trailer.mp4)**: las dos evaluaciones (dianas y enemigos), la
 campaña, el modo infinito y el modo zombi, grabado del juego real.
 
 ## Capturas
@@ -109,26 +109,26 @@ campaña, el modo infinito y el modo zombi, grabado del juego real.
 
 ## Características
 
-- 🎯 **Evaluación con rango**: dos variantes de 5 fases (dianas y enemigos) con puntaje 0-100 y rangos
+- **Evaluación con rango**: dos variantes de 5 fases (dianas y enemigos) con puntaje 0-100 y rangos
   Bronce, Plata, Oro, Diamante y Élite. También se puede **personalizar** (arma, duración, tamaño,
   velocidad, color de las dianas y fases a saltar) para practicar.
-- 🗺️ **Campaña**: 3 mapas y 12 niveles con misiones, estrellas y dificultad que se adapta a tu rango.
-- 🧠 **Coordinación ojo-mano**: 4 ejercicios adaptativos (secuencia, color objetivo, periferia y doble
+- **Campaña**: 3 mapas y 12 niveles con misiones, estrellas y dificultad que se adapta a tu rango.
+- **Coordinación ojo-mano**: 4 ejercicios adaptativos (secuencia, color objetivo, periferia y doble
   tarea), solos o en circuito con índice de coordinación.
-- ♾️ **Modo infinito**: oleadas sin fin de soldados con IA que flanquea, con récords.
-- 🧟 **Modo zombi**: rondas al estilo de los modos de supervivencia clásicos, con barricadas, puertas que
+- **Modo infinito**: oleadas sin fin de soldados con IA que flanquea, con récords.
+- **Modo zombi**: rondas al estilo de los modos de supervivencia clásicos, con barricadas, puertas que
   se compran, caja misteriosa, bebidas, generador, linterna con batería, jefe y 4 dificultades.
-- 🍾 **Defensa de la barra**: los zombis van por las botellas del bar y hay que protegerlas.
-- 📖 **Historia «ECO»**: 8 capítulos con trama, escenas y radio.
-- 🔫 **9 armas** con modelos propios, brazos en primera persona, apuntar con miras, mira telescópica,
+- **Defensa de la barra**: los zombis van por las botellas del bar y hay que protegerlas.
+- **Historia «ECO»**: 8 capítulos con trama, escenas y radio.
+- **9 armas** con modelos propios, brazos en primera persona, apuntar con miras, mira telescópica,
   cuchillo, 4 tipos de granada, casquillos con física y utilería que reacciona a los disparos.
-- ⌖ **Editor de retícula** pieza por pieza, con presets, mira dinámica y códigos para compartir.
-- 🖱️ **Sensibilidad exacta**: conversión entre 8 juegos y cm/360, con raw input en Chrome, Edge y la app.
-- 📈 **Progreso**: gráficas SVG accesibles, historial de todas las sesiones y exportar/importar datos.
-- ⚡ **Rendimiento**: calidad automática que mantiene 60 FPS, niveles de detalle para los zombis,
+- **Editor de retícula** pieza por pieza, con presets, mira dinámica y códigos para compartir.
+- **Sensibilidad exacta**: conversión entre 8 juegos y cm/360, con raw input en Chrome, Edge y la app.
+- **Progreso**: gráficas SVG accesibles, historial de todas las sesiones y exportar/importar datos.
+- **Rendimiento**: calidad automática que mantiene 60 FPS, niveles de detalle para los zombis,
   geometría unida y sombreadores precompilados para evitar tirones.
-- 🔊 **Sonido** con Web Audio: disparos con eco, voces de zombi y música de terror generada en vivo.
-- 📱 **Multiplataforma**: navegador, Windows, Mac y Android (con controles táctiles).
+- **Sonido** con Web Audio: disparos con eco, voces de zombi y música de terror generada en vivo.
+- **Multiplataforma**: navegador, Windows, Mac y Android (con controles táctiles).
 
 ## Cómo ejecutarlo
 
