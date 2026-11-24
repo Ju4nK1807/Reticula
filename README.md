@@ -1,24 +1,216 @@
-# Retícula
+<div align="center">
 
-Aim trainer 3D en el navegador para practicar la puntería de cualquier shooter (CS2, Valorant, Apex,
-Fortnite, Call of Duty, Overwatch) y la coordinación ojo-mano.
-Vite + Three.js + JavaScript, sin frameworks de UI.
+# ⌖ Retícula
+
+**Entrenador de puntería 3D en el navegador**
+
+Practica la puntería de cualquier shooter (CS2, Valorant, Apex, Fortnite, Call of Duty, Overwatch),
+descubre tu rango y entrena la coordinación ojo-mano. También tiene campaña, modo infinito y modo zombi.
+
+![Versión](https://img.shields.io/badge/versión-1.5.0-00e0a0)
+![Three.js](https://img.shields.io/badge/Three.js-0.186-black?logo=threedotjs)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-módulos%20ES-F7DF1E?logo=javascript&logoColor=black)
+![Pruebas](https://img.shields.io/badge/pruebas-425%20✓-2ea043?logo=vitest&logoColor=white)
+![Plataformas](https://img.shields.io/badge/plataformas-Web%20·%20Windows%20·%20Mac%20·%20Android-36d6ff)
+
+**[▶ Jugar en el navegador](https://ju4nk1807.github.io/Reticula/)** ·
+[Descargas (Releases)](https://github.com/Ju4nK1807/Reticula/releases) ·
+[Capturas](#capturas) ·
+[Cómo ejecutarlo](#cómo-ejecutarlo)
+
+![Menú principal de Retícula](docs/capturas/01-menu.jpg)
+
+</div>
+
+## Contenido
+
+- [¿Qué es Retícula?](#qué-es-retícula)
+- [Capturas](#capturas)
+- [Características](#características)
+- [Cómo ejecutarlo](#cómo-ejecutarlo)
+- [Controles](#controles)
+- [Tecnologías y arquitectura](#tecnologías-y-arquitectura)
+- [Calidad: pruebas e integración continua](#calidad-pruebas-e-integración-continua)
+- [Apps: Windows, Mac y Android](#apps-windows-mac-y-android)
+- Modos en detalle: [Evaluación](#evaluación) · [Historia ECO](#historia-eco) · [Campaña](#campaña) ·
+  [Coordinación](#coordinación-ojo-mano) · [Infinito](#modo-infinito) · [Zombi](#modo-zombi) ·
+  [Defensa de la barra](#defensa-de-la-barra)
+- [Mecánicas](#mecánicas) · [Física](#física) · [Rendimiento](#rendimiento) · [Progreso](#progreso) ·
+  [Mira y video](#mira-y-video) · [Sensibilidad](#sensibilidad)
+- [Estructura del código](#estructura-del-código) · [Publicación](#publicación) · [Equipo](#equipo) ·
+  [Créditos](#créditos-de-recursos)
+
+## ¿Qué es Retícula?
+
+Retícula es un **aim trainer** (entrenador de puntería) en 3D, del estilo de KovaaK's o Aim Lab, hecho
+desde cero con **Three.js** y JavaScript, sin motor de juego ni frameworks de interfaz. Se juega en el
+navegador y también como app de Windows, Mac y Android.
+
+La idea es simple: una **evaluación** de unos 3 minutos mide flicking, tracking, reacción y precisión y
+te da un **rango** (Bronce → Élite). Con ese rango se desbloquean la **campaña** y el **modo infinito**,
+y todo lo que juegas queda en la pantalla de **Progreso** con gráficas. La sensibilidad se convierte
+desde tu juego (CS2, Valorant, etc.), así que lo que entrenas aquí se siente igual allá.
+
+| | |
+|---|---|
+| **Modos de juego** | 8: dos evaluaciones, historia, campaña, coordinación ojo-mano, infinito, zombi y defensa de la barra |
+| **Armas** | 9, con modelo propio, brazos en primera persona, ADS, retroceso, recarga, cuchillo y granadas |
+| **Mapas** | Campo de tiro, Patio, Bodega, Ciudad, Arena, Cúpula, Bastión y el Barrio en ruinas (modo zombi) |
+| **Código** | ~26 800 líneas de JavaScript en `src/`, 45 archivos de prueba con 425 pruebas automáticas |
+| **Plataformas** | Navegador (GitHub Pages), Windows, Mac y Android |
+
+## Capturas
+
+### Menú y selección de modo
+| Menú principal | Modos de juego |
+|---|---|
+| ![Menú](docs/capturas/01-menu.jpg) | ![Modos](docs/capturas/02-modos.jpg) |
+
+### Evaluación (te da tu rango)
+| Dianas: flicking en el campo de tiro | Enemigos: bots humanoides en el patio |
+|---|---|
+| ![Evaluación dianas](docs/capturas/03-evaluacion-dianas.jpg) | ![Evaluación enemigos](docs/capturas/04-evaluacion-enemigos.jpg) |
+
+### Campaña
+| Un mapa por rango | Nivel 1 de la Bodega |
+|---|---|
+| ![Campaña mapas](docs/capturas/05-campana-mapas.jpg) | ![Campaña bodega](docs/capturas/06-campana-bodega.jpg) |
+
+### Coordinación ojo-mano
+| Ejercicios y circuito | Color objetivo (cada color tiene su forma) |
+|---|---|
+| ![Coordinación](docs/capturas/07-coordinacion.jpg) | ![Color objetivo](docs/capturas/08-coordinacion-color.jpg) |
+
+### Modo infinito y modo zombi
+| Modo infinito en el Bastión | Modo zombi: la horda llega a la barricada |
+|---|---|
+| ![Modo infinito](docs/capturas/09-modo-infinito.jpg) | ![Modo zombi](docs/capturas/11-modo-zombi.jpg) |
+
+| Modo zombi: dificultad y controles | Defensa de la barra (el circo, con la linterna) |
+|---|---|
+| ![Zombi inicio](docs/capturas/10-zombi-inicio.jpg) | ![Defensa de la barra](docs/capturas/12-defensa-barra.jpg) |
+
+### Personalización
+| Editor de retícula | Arsenal | Configuración (sensibilidad) |
+|---|---|---|
+| ![Editor de retícula](docs/capturas/13-editor-reticula.jpg) | ![Arsenal](docs/capturas/14-arsenal.jpg) | ![Configuración](docs/capturas/15-configuracion.jpg) |
+
+> Las capturas son del juego real (versión 1.5.0, calidad automática, 1600 × 900).
+
+## Características
+
+- 🎯 **Evaluación con rango**: dos variantes de 5 fases (dianas y enemigos) con puntaje 0-100 y rangos
+  Bronce, Plata, Oro, Diamante y Élite. También se puede **personalizar** (arma, duración, tamaño,
+  velocidad, color de las dianas y fases a saltar) para practicar.
+- 🗺️ **Campaña**: 3 mapas y 12 niveles con misiones, estrellas y dificultad que se adapta a tu rango.
+- 🧠 **Coordinación ojo-mano**: 4 ejercicios adaptativos (secuencia, color objetivo, periferia y doble
+  tarea), solos o en circuito con índice de coordinación.
+- ♾️ **Modo infinito**: oleadas sin fin de soldados con IA que flanquea, con récords.
+- 🧟 **Modo zombi**: rondas al estilo de los modos de supervivencia clásicos, con barricadas, puertas que
+  se compran, caja misteriosa, bebidas, generador, linterna con batería, jefe y 4 dificultades.
+- 🍾 **Defensa de la barra**: los zombis van por las botellas del bar y hay que protegerlas.
+- 📖 **Historia «ECO»**: 8 capítulos con trama, escenas y radio.
+- 🔫 **9 armas** con modelos propios, brazos en primera persona, apuntar con miras, mira telescópica,
+  cuchillo, 4 tipos de granada, casquillos con física y utilería que reacciona a los disparos.
+- ⌖ **Editor de retícula** pieza por pieza, con presets, mira dinámica y códigos para compartir.
+- 🖱️ **Sensibilidad exacta**: conversión entre 8 juegos y cm/360, con raw input en Chrome, Edge y la app.
+- 📈 **Progreso**: gráficas SVG accesibles, historial de todas las sesiones y exportar/importar datos.
+- ⚡ **Rendimiento**: calidad automática que mantiene 60 FPS, niveles de detalle para los zombis,
+  geometría unida y sombreadores precompilados para evitar tirones.
+- 🔊 **Sonido** con Web Audio: disparos con eco, voces de zombi y música de terror generada en vivo.
+- 📱 **Multiplataforma**: navegador, Windows, Mac y Android (con controles táctiles).
+
+## Cómo ejecutarlo
+
+Requisitos: **Node.js 22** (el que usa la CI) y un navegador con WebGL 2 y Pointer Lock (Chrome o Edge
+recomendados: son los que dan raw input), mouse y teclado. Si falta algo, el juego lo avisa al abrir.
 
 ```bash
+git clone https://github.com/Ju4nK1807/Reticula.git
+cd Reticula
 npm install
-npm run dev       # http://localhost:5173
-npm test          # pruebas automáticas (Vitest)
-npm run build     # versión de producción en dist/
+npm run dev       # abre http://localhost:5173
 ```
 
-Cada PR y cada push a `main` pasan por la CI de GitHub Actions (`.github/workflows/ci.yml`): `npm ci`,
-`npm test` y `npm run build`. Fusiona solo PRs en verde y abre cada PR contra `main` (no contra otra
-rama de PR), para que lo fusionado llegue siempre a `main`.
+Otros comandos:
 
-Requisitos: navegador con WebGL 2 y Pointer Lock (Chrome o Edge recomendados: son los únicos que dan
-raw input), mouse y teclado. Si falta algo, el juego lo avisa al abrir.
+```bash
+npm test          # pruebas automáticas (Vitest)
+npm run build     # versión de producción en dist/
+npm run preview   # sirve la versión de producción
+```
 
-## Apps: Windows y Android
+Sin instalar nada: **https://ju4nk1807.github.io/Reticula/**
+
+## Controles
+
+| Tecla | Acción | Tecla | Acción |
+|---|---|---|---|
+| Mouse | Apuntar | Clic izquierdo | Disparar (mantener en automáticas) |
+| `W A S D` | Moverse | Clic derecho | Apuntar con las miras |
+| `Shift` | Correr / caminar | `R` | Recargar |
+| `C` | Agacharse | `1`-`9` / rueda | Cambiar de arma |
+| `Espacio` | Saltar | `B` | Automático / semiautomático |
+| `V` | Cuchillo | `G` · `Q` | Granada · cambiar tipo |
+| `E` | Usar, comprar, reparar | `F` | Linterna (modo zombi) |
+| `[` `]` | Sensibilidad −3 % / +3 % | `Esc` | Pausa |
+
+Todos los controles se pueden reasignar en *Configuración → Controles y datos*.
+
+## Tecnologías y arquitectura
+
+| Tecnología | Para qué |
+|---|---|
+| **Three.js** | Render 3D (WebGL 2), modelos glTF animados, postproceso (bloom, viñeta) |
+| **Vite** | Servidor de desarrollo y compilación de producción |
+| **JavaScript (módulos ES)** | Todo el juego, sin frameworks de interfaz: el HUD y los menús son DOM y CSS |
+| **Web Audio API** | Sonidos, reverb y música generada en vivo |
+| **Vitest** | Pruebas automáticas |
+| **Electron** · **Capacitor** | Apps de Windows/Mac y Android |
+| **GitHub Actions** | CI, publicación en GitHub Pages y compilación de las apps |
+
+Ideas principales del diseño:
+
+- **Registro de modos y mapas**: cada modo vive en su carpeta (`src/modes/<modo>/index.js`) y se
+  registra solo con `registerMode({ id, title, create, locked })`; el menú y el juego los descubren con
+  `import.meta.glob`. Agregar un modo no obliga a tocar `Game.js` ni el menú. Los mapas usan
+  `registerWorld` de la misma forma.
+- **Interfaz común de modo** (`src/modes/Mode.js`): `start`, `update`, `onShoot`, `onLock`,
+  `hitMeshes`, `dispose`, etc. El motor (`Game`) solo llama a esa interfaz.
+- **Física y balística propias**: hitscan con raycasts, hitboxes invisibles por parte del cuerpo
+  (cabeza, torso, piernas) que siguen a los huesos animados, y cuerpos rígidos para la utilería.
+- **IA**: los soldados hacen strafing, se asoman, se agachan, saltan y disparan con tiempo de reacción;
+  los zombis navegan con un **campo de flujo** (Dijkstra sobre una cuadrícula de 1 m) compartido por
+  toda la horda.
+- **Guardado versionado** en `localStorage` con migraciones entre versiones, y exportar/importar a `.json`.
+
+```mermaid
+flowchart LR
+  main[main.js] --> Game
+  Game --> Engine[Engine<br/>render, FOV, calidad]
+  Game --> Input[Input<br/>mouse, teclado, táctil]
+  Game --> Player[PlayerController]
+  Game --> Weapon[combat/<br/>Weapon, Ballistics]
+  Game --> UI[ui/<br/>HUD y pantallas]
+  Game --> Store[storage/SaveStore]
+  Game -->|registro| Modes[modes/*<br/>evaluación, campaña,<br/>zombi, infinito…]
+  Modes --> Worlds[scenes/ + mapas<br/>de cada modo]
+  Modes --> Bots[bots/ y zombis]
+```
+
+## Calidad: pruebas e integración continua
+
+- **425 pruebas automáticas** en 45 archivos (`tests/`) con Vitest: puntajes y rangos, conversión de
+  sensibilidad, guardado y migraciones, curvas de dificultad, balance de armas, registro de modos,
+  navegación de los zombis y más.
+- **Auditoría de mapas** con raycasts reales (`tests/campaignMaps.test.js`): verifica que cada enemigo
+  de la campaña se pueda ver y alcanzar.
+- **CI con GitHub Actions** (`.github/workflows/ci.yml`): cada PR y cada push a `main` ejecutan
+  `npm ci`, `npm test` y `npm run build`. Solo se fusionan PRs en verde, siempre contra `main`.
+- `deploy.yml` publica el juego en GitHub Pages y `release.yml` compila las apps al crear una versión.
+
+## Apps: Windows, Mac y Android
 
 Además de en el navegador, Retícula se descarga como app. Las descargas están en la pestaña
 **Releases** del repositorio:
@@ -50,44 +242,23 @@ npm run android:sync     # compila el juego y lo copia al proyecto Android (andr
 npm run android:build    # APK de depuración (necesita JDK 21 y el SDK de Android)
 ```
 
+## Evaluación
 
+Hay dos evaluaciones independientes, cada una con su propio rango y de unos 3 minutos. En ambas el
+jugador se mueve (WASD, Shift, C, Espacio), las balas se ven (trazadoras, impactos y partículas) y
+**cada fallo resta puntos**. Se juegan con el Rifle y sin recargar, para que los rangos sean comparables.
 
-## Estructura
+### Dianas (clásica) — campo de tiro
 
-```
-src/
-  main.js                 Punto de entrada
-  style.css
-  core/                   Motor: Game (estados), Engine (render/FOV/overlay), Input (mouse y teclado),
-                          PlayerController (mirada, movimiento, colisiones), Emitter
-  combat/                 Ballistics (hitscan y línea de visión), Weapon, Viewmodel (arma en pantalla),
-                          Melee (golpe), Grenades (granadas)
-  effects/                Trazadoras, marcas de impacto, partículas, casquillos, chispas, cámara y
-                          soldados del menú
-  physics/                Cuerpos rígidos (RigidBody) y utilería con física de los mapas (Props)
-  gfx/                    Superficies PBR, iluminación, calidad automática, cielo y texturas de canvas
-  config/                 defaults, ranks, sensitivity (conversión entre 8 juegos y cm/360)
-  storage/                SaveStore (localStorage versionado con migraciones), profile (rango general)
-  audio/Sfx.js            Sonidos con Web Audio API: disparos grabados con cuerpo y eco, reverb, voces de zombi
-  audio/zombieVoices.js   Perfiles de las voces de zombi (gruñido, chillido, rugido, estertor…)
-  audio/HorrorMusic.js    Música de terror generada en vivo para el modo zombi (volumen propio en Ajustes)
-  scenes/                 Mapas base (ShootingRange, TrainingYard), la Armería del menú y registry.js
-  bots/                   Bots humanoides: hitboxes, strafing, peeks, agachadas, saltos y disparo
-  modes/                  Mode.js (interfaz base), registry.js (registro), index.js (descubre los modos)
-  modes/evaluation/       Evaluación: dos variantes de 5 fases + scoring → rango
-  modes/story/            Historia «ECO»: 8 capítulos con trama, escenas, radio y la prueba de números
-  modes/campaign/         Campaña: mapas Bodega/Ciudad/Arena, 12 niveles, misiones, progreso y estrellas
-  modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
-  modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
-  modes/zombies/          Modo zombi: Barrio en ruinas, zombis realistas, atmósfera nocturna, campo de flujo y armería
-  ui/                     HUD, mira, gráficas y pantallas (menú, editor de retícula, progreso, ajustes, pausa,
-                          resultados, compatibilidad)
-  stats/                  history.js: series e historial unificado para la pantalla de Progreso
-  utils/                  math, format
-tests/                    Pruebas de la lógica pura (guardado, rangos, sensibilidad, registros)
-```
+| Fase | Duración | Qué mide |
+|------|----------|----------|
+| Flicking | 30 s | precisión, objetivos/s, tiempo por objetivo, escapados |
+| Tracking | 30 s, automático | % sobre la diana, % de balas acertadas |
+| Reacción | 8 intentos | reacción promedio y mejor, disparos anticipados |
+| Multi-objetivo | 30 s | objetivos/s y precisión con 3 dianas a la vez |
+| Precisión | 30 s | precisión con dianas pequeñas (fallar resta más que acertar) |
 
-
+Pesos: flicking 22 %, tracking 20 %, reacción 18 %, multi-objetivo 20 %, precisión 20 %.
 
 ### Enemigos — patio con coberturas
 
@@ -108,7 +279,12 @@ Cada variante guarda su propio rango. El **rango general** (el del menú, el que
 mejor rango actual entre las dos variantes. Los tiempos de reacción se miden con el reloj real
 (`performance.now()` y el instante del clic), así que no dependen de los FPS.
 
-## Historia: ECO
+**Personalizar** (botón en la pantalla de cada evaluación, `src/modes/evaluation/evalConfig.js`): arma,
+duración de las fases (10-120 s), cantidad, tamaño y velocidad de las dianas, color, intentos de
+reacción, asomadas, cuánto disparan los enemigos y fases a saltar. Es para practicar: el rango oficial
+solo sale de la evaluación sin cambios.
+
+## Historia ECO
 
 Campaña con historia propia (1979–1983). El capitán Andrés «Halcón» Vera despierta atado a una silla:
 una voz le pregunta qué significan los números 7-3-9 que lee una estación de radio. Cada capítulo es un
@@ -437,3 +613,55 @@ cualquier subcarpeta o servidor estático.
 Valores de *yaw* por juego en `src/config/sensitivity.js`: Source/KovaaK's/CS2/Apex/Quake 0.022,
 Valorant 0.07, Overwatch 2 y Call of Duty 0.0066, Fortnite (%) 0.005555. Se puede escribir la sensibilidad
 de cualquiera de esos juegos o directamente los cm/360. En juego: `[` y `]` la ajustan un 3 %.
+
+## Estructura del código
+
+```
+src/
+  main.js                 Punto de entrada
+  style.css
+  core/                   Motor: Game (estados), Engine (render/FOV/overlay), Input (mouse y teclado),
+                          PlayerController (mirada, movimiento, colisiones), Emitter
+  combat/                 Ballistics (hitscan y línea de visión), Weapon, Viewmodel (arma en pantalla),
+                          Melee (golpe), Grenades (granadas)
+  effects/                Trazadoras, marcas de impacto, partículas, casquillos, chispas, cámara y
+                          soldados del menú
+  physics/                Cuerpos rígidos (RigidBody) y utilería con física de los mapas (Props)
+  gfx/                    Superficies PBR, iluminación, calidad automática, cielo y texturas de canvas
+  config/                 defaults, ranks, sensitivity (conversión entre 8 juegos y cm/360)
+  storage/                SaveStore (localStorage versionado con migraciones), profile (rango general)
+  audio/Sfx.js            Sonidos con Web Audio API: disparos grabados con cuerpo y eco, reverb, voces de zombi
+  audio/zombieVoices.js   Perfiles de las voces de zombi (gruñido, chillido, rugido, estertor…)
+  audio/HorrorMusic.js    Música de terror generada en vivo para el modo zombi (volumen propio en Ajustes)
+  scenes/                 Mapas base (ShootingRange, TrainingYard), la Armería del menú y registry.js
+  bots/                   Bots humanoides: hitboxes, strafing, peeks, agachadas, saltos y disparo
+  modes/                  Mode.js (interfaz base), registry.js (registro), index.js (descubre los modos)
+  modes/evaluation/       Evaluación: dos variantes de 5 fases + scoring → rango
+  modes/story/            Historia «ECO»: 8 capítulos con trama, escenas, radio y la prueba de números
+  modes/campaign/         Campaña: mapas Bodega/Ciudad/Arena, 12 niveles, misiones, progreso y estrellas
+  modes/coordination/     Coordinación ojo-mano: sala Cúpula, 4 ejercicios adaptativos, circuito y récords
+  modes/endless/          Modo infinito: mapa Bastión, IA de asalto, oleadas, HUD propio y récords
+  modes/zombies/          Modo zombi: Barrio en ruinas, zombis realistas, atmósfera nocturna, campo de flujo y armería
+  ui/                     HUD, mira, gráficas y pantallas (menú, editor de retícula, progreso, ajustes, pausa,
+                          resultados, compatibilidad)
+  stats/                  history.js: series e historial unificado para la pantalla de Progreso
+  utils/                  math, format
+tests/                    Pruebas de la lógica pura (guardado, rangos, sensibilidad, registros)
+```
+
+## Equipo
+
+Proyecto del curso de 5.º semestre, hecho en equipo con ramas, pull requests revisados y CI:
+
+| Integrante | GitHub |
+|---|---|
+| Camilo Rosero | [@KmiloRosero](https://github.com/KmiloRosero) |
+| Ju4nK1807 | [@Ju4nK1807](https://github.com/Ju4nK1807) |
+| tulcansantiago08-cell | [@tulcansantiago08-cell](https://github.com/tulcansantiago08-cell) |
+
+## Créditos de recursos
+
+- Zombi: medicinestorm (OpenGameArt, CC0). Animaciones extra: bachosoftdesign (Poly Pizza, CC-BY 3.0).
+- Texturas PBR: Poly Haven (CC0).
+- Fuentes: Inter, JetBrains Mono, Chakra Petch y Creepster (OFL 1.1), vía Fontsource.
+- Detalle de modelos en `public/models/characters/credits.json`.
