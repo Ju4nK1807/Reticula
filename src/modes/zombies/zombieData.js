@@ -8,13 +8,16 @@ import { FIRST_COUNTDOWN, INTERMISSION, ROUNDS } from './roundConfig.js';
 // height: altura en m · hpScale: vida respecto a la de la ronda (roundHp) · speed: m/s · damage: daño
 // por golpe · attackRange: m · attackEvery: s entre golpes · points: puntos al matarlo · low: se
 // arrastra (hitboxes cerca del suelo) · look: aspecto (zombieLook.js: ojos y tonos) · bulk: corpulencia
+// heavy: pesado (no se tambalea, no pierde la cabeza ni las piernas, ruge al aparecer y no acelera con
+// las rondas) · boss: el Jefe (uno en ciertas rondas; al morir suelta el código de la caja fuerte)
 // Todos usan el mismo modelo realista (zombieSkin.js); cambian su tamaño, su aspecto y su animación.
 // La vida, la velocidad y el daño de cada ronda multiplican estos valores (roundConfig.js).
 export const ZOMBIE_TYPES = {
   walker: { name: 'Caminante', height: 1.78, hpScale: 1, speed: 1.6, damage: 45, attackRange: 1.3, attackEvery: 1.35, points: 60, look: 'normal', bulk: 1 },
   runner: { name: 'Corredor', height: 1.74, hpScale: 0.7, speed: 4.1, damage: 34, attackRange: 1.25, attackEvery: 0.95, points: 80, look: 'runner', bulk: 0.94 },
   crawler: { name: 'Reptante', height: 1.78, hpScale: 0.6, speed: 2.2, damage: 38, attackRange: 1.15, attackEvery: 1.1, points: 90, low: true, look: 'normal', bulk: 0.96 },
-  brute: { name: 'Bruto', height: 2.35, hpScale: 3, speed: 1.45, damage: 80, attackRange: 1.75, attackEvery: 1.8, points: 300, look: 'brute', bulk: 1.18 },
+  brute: { name: 'Bruto', height: 2.35, hpScale: 3, speed: 1.45, damage: 80, attackRange: 1.75, attackEvery: 1.8, points: 300, look: 'brute', bulk: 1.18, heavy: true },
+  boss: { name: 'El Jefe', height: 2.6, hpScale: 14, speed: 1.55, damage: 90, attackRange: 1.95, attackEvery: 1.7, points: 1000, look: 'boss', bulk: 1.3, heavy: true, boss: true },
 };
 
 /** Vida de un caminante en la ronda n (fórmula y valores en roundConfig.js). */
@@ -82,7 +85,7 @@ export const MAX_WEAPONS = 3;
 export const WALL_BUYS = { magnum: 900, smg: 1000, shotgun: 1500, rifle: 1600, burst: 1800, dmr: 2000, lmg: 2500, sniper: 2750, ray: 6000 };
 export const wallAmmoPrice = (id) => Math.round((WALL_BUYS[id] ?? 1000) / 2 / 50) * 50;
 
-// --- Caja misteriosa y barricadas ------------------------------------------------------------------------
+// --- Caja fuerte (la caja de armas) y barricadas ------------------------------------------------------------------------
 export const BOX_PRICE = 950; // un arma al azar de las que no tienes
 // Cada tantas tiradas (entre min y max, al azar) la caja se muda a otro lugar del mapa.
 export const BOX_MOVE = { min: 4, max: 7 };
@@ -173,20 +176,29 @@ export function waveConfig(n, difficulty = 'normal') {
     runnerShare: runnerNight ? 0.7 : Math.min(0.5, (w >= R.runnersFrom ? Math.min(R.runnerMax, R.runnerPerRound * (w - R.runnersFrom + 1)) : 0) + d.runners),
     crawlerShare: w >= R.crawlersFrom ? Math.min(R.crawlerMax, R.crawlerPerRound * (w - R.crawlersFrom + 1)) : 0,
     brutes: w >= d.brutesFrom ? 1 + Math.floor((w - d.brutesFrom) / R.brutesEvery) : 0,
+    boss: isBossRound(w) ? 1 : 0,
     clearBonus: Math.round(R.clearBonus * w * d.points),
     pointsMul: d.points,
     regenMul: d.regen,
   };
 }
 
+/** ¿Llega el Jefe en la ronda n? En la ronda ROUNDS.bossFrom y luego cada ROUNDS.bossEvery. */
+export function isBossRound(n) {
+  const w = Math.floor(n);
+  return w >= ROUNDS.bossFrom && (w - ROUNDS.bossFrom) % ROUNDS.bossEvery === 0;
+}
+
 /**
- * Lista de tipos de la oleada en orden de aparición (los brutos, repartidos en la segunda mitad).
+ * Lista de tipos de la oleada en orden de aparición (los brutos, repartidos en la segunda mitad; el
+ * Jefe, pasada la mitad de la ronda).
  * @param {ReturnType<typeof waveConfig>} cfg
  * @param {() => number} rng
  */
 export function waveRoster(cfg, rng = Math.random) {
   const list = [];
-  const normal = cfg.count - cfg.brutes;
+  const boss = cfg.boss ?? 0;
+  const normal = Math.max(0, cfg.count - cfg.brutes - boss);
   for (let i = 0; i < normal; i++) {
     const r = rng();
     list.push(r < cfg.runnerShare ? 'runner' : r < cfg.runnerShare + cfg.crawlerShare ? 'crawler' : 'walker');
@@ -195,6 +207,7 @@ export function waveRoster(cfg, rng = Math.random) {
     const at = Math.floor(normal * (0.5 + 0.5 * ((b + 1) / (cfg.brutes + 1))));
     list.splice(Math.min(list.length, at + b), 0, 'brute');
   }
+  if (boss) list.splice(Math.floor(list.length * 0.55), 0, 'boss');
   return list;
 }
 
@@ -205,7 +218,7 @@ export function zombieStats(type, cfg) {
     ...t,
     type,
     hp: Math.round((cfg.hp ?? roundHp(cfg.wave ?? 1)) * t.hpScale),
-    speed: t.speed * (type === 'brute' ? cfg.diffSpeed ?? 1 : cfg.speedMul),
+    speed: t.speed * (t.heavy ? cfg.diffSpeed ?? 1 : cfg.speedMul),
     damage: Math.round(t.damage * (cfg.damageMul ?? 1)),
   };
 }

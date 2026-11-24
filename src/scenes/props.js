@@ -116,7 +116,7 @@ function loadRaw(id) {
         .then((l) => l.loadAsync(BASE + cfg.file))
         .then((gltf) => {
           // Escala real: culata en z = 0, lomo en y = 0, centrada en x. Cañón hacia -Z.
-          fitWeaponModel(gltf.scene, { scale: 1, back: 0, top: 0, x: 0, tint: cfg.tint });
+          fitWeaponModel(gltf.scene, { scale: 1, back: 0, top: 0, x: 0, finish: cfg.finish });
           return gltf.scene;
         })
         .catch(() => null),

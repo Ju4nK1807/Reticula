@@ -321,6 +321,7 @@ export class Game {
   // (config/keybinds.js). Las armas (1-9) son fijas.
   onKey(e) {
     if (!this.playing) return;
+    if (this.mode?.captureKey?.(e)) return; // el modo se queda la tecla (zombi: teclado de la caja fuerte)
     // Números: en los modos con espacios de armas, el espacio (1 = el primero); si no, el arma de esa tecla.
     const slots = this.mode?.weaponSlots?.();
     if (slots ? e.code in DIGITS : WEAPON_KEYS[e.code]) {

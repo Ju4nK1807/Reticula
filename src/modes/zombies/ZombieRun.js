@@ -8,6 +8,7 @@ import { rand } from '../../utils/math.js';
 import { NavGrid } from './navGrid.js';
 import { Zombie } from './Zombie.js';
 import { ALIVE_BY_DETAIL } from './roundConfig.js';
+import { SafeLock } from './safe.js';
 import { BARRICADE, BOX_MOVE, BOX_PRICE, rollBox, DOORS, MAX_WEAPONS, DROP, FORGE, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
 const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
@@ -33,6 +34,8 @@ const headMat = new THREE.MeshStandardMaterial({ color: '#5f6b55', roughness: 0.
     cash { amount } · powerup { id } · powerupEnd { id } · hurt · groan { zombie, dist } · death
     door { id } · perk { id } · weapon { id } · ammo { id }   (compras en el mapa)
     power · forge { id } · box { id } · boxMove { where } · lastStand
+    bossSpawn { zombie } · bossKill { zombie, code } (el Jefe suelta el código de la caja fuerte)
+    safeOpen · safeWrong { fails }
 */
 export class ZombieRun extends Phase {
   static info = { id: 'zombies', name: 'Zombis', desc: '', auto: true, health: true };
@@ -58,6 +61,10 @@ export class ZombieRun extends Phase {
     this.perks = new Set(); // bebidas tomadas (zombieData.PERKS)
     this.upgraded = new Set(); // armas forjadas (zombieData.FORGE)
     this.game.weapon.magazineBy = {};
+    // Caja fuerte (la caja de armas): cerrada con un código que suelta el Jefe al morir.
+    this.safe = new SafeLock();
+    this.world.setSafeLocked?.(true);
+    this.boss = null; // el Jefe vivo (para la barra de vida del HUD)
     this.boxUses = 0; // tiradas de la caja en su lugar actual (cada tantas se muda)
     this.boxMoveAt = BOX_MOVE.min + Math.floor(Math.random() * (BOX_MOVE.max - BOX_MOVE.min + 1));
     this.dmgMul = 1;
@@ -126,6 +133,8 @@ export class ZombieRun extends Phase {
     this.updateNav(dt);
     this.updateHealth(dt);
     this.updateDrops(dt);
+    this.safe.update(dt);
+    if (this.boss && !this.boss.alive) this.boss = null;
     for (const k of Object.keys(this.timers)) {
       if (this.timers[k] > 0 && (this.timers[k] -= dt) <= 0) this.emit('powerupEnd', { id: k });
     }
@@ -246,6 +255,10 @@ export class ZombieRun extends Phase {
     z.entry = entry; // para arrancar los tablones de su barricada
     if (entry.rise) z.rise(); // las ventanas del vestíbulo: salen de la tierra
     this.bots.push(z);
+    if (z.stats.boss) {
+      this.boss = z;
+      this.emit('bossSpawn', { zombie: z });
+    }
     return z;
   }
 
@@ -296,7 +309,8 @@ export class ZombieRun extends Phase {
       if (grenade) this.stats.grenadeKills++;
       if (!tick || Math.random() < 0.5) this.blood?.pool(z.position, z.scale);
       this.emit('kill', { zombie: z, part, points });
-      this.maybeDrop(z);
+      if (z.stats.boss) this.onBossKilled(z);
+      else this.maybeDrop(z);
     }
     return killed;
   }
@@ -334,7 +348,7 @@ export class ZombieRun extends Phase {
     const killed = this.hitZombie(bot, base, part);
     // Tiro a la cabeza: si lo mata, la cabeza sale volando; si no, a veces también (un golpe fuerte) y
     // el zombi sigue caminando sin ella hasta desangrarse, como en los clásicos.
-    if (part === 'head' && bot.type !== 'brute') {
+    if (part === 'head' && !bot.heavy) {
       const strong = (before - Math.max(0, bot.hp)) >= bot.maxHp * 0.25;
       if (killed || (strong && Math.random() < 0.45)) this.decapitate(bot, hit);
     }
@@ -470,7 +484,14 @@ export class ZombieRun extends Phase {
       if (this.upgraded.has(id)) return { price: 0, label: `Forja · ${WEAPONS[id].name} ya está forjada`, done: true, reason: 'Ya está forjada' };
       return { price: FORGE.price, label: `Forjar ${WEAPONS[id].name} · doble daño, cargador y reserva más grandes` };
     }
-    if (it.kind === 'box') return { price: BOX_PRICE, label: `Caja misteriosa · un arma al azar${this.swapNote()}` };
+    if (it.kind === 'box') {
+      const s = this.safe;
+      if (!s.unlocked) {
+        const hint = s.known ? `código ${s.code}` : 'el código lo tiene el Jefe';
+        return { price: 0, label: `Caja fuerte cerrada · escribe el código (${hint})`, keypad: true };
+      }
+      return { price: BOX_PRICE, label: `Caja fuerte · un arma al azar${this.swapNote()}` };
+    }
     const name = WEAPONS[it.id]?.name ?? it.id;
     if (this.owned.has(it.id)) return { price: wallAmmoPrice(it.id), label: `Munición · ${name}`, ammo: true };
     return { price: WALL_BUYS[it.id], label: `Comprar ${name}${this.swapNote()}` };
@@ -482,6 +503,7 @@ export class ZombieRun extends Phase {
     if (!o) return 'Ya está abierta';
     if (o.done) return o.reason ?? 'Ya la tienes';
     if (o.ammo && this.reserveFullFor(it.id)) return 'Munición llena';
+    if (o.keypad) return 'keypad'; // caja fuerte cerrada: el modo abre el teclado
     if (this.cash < o.price) return it.kind === 'door' ? 'Dinero insuficiente' : 'Faltan puntos';
     const g = this.game;
     if (it.kind === 'box') {
@@ -581,6 +603,30 @@ export class ZombieRun extends Phase {
   reserveFullFor(id) {
     const res = this.game.weapon.reserveBy;
     return !res || RESERVE[id] === null || res[id] >= this.reserveMax(id);
+  }
+
+  // --- Caja fuerte y el Jefe ------------------------------------------------------------------------
+  // El Jefe cayó: revela el código de la caja fuerte (queda en el HUD), estalla en sangre y suelta
+  // munición máxima (premio por la pelea).
+  onBossKilled(z) {
+    const code = this.safe.reveal();
+    const g = this.game;
+    const chest = z.chestPosition(new THREE.Vector3());
+    g.effects.burst(chest, _up, '#6b0d0d', 40, 6);
+    g.effects.burst(chest, _up, '#ff3030', 16, 3.5);
+    this.blood?.pool(z.position, z.scale * 1.6);
+    this.applyPowerup('ammo');
+    this.emit('bossKill', { zombie: z, code });
+  }
+
+  /** Prueba el código escrito en el teclado de la caja fuerte (ver safe.SafeLock.submit). */
+  submitSafeCode() {
+    const r = this.safe.submit();
+    if (r === 'open') {
+      this.world.setSafeLocked?.(false);
+      this.emit('safeOpen');
+    } else if (r === 'wrong') this.emit('safeWrong', { fails: this.safe.fails });
+    return r;
   }
 
   // La caja se muda a otro lugar (al azar, nunca el mismo) y la horda recalcula sus caminos.

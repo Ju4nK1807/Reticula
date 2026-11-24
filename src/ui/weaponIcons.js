@@ -1,3 +1,5 @@
+import { FINISHES } from '../combat/weaponModels.js';
+
 // Siluetas laterales de las armas (SVG, viewBox 0 0 120 40), en el mismo estilo low-poly del juego.
 //
 // Para reemplazarlas por imágenes (en el HUD): poner el archivo en public/icons/weapons/ y su ruta en
@@ -37,5 +39,8 @@ export function weaponIconEl(id) {
   const span = document.createElement('span');
   span.className = `weapon-icon${id === 'ray' ? ' special' : ''}`;
   span.innerHTML = weaponIcon(id);
+  // Cada arma con el color de su acabado (combat/weaponModels.js): se reconocen de un vistazo.
+  const color = FINISHES[id]?.hud;
+  if (color) span.style.color = color;
   return span;
 }

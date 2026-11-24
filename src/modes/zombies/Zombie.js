@@ -67,6 +67,7 @@ export class Zombie {
     this.run = run;
     this.stats = stats;
     this.type = stats.type;
+    this.heavy = !!stats.heavy; // bruto y Jefe: no se tambalean, rugen al aparecer
     this.opts = { behavior: {} }; // compatibilidad con Phase
     this.hp = stats.hp;
     this.maxHp = stats.hp;
@@ -97,7 +98,7 @@ export class Zombie {
     this.radius = RADIUS * this.scale;
     this.dieAnim = Math.random() < 0.5 ? 'die' : 'die2';
     this.attackAnim = 'attack';
-    this.groanT = stats.type === 'brute' ? 0.2 : 1 + Math.random() * 4; // el bruto ruge al aparecer
+    this.groanT = stats.heavy ? 0.2 : 1 + Math.random() * 4; // el bruto ruge al aparecer
     this.legless = false; // una explosión le arrancó las piernas: se arrastra con los brazos
     this.bleedT = 0;
 
@@ -188,7 +189,7 @@ export class Zombie {
     // Un golpe fuerte (o en la cabeza) lo frena un instante; el bruto no se inmuta. Sin cabeza, el daño
     // "a la cabeza" es el desangrado: no lo frena (si no, quedaría congelado en vez de seguir caminando).
     const headHit = part === 'head' && !this.headless;
-    if (this.type !== 'brute' && (amount >= this.maxHp * 0.35 || headHit) && this.state !== 'attack') {
+    if (!this.heavy && (amount >= this.maxHp * 0.35 || headHit) && this.state !== 'attack') {
       this.state = 'stagger';
       this.staggerT = STAGGER_TIME;
     }
@@ -363,7 +364,7 @@ export class Zombie {
     h.x /= hl;
     h.z /= hl;
 
-    const roaring = this.type === 'brute' && this.t < ROAR_TIME;
+    const roaring = this.heavy && this.t < ROAR_TIME;
     const target = roaring ? 0 : this.stats.speed * this.pace * (this.stunT > 0 ? 0.45 : 1);
     this.speedNow += (target - this.speedNow) * Math.min(1, dt * ACCEL);
     const x0 = p.x;
@@ -464,7 +465,7 @@ export class Zombie {
    * las cajas de impacto a ras del suelo). El bruto y los que ya se arrastran no las pierden.
    */
   loseLegs() {
-    if (this.legless || this.stats.low || this.type === 'brute' || !this.alive) return false;
+    if (this.legless || this.stats.low || this.heavy || !this.alive) return false;
     this.legless = true;
     this.stats = { ...this.stats, low: true, speed: Math.min(this.stats.speed, LEGLESS_SPEED), attackRange: Math.min(this.stats.attackRange, 1.15) };
     this.buildHitboxes(CRAWLING);
@@ -483,21 +484,21 @@ export class Zombie {
   stun(t) {
     if (!this.alive) return;
     this.stunT = Math.max(this.stunT, t);
-    if (this.type !== 'brute' && this.state !== 'attack') {
+    if (!this.heavy && this.state !== 'attack') {
       this.state = 'stagger';
       this.staggerT = STAGGER_TIME;
     }
   }
 
   animKey() {
-    if (this.state === 'attack') return this.type === 'brute' ? 'heavy' : this.legless ? 'attack2' : this.attackAnim;
+    if (this.state === 'attack') return this.heavy ? 'heavy' : this.legless ? 'attack2' : this.attackAnim;
     if (this.state === 'tear') return 'attack2'; // arrancando tablones
     if (this.state === 'stagger') return this.stats.low ? (this.legless ? 'drag' : 'crawl') : 'hit';
     if (this.legless) return 'drag';
     if (this.stats.low) return 'crawl';
     if (this.type === 'runner') return 'run';
     // El bruto ruge quieto al aparecer y luego camina con el ciclo rápido a un ritmo acorde a su tamaño.
-    if (this.type === 'brute') return this.t < ROAR_TIME ? 'scream' : 'fast';
+    if (this.heavy) return this.t < ROAR_TIME ? 'scream' : 'fast';
     // El ciclo lento (arrastrando los pies) solo para los que van despacio: acelerado parecía cámara rápida.
     return this.stats.speed * this.pace > 1.05 ? 'fast' : 'walk';
   }

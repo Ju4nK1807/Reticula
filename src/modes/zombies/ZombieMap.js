@@ -16,6 +16,7 @@ import { HOSPITAL, SUBESTACION, buildHospital, buildSubestacion, sign } from './
 import { buildCircus, circusMaterials } from './circo.js';
 import { DECK_H, FERIA, buildFeria, feriaFloors } from './feria.js';
 import { RELICARIO_BOX, buildRelicario } from './relicario.js';
+import { SAFE_COLORS, buildSafeModel } from './cajaFuerte.js';
 
 const plankGeo = new THREE.BoxGeometry(1, 1, 1);
 // Bancos de niebla según el detalle: son cuadros transparentes grandes (cuestan relleno de píxeles), así
@@ -93,7 +94,7 @@ function mergeChildren(group) {
   - doors: { [puerta]: { section, open, collider, solid, group } } · isOpen(sección) · openDoor(id) ·
     resetDoors(). Las puertas se compran desde cualquiera de sus dos lados.
   - interactables: [{ kind: 'door' | 'wallbuy' | 'perk' | 'box' | 'power' | 'forge', id, pos, radius }]
-    — lo que se usa con la tecla de usar (E): puertas, armas de la pared, bebidas, la caja misteriosa,
+    — lo que se usa con la tecla de usar (E): puertas, armas de la pared, bebidas, la caja fuerte,
     la palanca del generador y la Forja.
   - setPower(on): la electricidad (luces, máquinas y la Forja).
   - nav: límites para la cuadrícula de navegación (todo el mapa).
@@ -176,7 +177,7 @@ const WALL_SPOTS = [
   ['rifle', -14, -48, 'e'], // en la farmacia del hospital
   ['ray', 60, 50.5, 'e', DECK_H], // arma especial: arriba, en la terraza de la Casa de la Risa (Feria)
 ];
-// Lugares de la caja misteriosa: empieza en el Relicario (rincón cerrado de la plaza, relicario.js) y,
+// Lugares de la caja fuerte: empieza en el Relicario (rincón cerrado de la plaza, relicario.js) y,
 // cada tantos usos, se muda a otro.
 export const BOX_SPOTS = [
   RELICARIO_BOX,
@@ -356,7 +357,7 @@ export class ZombieMap extends World {
       for (let i = 0; i <= 2; i++) block(0.12, 1.5, 0.12, M.metal, x - w / 2 + (i * w) / 2, z, 0);
     }
 
-    // Relicario: el rincón de la caja misteriosa, en la esquina noreste.
+    // Relicario: el rincón de la caja fuerte, en la esquina noreste.
     buildRelicario(this, M);
 
     // --- Luces de la plaza: farolas y barriles con fuego ------------------------------------------------
@@ -382,7 +383,7 @@ export class ZombieMap extends World {
     const placements = [];
     for (const [weapon, x, z, side, y0] of WALL_SPOTS) placements.push(this.wallBuy(weapon, x, z, side, y0));
     this.wallWeapons = placeWeapons(this.scene, placements).catch(() => null); // modelos 3D (llegan después)
-    this.mysteryBox(BOX_SPOTS[0], M);
+    this.mysteryBox(BOX_SPOTS[0]);
     this.forge(FORGE_SPOT, M);
     // Charcos (mojados: reflejan las luces) y manchas en la plaza y las calles.
     for (const [x, z, s, ry] of [[-6, 7, 2.6, 0.3], [10.5, -11, 3.2, 1.2], [-12.5, -7, 2.2, 2.2], [3, -17.5, 2.4, 0.7], [16.5, 5, 1.9, 1.9], [-4, -3.5, 2.8, 2.6], [6, 2, 1.6, 0.9], [44, 12, 3, 0.4], [10, -44, 2.5, 1.7]]) this.decal('puddle', x, z, s, ry);
@@ -591,7 +592,15 @@ export class ZombieMap extends World {
     const p = b.planks[b.boards];
     p.t = 0;
     p.dir = -1;
+    this.syncWindow(b);
     return true;
+  }
+
+  // Ventana del circo: bloquea al jugador mientras le quede algún tablón; sin tablones, se cruza.
+  syncWindow(b) {
+    if (!b.blocker) return;
+    if (b.boards > 0) b.blocker.box.copy(b.blocker.home);
+    else b.blocker.box.makeEmpty();
   }
 
   /** El jugador vuelve a clavar un tablón. Devuelve false si ya estaba completa. */
@@ -602,6 +611,7 @@ export class ZombieMap extends World {
     p.t = 0;
     p.dir = 1;
     p.visible = true;
+    this.syncWindow(b);
     return true;
   }
 
@@ -609,6 +619,7 @@ export class ZombieMap extends World {
   resetBarricades() {
     for (const b of this.barricades) {
       b.boards = b.max;
+      this.syncWindow(b);
       for (const p of b.planks) {
         p.t = -1;
         p.dir = 0;
@@ -1077,13 +1088,16 @@ export class ZombieMap extends World {
         a = at + w / 2;
       }
     }
-    // Ventanas: el jugador no puede salir por ellas; la horda entra arrancando los tablones.
+    // Ventanas: la horda entra arrancando los tablones. Mientras quede alguno, el jugador no pasa (los
+    // tablones lo tapan); con la ventana sin tablones, el hueco se ve libre y también se puede cruzar
+    // (syncWindow). Al repararla, se vuelve a cerrar.
     for (const [side, at] of LOBBY_WINDOWS) {
       const inward = side === 'n' ? new THREE.Vector3(0, 0, 1) : side === 'o' ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(-1, 0, 0);
       const mouth = side === 'n' ? new THREE.Vector3(at, 0, r.minZ) : side === 'o' ? new THREE.Vector3(r.minX, 0, at) : new THREE.Vector3(r.maxX, 0, at);
       const alongX = side === 'n';
       if (alongX) this.playerBlocker(at - WINDOW_W / 2, at + WINDOW_W / 2, mouth.z - 0.5, mouth.z + 0.5);
       else this.playerBlocker(mouth.x - 0.5, mouth.x + 0.5, at - WINDOW_W / 2, at + WINDOW_W / 2);
+      const blocker = this.playerBlockers.at(-1);
       const entry = {
         id: this.entries.length,
         section: 'lobby',
@@ -1095,6 +1109,7 @@ export class ZombieMap extends World {
       };
       this.entries.push(entry);
       this.barricade(entry, mouth, alongX ? 'x' : 'z', WINDOW_W, inward, M);
+      entry.barricade.blocker = { box: blocker, home: blocker.clone() };
     }
     this.door('plaza', new THREE.Vector3(LOBBY_DOOR.at, 0, r.minZ), { across: 'x', inward: new THREE.Vector3(0, 0, 1), width: LOBBY_DOOR.width }, M);
     // Luz del cuarto (cálida, colgada del muro): tiene generador propio, funciona sin electricidad.
@@ -1103,43 +1118,32 @@ export class ZombieMap extends World {
     this.pools.push({ pos: new THREE.Vector3(0, 0.02, r.maxZ - 2.5), radius: 5, color: '#ffb470', power: false });
   }
 
-  // Caja misteriosa: un arma al azar por puntos, con su haz de luz que se ve desde lejos.
-  // Caja misteriosa: un arma al azar por puntos, con su haz de luz que se ve desde lejos. Cada tantos
-  // usos se muda a otro de BOX_SPOTS (moveBox): hay que ir a buscarla.
-  mysteryBox(spot, M) {
-    const g = new THREE.Group();
-    g.userData.dynamic = true;
-    const box = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.85, 0.85), M.wood);
-    box.position.y = 0.425;
-    g.add(box);
-    for (const sx of [-0.83, 0.83]) {
-      for (const sz of [-0.41, 0.41]) {
-        const corner = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.88, 0.1), M.metal);
-        corner.position.set(sx, 0.44, sz);
-        g.add(corner);
-      }
-    }
-    const band = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.07, 0.89), glow('#7fd4ff'));
-    band.position.y = 0.78;
-    g.add(band);
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.2), new THREE.MeshBasicMaterial({ map: signTexture('?', '#7fd4ff'), transparent: true, toneMapped: false }));
-    sign.position.set(0, 0.45, 0.43);
-    g.add(sign);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 40, 12, 1, true), new THREE.MeshBasicMaterial({ color: '#7fd4ff', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
-    beam.position.y = 20;
-    beam.userData.noShadow = true;
-    g.add(beam);
+  // Caja fuerte (la caja de armas, cajaFuerte.js): cerrada con un código que suelta el Jefe al morir;
+  // abierta, da un arma al azar por puntos. Su haz de luz (rojo cerrada, verde abierta) se ve desde
+  // lejos. Cada tantos usos se muda a otro de BOX_SPOTS (moveBox): hay que ir a buscarla.
+  mysteryBox(spot) {
+    const model = buildSafeModel();
+    const g = model.group;
+    const box = model.body;
     this.scene.add(g);
     const collider = new THREE.Box3();
     this.solids.push(box);
     this.colliders.push(collider);
     const it = { kind: 'box', id: 'box', pos: new THREE.Vector3(), radius: 1.7 };
     this.interactables.push(it);
-    this.box = { group: g, box, collider, it, spot: 0, glow: this.lights.add({ pos: new THREE.Vector3(), color: '#7fd4ff', intensity: 9, distance: 6, power: false }) };
+    this.box = { group: g, box, model, collider, it, spot: 0, glow: this.lights.add({ pos: new THREE.Vector3(), color: SAFE_COLORS.locked, intensity: 9, distance: 6, power: false }) };
     this.moveBox(BOX_SPOTS.indexOf(spot));
   }
 
-  /** Lleva la caja misteriosa al lugar `i` de BOX_SPOTS (su colisionador y su luz con ella). */
+  /** La caja fuerte cerrada (rojo) o abierta (verde, con la puerta abierta). */
+  setSafeLocked(locked) {
+    const b = this.box;
+    if (!b) return;
+    b.model.setLocked(locked);
+    b.glow.color.set(locked ? SAFE_COLORS.locked : SAFE_COLORS.open);
+  }
+
+  /** Lleva la caja fuerte al lugar `i` de BOX_SPOTS (su colisionador y su luz con ella). */
   moveBox(i) {
     const b = this.box;
     const spot = BOX_SPOTS[i] ?? BOX_SPOTS[0];
@@ -1443,6 +1447,7 @@ export class ZombieMap extends World {
     // Palanca del generador (sube o baja suave) y baliza que gira.
     const lv = this.lever;
     if (lv) lv.group.rotation.x += ((lv.target ?? lv.off) - lv.group.rotation.x) * Math.min(1, dt * 6);
+    this.box?.model.update(dt); // puerta de la caja fuerte al abrirse
     if (this.beacon?.mesh.visible) {
       this.beacon.mesh.rotation.y += dt * 5;
       this.beacon.src.intensity = 18 + 16 * Math.max(0, Math.sin(this.fireT * 5));

@@ -1,4 +1,4 @@
-// Electricidad, bebidas, Forja, caja misteriosa que se muda y Último Aliento, con la partida real
+// Electricidad, bebidas, Forja, caja fuerte (código del Jefe) que se muda y Último Aliento, con la partida real
 // (ZombieRun) sobre el mapa real y el arma real (sin navegador: los modelos no se cargan).
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -105,10 +105,49 @@ describe('Forja', () => {
   });
 });
 
-describe('caja misteriosa', () => {
+describe('caja fuerte', () => {
+  it('empieza cerrada: pide el código (sin cobrar) y con el código equivocado se bloquea un rato', () => {
+    const { run, events } = makeRun();
+    run.cash = BOX_PRICE * 5;
+    expect(run.safe.unlocked).toBe(false);
+    expect(run.offer(world.box.it)).toMatchObject({ keypad: true, price: 0 });
+    expect(run.buy(world.box.it)).toBe('keypad');
+    expect(run.cash).toBe(BOX_PRICE * 5);
+    const wrong = run.safe.code === '0000' ? '1111' : '0000';
+    for (const d of wrong) run.safe.press(d);
+    expect(run.submitSafeCode()).toBe('wrong');
+    expect(events.some(([t]) => t === 'safeWrong')).toBe(true);
+    expect(run.safe.unlocked).toBe(false);
+    for (const d of run.safe.code) run.safe.press(d); // bloqueado: no escribe
+    expect(run.safe.entry).toBe('');
+  });
+
+  it('con el código queda abierta (luz verde) y da armas por puntos', () => {
+    const { run, events } = makeRun();
+    run.cash = BOX_PRICE * 5;
+    for (const d of run.safe.code) run.safe.press(d);
+    expect(run.submitSafeCode()).toBe('open');
+    expect(events.some(([t]) => t === 'safeOpen')).toBe(true);
+    expect(world.box.model.color).toBe('#3dff8a');
+    expect(run.buy(world.box.it)).toBeNull();
+    expect(run.cash).toBe(BOX_PRICE * 4);
+    expect(events.some(([t]) => t === 'box')).toBe(true);
+  });
+
+  it('una partida nueva la vuelve a cerrar con otro código', () => {
+    const a = makeRun().run;
+    for (const d of a.safe.code) a.safe.press(d);
+    a.submitSafeCode();
+    const b = makeRun().run;
+    expect(b.safe.unlocked).toBe(false);
+    expect(world.box.model.color).toBe('#ff3030');
+  });
+
   it('después de varias tiradas se muda a otro lugar (y la navegación lo sabe)', () => {
     world.moveBox(0);
     const { run, events } = makeRun();
+    for (const d of run.safe.code) run.safe.press(d);
+    run.submitSafeCode();
     run.cash = BOX_PRICE * 20;
     run.boxMoveAt = 2;
     const before = world.box.spot;
@@ -121,6 +160,33 @@ describe('caja misteriosa', () => {
     expect(events.some(([t, d]) => t === 'boxMove' && typeof d.where === 'string')).toBe(true);
     expect(world.colliders.includes(world.box.collider)).toBe(true);
     world.moveBox(0);
+  });
+});
+
+describe('El Jefe', () => {
+  it('al morir suelta el código de la caja fuerte (y munición máxima)', () => {
+    const { run, events } = makeRun();
+    run.startWave(3);
+    const boss = run.spawn('boss');
+    expect(boss.heavy).toBe(true);
+    expect(run.boss).toBe(boss);
+    expect(events.some(([t]) => t === 'bossSpawn')).toBe(true);
+    expect(run.safe.known).toBe(false);
+    run.hitZombie(boss, boss.hp + 1, 'body');
+    expect(run.safe.known).toBe(true);
+    const ev = events.find(([t]) => t === 'bossKill');
+    expect(ev?.[1].code).toBe(run.safe.code);
+    expect(run.offer(world.box.it).label).toContain(run.safe.code);
+    run.update(1 / 60);
+    expect(run.boss).toBeNull();
+  });
+
+  it('es más grande y aguanta mucho más que un bruto', () => {
+    const cfg = waveConfig(3);
+    const boss = zombieStats('boss', cfg);
+    const brute = zombieStats('brute', cfg);
+    expect(boss.height).toBeGreaterThan(brute.height);
+    expect(boss.hp).toBeGreaterThan(brute.hp * 3);
   });
 });
 

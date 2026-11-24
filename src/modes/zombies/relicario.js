@@ -3,7 +3,7 @@ import { glow } from '../../gfx/surfaces.js';
 import { sign } from './sections.js';
 
 /*
-  Relicario: rincón cerrado en la esquina noreste de la plaza, donde empieza la caja misteriosa (y adonde
+  Relicario: rincón cerrado en la esquina noreste de la plaza, donde empieza la caja fuerte (y adonde
   vuelve cuando se muda a la plaza). Dos muros nuevos contra las fachadas norte y este, una sola entrada
   angosta en el sur, cortinas rojas, velas y un cartel sobre la puerta. Es un callejón sin salida: entrar
   a usar la caja tiene su riesgo.
