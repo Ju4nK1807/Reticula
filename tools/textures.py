@@ -19,7 +19,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT / 'src' / 'gfx' / 'surfaces.json'
@@ -76,6 +76,9 @@ def process(key, entry, force):
     if entry.get('gray'):
         # Superficie neutra: solo luminancia; el color lo pone la paleta del mapa al teñir.
         images['albedo'] = images['albedo'].convert('L').convert('RGB')
+    if entry.get('contrast'):
+        # Más contraste en el color (las armas se ven de cerca y teñidas: sin esto el desgaste no se nota).
+        images['albedo'] = ImageEnhance.Contrast(images['albedo'].convert('RGB')).enhance(entry['contrast'])
     for size_key, px in SIZES.items():
         for name, img in images.items():
             dest = OUT / key / size_key / f'{name}.webp'

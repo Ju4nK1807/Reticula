@@ -2,23 +2,22 @@
 
 .zh-root[hidden] { display: none; }
 
-/* Panel de oleada (arriba a la izquierda, bajo la etiqueta del modo). */
-.zh-panel {
-  position: absolute; left: 22px; top: 44px; display: flex; align-items: center; gap: 14px;
-  padding: 8px 14px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.7); border: 1px solid var(--line);
-}
-.zh-wave { display: flex; flex-direction: column; align-items: center; line-height: 1; }
-.zh-wave small { font: 600 10px var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+/* Número de la ronda (arriba a la izquierda): solo el número, en letra de terror que chorrea sangre,
+   sin recuadro. Late al cambiar de ronda. */
+.zh-panel { position: absolute; left: 24px; top: 40px; pointer-events: none; }
+.zh-wave { line-height: 1; }
 .zh-wave strong {
-  font: 700 46px var(--font-display); color: #c3241a; letter-spacing: 0.02em;
-  text-shadow: 0 2px 0 #3a0806, 0 0 18px rgba(195, 36, 26, 0.55);
+  display: inline-block; font: 400 72px 'Creepster', var(--font-display); color: #a3110c; letter-spacing: 0.04em;
+  text-shadow: 0 3px 0 #2a0302, 0 0 14px rgba(170, 10, 8, 0.75), 0 0 34px rgba(120, 0, 0, 0.55);
+  transform-origin: left center; animation: zh-wave-throb 3.2s ease-in-out infinite;
 }
-.zh-wave strong.pop { animation: zh-wave-pop 1.6s var(--ease-out); }
+.zh-wave strong.pop { animation: zh-wave-pop 1.8s var(--ease-out); }
 @keyframes zh-wave-pop {
-  0% { color: #fff; transform: scale(1.5); text-shadow: 0 0 30px rgba(255, 255, 255, 0.8); }
-  35% { color: #ff3a2a; transform: scale(1.1); }
-  100% { color: #c3241a; transform: scale(1); }
+  0% { color: #fff2ee; transform: scale(1.6); text-shadow: 0 0 34px rgba(255, 40, 30, 0.95); }
+  35% { color: #ff2a1a; transform: scale(1.12); }
+  100% { color: #a3110c; transform: scale(1); }
 }
+@keyframes zh-wave-throb { 50% { color: #c21812; text-shadow: 0 3px 0 #2a0302, 0 0 20px rgba(200, 16, 10, 0.9), 0 0 44px rgba(140, 0, 0, 0.6); } }
 
 /* Viñeta (calidad media y baja: en alta la pone el postproceso) y bordes rojos al estar herido. */
 .zh-vignette, .zh-hurt { position: absolute; inset: 0; pointer-events: none; }
@@ -34,8 +33,6 @@
   padding: 4px 10px; border-radius: var(--r-sm); background: rgba(9, 13, 19, 0.75); border: 1px solid rgba(255, 90, 60, 0.5);
 }
 .zh-nopower[hidden] { display: none; }
-.zh-meta { display: flex; flex-direction: column; gap: 4px; font: 600 13px var(--font-display); letter-spacing: 0.06em; }
-.zh-tag { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #ffb020; }
 
 /* Puntos para la armería (arriba a la derecha). */
 .zh-cash {
@@ -110,14 +107,6 @@
 .zh-prompt.poor .zh-p-price,
 .zh-prompt.poor .zh-p-text { color: #ff6b6b; }
 
-/* Cartel central. */
-.zh-banner {
-  position: absolute; left: 50%; top: 24%; transform: translateX(-50%); text-align: center;
-  padding: 12px 26px; border-radius: var(--r-md); background: rgba(9, 13, 19, 0.72); border: 1px solid rgba(255, 90, 74, 0.35);
-}
-.zh-b-title { font: 700 26px var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: #ff5a4a; }
-.zh-b-sub { margin-top: 4px; font-size: 14px; color: var(--text); }
-
 /* Flechas de amenaza alrededor de la mira. */
 .zh-arrows { position: absolute; left: 50%; top: 50%; }
 .zh-arrow {
@@ -160,12 +149,10 @@
 
 /* Teléfonos en horizontal. */
 @media (max-height: 520px) {
-  .zh-panel { top: 34px; padding: 4px 10px; }
-  .zh-wave strong { font-size: 22px; }
+  .zh-panel { top: 30px; }
+  .zh-wave strong { font-size: 48px; }
   .zh-cash { top: 34px; padding: 4px 10px; }
   .zh-cash strong { font-size: 18px; }
-  .zh-banner { top: 18%; padding: 8px 16px; }
-  .zh-b-title { font-size: 18px; }
   .zh-side { bottom: 120px; }
   .zh-records { grid-template-columns: repeat(2, 1fr); }
   .zh-shop-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
@@ -175,13 +162,16 @@
 }
 /* Modo táctil: la derecha es de la munición, la vida y los botones; abajo a la izquierda va el pulgar
    del joystick. Puntos, granadas y potenciadores van en columna bajo el panel de oleada. */
-.touch-mode .zh-panel { left: 72px; }
+.touch-mode .zh-panel { left: 72px; top: 36px; }
+.touch-mode .zh-wave strong { font-size: 56px; }
 .touch-mode .zh-cash { right: auto; left: 72px; top: 108px; align-items: flex-start; }
 .touch-mode .zh-gain { right: auto; left: 14px; }
 .touch-mode .zh-side { right: auto; left: 72px; top: 172px; bottom: auto; align-items: flex-start; }
 .touch-mode .zh-barbox { right: auto; left: 72px; top: 234px; align-items: flex-start; }
 .touch-mode .zh-powers { align-items: flex-start; }
 @media (max-height: 520px) {
+  .touch-mode .zh-panel { top: 28px; }
+  .touch-mode .zh-wave strong { font-size: 46px; }
   .touch-mode .zh-cash { top: 86px; }
   .touch-mode .zh-side { top: 140px; }
   .touch-mode .zh-barbox { top: 196px; min-width: 140px; padding: 4px 10px; }
@@ -210,17 +200,6 @@
 .zh-light.empty { color: #ff8a8a; border-color: rgba(255, 77, 77, 0.4); }
 @keyframes zh-light-low { 50% { border-color: rgba(255, 77, 77, 0.6); } }
 .touch-mode .zh-light { bottom: auto; top: 236px; left: 72px; }
-
-/* El Jefe: barra de vida arriba al centro (mientras vive). */
-.zh-boss {
-  position: absolute; left: 50%; top: 86px; transform: translateX(-50%); width: min(420px, 70vw); text-align: center;
-  padding: 6px 12px 7px; border-radius: var(--r-md); background: rgba(14, 6, 8, 0.78); border: 1px solid rgba(255, 40, 60, 0.45);
-}
-.zh-boss[hidden] { display: none; }
-.zh-boss-name { font: 700 15px var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; color: #ff3046; }
-.zh-boss-meter { height: 8px; margin: 4px 0 3px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
-.zh-boss-meter i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #7a0a14, #ff3046); transition: width 0.15s; }
-.zh-boss small { font-size: 11px; color: var(--muted); }
 
 /* Código de la caja fuerte (lo soltó el Jefe): bajo los puntos. */
 .zh-code {

@@ -83,13 +83,13 @@ function texture(key, size, map) {
 }
 
 // Color que, multiplicado por el albedo medio de la textura, da el color de la paleta.
-export function tintFor(key, color) {
+export function tintFor(key, color, max = MAX_TINT) {
   const target = new THREE.Color(color); // lineal
   const mean = STATS[key]?.mean ?? [0.5, 0.5, 0.5];
   return new THREE.Color(
-    Math.min(MAX_TINT, target.r / Math.max(mean[0], 1e-3)),
-    Math.min(MAX_TINT, target.g / Math.max(mean[1], 1e-3)),
-    Math.min(MAX_TINT, target.b / Math.max(mean[2], 1e-3)),
+    Math.min(max, target.r / Math.max(mean[0], 1e-3)),
+    Math.min(max, target.g / Math.max(mean[1], 1e-3)),
+    Math.min(max, target.b / Math.max(mean[2], 1e-3)),
   );
 }
 
@@ -99,12 +99,14 @@ function applyDetail(mat) {
   mat.map = texture(key, d.size, 'albedo');
   mat.normalMap = d.normal ? texture(key, d.size, 'normal') : null;
   const arm = d.arm ? texture(key, d.size, 'arm') : null;
+  const u = mat.userData;
   mat.aoMap = arm;
   mat.roughnessMap = arm;
-  mat.metalnessMap = arm;
-  // Sin ARM: rugoso y no metálico (aspecto mate uniforme).
-  mat.roughness = arm ? 1 : 0.88;
-  mat.metalness = arm ? mat.userData.metal : 0;
+  // metalMap = false: la metalicidad es fija (u.metal), no la de la textura (armas de metal pintado).
+  mat.metalnessMap = u.metalMap === false ? null : arm;
+  // Sin ARM: rugoso y no metálico (aspecto mate uniforme), salvo que el material fije los suyos.
+  mat.roughness = arm ? (u.rough ?? 1) : (u.baseRough ?? 0.88);
+  mat.metalness = arm || u.metalMap === false ? u.metal : 0;
   mat.needsUpdate = true;
 }
 
@@ -114,12 +116,12 @@ function applyDetail(mat) {
  * @param {THREE.ColorRepresentation} color  color medio deseado (el de la paleta del mapa)
  * @param {{ flat?: boolean, metal?: number, normalScale?: number }} [opts]
  */
-export function surface(key, color, { flat = false, metal = 0.35, normalScale = 1 } = {}) {
+export function surface(key, color, { flat = false, metal = 0.35, normalScale = 1, metalMap = true, rough, baseRough, maxTint = MAX_TINT } = {}) {
   if (!CATALOG[key]) throw new Error(`Superficie desconocida: ${key}`);
-  const mat = new THREE.MeshStandardMaterial({ color: tintFor(key, color), flatShading: flat });
+  const mat = new THREE.MeshStandardMaterial({ color: tintFor(key, color, maxTint), flatShading: flat });
   mat.normalScale.set(normalScale, normalScale);
   mat.aoMapIntensity = 0.8;
-  mat.userData = { surface: key, tile: CATALOG[key].tile, metal };
+  mat.userData = { surface: key, tile: CATALOG[key].tile, metal, metalMap, rough, baseRough };
   applyDetail(mat);
   materials.add(mat);
   mat.addEventListener('dispose', () => materials.delete(mat));

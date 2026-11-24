@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { HorrorMusic } from '../../audio/HorrorMusic.js';
+import '@fontsource/creepster/latin-400.css'; // letra de terror del número de ronda (OFL)
 import './zombies.css';
 import { Mode } from '../Mode.js';
 import { Ambience } from '../../effects/Ambience.js';
@@ -24,11 +25,10 @@ export const WORLD_ID = 'ruins';
 
 const DEATH_TIME = 2.2; // s de cámara lenta antes del resumen
 const DEATH_SLOWMO = 0.3;
-const WAVE_BANNER = 2.2;
 const COMBAT = new Set(['countdown', 'wave', 'intermission']);
 // Zombis que se dejan creados en la reserva entre oleadas (uno por cuadro, sin que se note): crear uno
 // en plena oleada (clonar el esqueleto y armar sus animaciones) era lo que producía tirones. Todos los
-// tipos usan el mismo modelo, así que una sola reserva cubre una oleada llena (hasta 24 vivos) y los
+// tipos usan el mismo modelo, así que una sola reserva cubre una oleada llena (hasta 35 vivos) y los
 // que mueren mientras salen otros.
 // Material del brillo de las armas forjadas (aditivo, animado, sin profundidad: va encima del arma).
 const FORGE_GLOW = new THREE.ShaderMaterial({
@@ -45,8 +45,8 @@ const FORGE_GLOW = new THREE.ShaderMaterial({
   depthWrite: false,
   blending: THREE.AdditiveBlending,
 });
-const PREFILL = 30;
-const WARM = 26; // los que se crean mientras se lee la pantalla de inicio
+const PREFILL = 42;
+const WARM = 32; // los que se crean mientras se lee la pantalla de inicio
 // Color de la noche de terror (calidad alta): desaturado y frío, negros profundos, viñeta fuerte y grano.
 const GRADE = { saturation: 0.74, contrast: 1.16, vignette: 0.95, grain: 0.045, lift: [0, 0.003, 0.008], gain: [0.98, 0.99, 1.0] };
 // Cámara más cerrada que en los demás modos (aumento sobre el campo de visión elegido): se ve menos
@@ -77,7 +77,6 @@ export class Zombies extends Mode {
     this.timer = 0;
     this.nextWave = 1;
     this.lastBeep = null;
-    this.waveBannerT = 0;
     this.shopOpen = false;
     // Granadas por tipo (las lee combat/Grenades.js).
     this.grenadeBag = { frag: 0, fire: 0, stun: 0, decoy: 0 };
@@ -152,7 +151,7 @@ export class Zombies extends Mode {
 
   // Mientras se lee la pantalla de inicio: carga los modelos, compila sus sombreadores (dibujo real,
   // diminuto, detrás del menú) y deja zombis creados en reserva. El primero ya no traba la partida.
-  // La reserva cubre una oleada llena (hasta 24 vivos): crear un zombi en plena partida (clonar su
+  // La reserva cubre una oleada llena (hasta 35 vivos): crear un zombi en plena partida (clonar su
   // esqueleto) costaba varios ms y se notaba como tirones cuando aparecían muchos a la vez. Se crean
   // de a pocos, cediendo el hilo entre tandas, para no trabar la pantalla de inicio.
   async warmZombies() {
@@ -544,7 +543,6 @@ export class Zombies extends Mode {
   startWave() {
     this.state = 'wave';
     this.run.startWave(this.nextWave);
-    this.waveBannerT = WAVE_BANNER;
   }
 
   update(dt) {
@@ -564,7 +562,6 @@ export class Zombies extends Mode {
         break;
       case 'wave':
         run.update(dt);
-        this.waveBannerT -= dt;
         if (run.died) this.die();
         else if (run.state === 'clear') {
           this.state = 'intermission';
@@ -838,6 +835,32 @@ export class Zombies extends Mode {
         hud.flash('¡Llegó El Jefe! Lleva el código de la caja fuerte', 'bad');
         sfx.zombieVoice('roar', this.game.panFor(data.zombie.position), 6);
         break;
+      case 'boss': { // ataques especiales del Jefe (ZombieRun.bossAction)
+        const z = data.zombie;
+        const pan = this.game.panFor(z.position);
+        const dist = z.position.distanceTo(this.game.player.position);
+        const g = this.game;
+        if (data.kind === 'chargeWind') {
+          sfx.zombieVoice('roar', pan, Math.min(dist, 4));
+          hud.flash('¡El Jefe va a embestir! Sal de su camino', 'bad');
+        } else if (data.kind === 'slamWind') sfx.zombieVoice('brute', pan, dist);
+        else if (data.kind === 'slam') {
+          sfx.explosion(Math.max(4, dist), pan);
+          g.grenades.shake = Math.max(g.grenades.shake ?? 0, Math.max(0.15, 0.7 - dist * 0.05));
+        } else if (data.kind === 'chargeHit') g.grenades.shake = Math.max(g.grenades.shake ?? 0, 0.6);
+        else if (data.kind === 'crash') {
+          sfx.explosion(Math.max(18, dist), pan); // golpe sordo contra la pared
+          g.grenades.shake = Math.max(g.grenades.shake ?? 0, Math.max(0.1, 0.4 - dist * 0.03));
+          hud.flash('El Jefe quedó aturdido: ¡a la cabeza!', 'good');
+        } else if (data.kind === 'summon') {
+          sfx.zombieVoice('roar', pan, Math.min(dist, 5));
+          if (data.spawned) hud.flash('El Jefe llamó a la horda', 'bad');
+        } else if (data.kind === 'enrage') {
+          sfx.zombieVoice('roar', pan, Math.min(dist, 3));
+          hud.flash('El Jefe está furioso', 'bad');
+        }
+        break;
+      }
       case 'bossKill':
         hud.flash(`El Jefe cayó · código de la caja fuerte: ${data.code}`, 'good');
         sfx.complete();

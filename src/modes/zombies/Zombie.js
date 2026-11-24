@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { acquireZombieSkin, loadZombieModel, releaseZombieSkin } from './zombieSkin.js';
 import { pushCircleOut } from '../../physics/obb.js';
 import { DEFENSE } from './zombieData.js';
+import { BossBrain } from './bossBrain.js';
 
 /*
   Un zombi. Misma interfaz que los bots para que Phase, Ballistics y el jugador lo traten igual:
@@ -101,6 +102,7 @@ export class Zombie {
     this.groanT = stats.heavy ? 0.2 : 1 + Math.random() * 4; // el bruto ruge al aparecer
     this.legless = false; // una explosión le arrancó las piernas: se arrastra con los brazos
     this.bleedT = 0;
+    this.brain = stats.boss ? new BossBrain(this) : null; // ataques especiales del Jefe
 
     this.group = new THREE.Group();
     this.group.position.copy(position);
@@ -256,6 +258,16 @@ export class Zombie {
       this.group.rotation.y = this.yaw;
       this.group.updateMatrixWorld(true);
       this.updateSkin(dt, 'attack');
+      return;
+    }
+
+    // El Jefe: mientras hace un ataque especial (bossBrain.js), él decide cómo se mueve.
+    if (this.brain?.update(dt, ctx, dist, pdx, pdz)) {
+      this.separate(dt, ctx, 0.5);
+      p.y = this.floorY = this.run.world?.floorAt?.(p.x, p.z, this.floorY) ?? 0;
+      this.group.rotation.y = this.yaw;
+      this.group.updateMatrixWorld(true);
+      this.updateSkin(dt, this.brain.anim);
       return;
     }
 

@@ -166,5 +166,29 @@
       0.23595,
       0.19946
     ]
+  },
+  "gun_paint": {
+    "asset": "green_metal_rust",
+    "mean": [
+      0.06035,
+      0.06035,
+      0.06035
+    ]
+  },
+  "gun_grip": {
+    "asset": "rubberized_track",
+    "mean": [
+      0.07229,
+      0.07229,
+      0.07229
+    ]
+  },
+  "gun_wood": {
+    "asset": "dark_wood",
+    "mean": [
+      0.14083,
+      0.02042,
+      0.00448
+    ]
   }
 }

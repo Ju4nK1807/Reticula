@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { surface } from '../gfx/surfaces.js';
 
 /*
   Modelos 3D de las armas en primera persona (GLB optimizados, CC0; ver public/models/weapons/credits.json).
@@ -29,26 +30,26 @@ export const FINISHES = {
   // Pistola: polímero negro con corredera de acero pulido y miras verdes.
   pistol: { name: 'Acero y polímero', hud: '#57ff9a', frame: F('#16181b', 0.62, 0.15), metal: F('#7d848e', 0.26, 0.95), wood: F('#2a2420', 0.7, 0), light: F('#57ff9a', 0.4, 0, 1.6), red: F('#ff3b3b', 0.4, 0, 1.4), brass: F('#b08a3c', 0.3, 1) },
   // Subfusil: polímero color arena (coyote) con metal negro y detalles cian.
-  smg: { name: 'Arena del desierto', hud: '#e0b878', frame: F('#a8885a', 0.68, 0.05), metal: F('#25282c', 0.4, 0.8), wood: F('#8a6c45', 0.66, 0), light: F('#36d6ff', 0.4, 0, 1.6), red: F('#36d6ff', 0.4, 0, 1.6), brass: F('#b08a3c', 0.3, 1) },
+  smg: { woodTex: 'gun_wood', name: 'Arena del desierto', hud: '#e0b878', frame: F('#a8885a', 0.68, 0.05), metal: F('#25282c', 0.4, 0.8), wood: F('#8a6c45', 0.66, 0), light: F('#36d6ff', 0.4, 0, 1.6), red: F('#36d6ff', 0.4, 0, 1.6), brass: F('#b08a3c', 0.3, 1) },
   // Rifle: verde militar (ranger) con cajón negro y miras verde lima.
   rifle: { name: 'Verde militar', hud: '#8fd16a', frame: F('#4c5a37', 0.66, 0.08), metal: F('#22252a', 0.38, 0.85), wood: F('#5f6d44', 0.64, 0), light: F('#00ffa3', 0.4, 0, 1.6), red: F('#00ffa3', 0.4, 0, 1.6), brass: F('#b08a3c', 0.3, 1) },
   // Escopeta: acero pavonado azulado, madera de nogal y punto de mira rojo.
-  shotgun: { name: 'Pavonado y nogal', hud: '#ff6a4a', frame: F('#1f2738', 0.3, 0.88), metal: F('#334058', 0.28, 0.9), wood: F('#7b4424', 0.55, 0), light: F('#d8dde6', 0.35, 0.6), red: F('#ff3324', 0.4, 0, 1.8), brass: F('#c49a3e', 0.28, 1) },
+  shotgun: { woodTex: 'gun_wood', name: 'Pavonado y nogal', hud: '#ff6a4a', frame: F('#1f2738', 0.3, 0.88), metal: F('#334058', 0.28, 0.9), wood: F('#7b4424', 0.55, 0), light: F('#d8dde6', 0.35, 0.6), red: F('#ff3324', 0.4, 0, 1.8), brass: F('#c49a3e', 0.28, 1) },
   // Francotirador: camuflaje ártico (blanco hueso) con metal negro y detalles rojos.
   sniper: { name: 'Ártico', hud: '#e8ece6', frame: F('#d6d9d2', 0.72, 0.02), metal: F('#2b2f34', 0.36, 0.85), wood: F('#c3c7bd', 0.7, 0), light: F('#ff4d6d', 0.4, 0, 1.5), red: F('#ff4d6d', 0.4, 0, 1.5), brass: F('#b08a3c', 0.3, 1) },
   // Revólver: niquelado brillante con cachas de palo de rosa y detalles dorados.
-  magnum: { name: 'Niquelado', hud: '#ffd94d', frame: F('#c9ccd2', 0.16, 1), metal: F('#e4e6ea', 0.12, 1), wood: F('#5c1f16', 0.48, 0), light: F('#ffd94d', 0.3, 0.8, 0.8), red: F('#ffd94d', 0.3, 0.8, 0.8), brass: F('#d9ab3c', 0.22, 1) },
+  magnum: { woodTex: 'gun_wood', name: 'Niquelado', hud: '#ffd94d', frame: F('#c9ccd2', 0.16, 1), metal: F('#e4e6ea', 0.12, 1), wood: F('#5c1f16', 0.48, 0), light: F('#ffd94d', 0.3, 0.8, 0.8), red: F('#ffd94d', 0.3, 0.8, 0.8), brass: F('#d9ab3c', 0.22, 1) },
   // Rifle de ráfaga: gris urbano azulado con detalles naranja.
   burst: { name: 'Urbano', hud: '#ff8a2a', frame: F('#56677c', 0.6, 0.12), metal: F('#1d2228', 0.38, 0.85), wood: F('#38414f', 0.62, 0), light: F('#ff8a2a', 0.4, 0, 1.7), red: F('#ff8a2a', 0.4, 0, 1.7), brass: F('#b08a3c', 0.3, 1) },
   // Ametralladora: verde oliva oscuro, metal gastado y detalles ámbar.
   lmg: { name: 'Oliva pesado', hud: '#ffb020', frame: F('#3d4229', 0.7, 0.1), metal: F('#3a3936', 0.5, 0.75), wood: F('#4e4a30', 0.66, 0), light: F('#ffb020', 0.4, 0, 1.6), red: F('#ffb020', 0.4, 0, 1.6), brass: F('#b8913c', 0.3, 1) },
   // Fusil de tirador: tierra (marrón) con madera clara y detalles cian.
-  dmr: { name: 'Tierra', hud: '#36d6ff', frame: F('#6e5639', 0.64, 0.08), metal: F('#2c2823', 0.4, 0.8), wood: F('#9a7448', 0.58, 0), light: F('#36d6ff', 0.4, 0, 1.6), red: F('#36d6ff', 0.4, 0, 1.6), brass: F('#b08a3c', 0.3, 1) },
+  dmr: { woodTex: 'gun_wood', name: 'Tierra', hud: '#36d6ff', frame: F('#6e5639', 0.64, 0.08), metal: F('#2c2823', 0.4, 0.8), wood: F('#9a7448', 0.58, 0), light: F('#36d6ff', 0.4, 0, 1.6), red: F('#36d6ff', 0.4, 0, 1.6), brass: F('#b08a3c', 0.3, 1) },
   // Desintegrador: violeta metalizado con bobinas de energía cian que brillan.
   ray: { name: 'Energía', hud: '#c77dff', frame: F('#4b1f82', 0.3, 0.75), metal: F('#22163a', 0.3, 0.85), wood: F('#8a3fe0', 0.35, 0.3, 0.6), light: F('#7df9ff', 0.3, 0, 3), red: F('#7df9ff', 0.3, 0, 3), brass: F('#d38bff', 0.25, 0.6, 1.4) },
 };
 // Acabado de los modelos sin arma propia (el arma de los soldados de los menús): el clásico.
-const DEFAULT_FINISH = { frame: F('#121417', 0.58, 0.35), metal: F('#4b5058', 0.38, 0.75), wood: F('#33241a', 0.6, 0), light: F('#8c939c', 0.38, 0.75), red: F('#8a1a14', 0.5, 0.2), brass: F('#b08a3c', 0.32, 1) };
+const DEFAULT_FINISH = { woodTex: 'gun_wood', frame: F('#121417', 0.58, 0.35), metal: F('#4b5058', 0.38, 0.75), wood: F('#33241a', 0.6, 0), light: F('#8c939c', 0.38, 0.75), red: F('#8a1a14', 0.5, 0.2), brass: F('#b08a3c', 0.32, 1) };
 
 // scale: tamaño en pantalla · back: culata (+Z hacia la cámara) · top: altura del lomo · x: lateral.
 // finish: acabado (FINISHES): las armas que reutilizan un modelo se distinguen por su tamaño y su color.
@@ -91,20 +92,94 @@ export function finishOf(id) {
   return FINISHES[id] ?? DEFAULT_FINISH;
 }
 
+/*
+  Texturas reales (PBR, CC0 de Poly Haven; ver src/gfx/surfaces.json): cada papel usa una y el
+  acabado del arma la tiñe con su color (el color medio queda igual al del acabado; la textura pone
+  el desgaste, los rayones, la veta y el relieve):
+    gun_paint  pintura con desgaste y rayones (armazón, cajón, cañón, latón)
+    gun_grip   polímero granulado (empuñaduras, guardamanos y culatas sintéticas)
+    gun_wood   madera oscura con veta marcada (culatas y guardamanos de madera)
+  Rugosidad media de cada textura (canal G del ARM): con ella se ajusta para que el promedio sea la
+  rugosidad del acabado.
+*/
+const TEX_ROUGH = { gun_paint: 0.5, gun_grip: 0.92, gun_wood: 0.63 };
+const MAX_WEAPON_TINT = 14; // las texturas son oscuras: el ártico y el niquelado necesitan más
+
+/** Textura de un papel del acabado. */
+export function textureFor(role, spec, finish) {
+  if (role === 'wood') return finish.woodTex ?? 'gun_grip';
+  return 'gun_paint';
+}
+
+const WEAPON_TILE = 0.3; // m por repetición de la textura (las tres: ver surfaces.json)
+
 function pbrFor(original, finishId = null) {
   const role = materialRole(original?.name ?? '');
   const key = `${finishId ?? 'default'}:${role}`;
   if (!materialCache.has(key)) {
-    const spec = finishOf(finishId)[role];
-    const m = new THREE.MeshStandardMaterial({ color: spec.color, roughness: spec.roughness, metalness: spec.metalness, flatShading: true });
+    const finish = finishOf(finishId);
+    const spec = finish[role];
+    let m;
     if (spec.glow) {
-      m.emissive.set(spec.color);
-      m.emissiveIntensity = spec.glow;
+      // Miras y bobinas que brillan: color plano con brillo propio (la textura no se vería).
+      m = new THREE.MeshStandardMaterial({ color: spec.color, roughness: spec.roughness, metalness: spec.metalness, flatShading: true });
+      if (spec.glow) {
+        m.emissive.set(spec.color);
+        m.emissiveIntensity = spec.glow;
+      }
+    } else {
+      const tex = textureFor(role, spec, finish);
+      m = surface(tex, spec.color, {
+        flat: true,
+        metal: spec.metalness,
+        metalMap: false,
+        rough: Math.min(1.6, spec.roughness / TEX_ROUGH[tex]),
+        baseRough: spec.roughness,
+        maxTint: MAX_WEAPON_TINT,
+        normalScale: 1.4,
+      });
     }
     m.name = `arma-${key}`;
     materialCache.set(key, m);
   }
   return materialCache.get(key);
+}
+
+/*
+  UVs de caja (los modelos vienen sin UVs: eran de colores planos). Cada triángulo se proyecta sobre
+  el plano de su eje dominante, en metros reales sobre WEAPON_TILE. Como el modelo es facetado, las
+  costuras quedan en las aristas y no se notan. `scale`: metros por unidad de la geometría.
+*/
+export function boxProjectUV(geometry, scale = 1) {
+  const g = geometry.index ? geometry.toNonIndexed() : geometry;
+  const pos = g.attributes.position;
+  const uv = new Float32Array(pos.count * 2);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const s = scale / WEAPON_TILE;
+  for (let i = 0; i + 2 < pos.count; i += 3) {
+    a.fromBufferAttribute(pos, i);
+    b.fromBufferAttribute(pos, i + 1);
+    c.fromBufferAttribute(pos, i + 2);
+    n.subVectors(c, b).cross(b.clone().sub(a));
+    const ax = Math.abs(n.x);
+    const ay = Math.abs(n.y);
+    const az = Math.abs(n.z);
+    for (let k = 0; k < 3; k++) {
+      const p = k === 0 ? a : k === 1 ? b : c;
+      let u;
+      let v;
+      if (ax >= ay && ax >= az) [u, v] = [p.z, p.y];
+      else if (ay >= az) [u, v] = [p.x, p.z];
+      else [u, v] = [p.x, p.y];
+      uv[(i + k) * 2] = u * s;
+      uv[(i + k) * 2 + 1] = v * s;
+    }
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return g;
 }
 
 let loaderPromise = null;
@@ -117,9 +192,13 @@ const cache = new Map(); // id → Promise<{ object, muzzle }>
 
 /** Ajusta un modelo cargado: materiales, escala y posición; devuelve la boca del cañón (local). */
 export function fitWeaponModel(root, cfg) {
+  root.updateMatrixWorld(true);
+  const rootScale = root.matrixWorld.getMaxScaleOnAxis() || 1;
   root.traverse((o) => {
     if (o.isMesh) {
       const finish = cfg.finish ?? null;
+      // UVs en metros reales (escala de la pieza dentro del modelo, antes de agrandarlo en pantalla).
+      if (!o.geometry.attributes.uv) o.geometry = boxProjectUV(o.geometry, o.matrixWorld.getMaxScaleOnAxis() / rootScale);
       o.material = Array.isArray(o.material) ? o.material.map((m) => pbrFor(m, finish)) : pbrFor(o.material, finish);
       o.frustumCulled = false;
     }
