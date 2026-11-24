@@ -41,7 +41,7 @@ export const ROUNDS = {
   // Cuántos a la vez (y cada cuánto sale uno: s, al azar entre los dos valores).
   aliveBase: 6,
   alivePerRound: 2,
-  aliveMax: 24,
+  aliveMax: 35,
   spawnGapStart: [1.8, 2.6],
   spawnGapPerRound: [-0.12, -0.15],
   spawnGapMin: [0.25, 0.45],
@@ -55,8 +55,8 @@ export const ROUNDS = {
   crawlerPerRound: 0.04,
   crawlerMax: 0.2,
   brutesEvery: 3, // un bruto más cada tantas rondas desde que aparecen (dificultad: brutesFrom)
-  // El Jefe (vida ×14 de la ronda): llega en la ronda bossFrom y luego cada bossEvery. Al morir suelta
-  // el código de la caja fuerte (la caja de armas).
+  // El Jefe (vida ×30 de la ronda y ataques especiales: bossBrain.js): llega en la ronda bossFrom y
+  // luego cada bossEvery. Al morir suelta el código de la caja fuerte (la caja de armas).
   bossFrom: 3,
   bossEvery: 4,
 
@@ -70,4 +70,4 @@ export const INTERMISSION = 12;
 
 // Tope de zombis vivos a la vez según la calidad gráfica (rendimiento): los que faltan esperan a que
 // mueran otros. Se aplica sobre `vivos`.
-export const ALIVE_BY_DETAIL = { baja: 14, media: 20, alta: 24 };
+export const ALIVE_BY_DETAIL = { baja: 24, media: 30, alta: 35 };

@@ -300,6 +300,8 @@ mapa se abre a medida que se gana y hay que devolverle la luz al barrio. No requ
   invisibles alineadas al cuerpo (el reptante, a ras del suelo).
 - Créditos: zombi de medicinestorm (OpenGameArt, CC0); animaciones extra de bachosoftdesign (Poly Pizza,
   CC-BY 3.0); texturas de Poly Haven (CC0). Detalle en `public/models/characters/credits.json`.
+- Las armas usan texturas reales de Poly Haven (CC0: metal pintado, polímero y nogal), teñidas con el
+  acabado de cada una. El número de ronda va en la letra Creepster (Sideshow, OFL 1.1).
 - **Dificultad** (se elige en la pantalla del modo y se recuerda; récords por dificultad):
 
   | Dificultad | Zombis |

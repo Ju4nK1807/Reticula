@@ -9,6 +9,7 @@ import { NavGrid } from './navGrid.js';
 import { Zombie } from './Zombie.js';
 import { ALIVE_BY_DETAIL } from './roundConfig.js';
 import { SafeLock } from './safe.js';
+import { BOSS } from './bossBrain.js';
 import { BARRICADE, BOX_MOVE, BOX_PRICE, rollBox, DOORS, MAX_WEAPONS, DROP, FORGE, GRENADE_MAX, KNIFE_DAMAGE, PERKS, PLAYER, POWERUPS, RESERVE, WALL_BUYS, perkStats, pointsFor, rollDrop, wallAmmoPrice, waveConfig, waveRoster, zombieStats } from './zombieData.js';
 
 const NAV_EVERY = 0.25; // s entre recálculos del campo de flujo
@@ -35,6 +36,7 @@ const headMat = new THREE.MeshStandardMaterial({ color: '#5f6b55', roughness: 0.
     door { id } · perk { id } · weapon { id } · ammo { id }   (compras en el mapa)
     power · forge { id } · box { id } · boxMove { where } · lastStand
     bossSpawn { zombie } · bossKill { zombie, code } (el Jefe suelta el código de la caja fuerte)
+    boss { kind, zombie, dist?, spawned? } (ataques especiales del Jefe: ver bossAction)
     safeOpen · safeWrong { fails }
 */
 export class ZombieRun extends Phase {
@@ -64,7 +66,7 @@ export class ZombieRun extends Phase {
     // Caja fuerte (la caja de armas): cerrada con un código que suelta el Jefe al morir.
     this.safe = new SafeLock();
     this.world.setSafeLocked?.(true);
-    this.boss = null; // el Jefe vivo (para la barra de vida del HUD)
+    this.boss = null; // el Jefe vivo
     this.boxUses = 0; // tiradas de la caja en su lugar actual (cada tantas se muda)
     this.boxMoveAt = BOX_MOVE.min + Math.floor(Math.random() * (BOX_MOVE.max - BOX_MOVE.min + 1));
     this.dmgMul = 1;
@@ -617,6 +619,73 @@ export class ZombieRun extends Phase {
     this.blood?.pool(z.position, z.scale * 1.6);
     this.applyPowerup('ammo');
     this.emit('bossKill', { zombie: z, code });
+  }
+
+  /*
+    Ataques especiales del Jefe (los decide bossBrain.js; aquí se aplican):
+      chargeWind / slamWind: ruge preparando el ataque · chargeHit: la embestida te alcanzó (daño fuerte
+      y te lanza) · crash: se estrelló contra una pared · slam: pisotón (onda que daña y empuja; saltando
+      justo a tiempo se esquiva) · summon: salen corredores de la tierra a su alrededor · enrage: furia.
+    Avisa al modo con 'boss' { kind, zombie, ... } para el sonido y los avisos.
+  */
+  bossAction(kind, z, data = {}) {
+    if (this.died) return;
+    const g = this.game;
+    const player = g.player;
+    const pp = player.position;
+    const zp = z.position;
+    const away = (dx, dz, speed, up) => {
+      const d = Math.hypot(dx, dz) || 1;
+      player.velocity.x += (dx / d) * speed;
+      player.velocity.z += (dz / d) * speed;
+      player.velocity.y = Math.max(player.velocity.y, up);
+      player.onGround = false;
+    };
+    let extra = {};
+    if (kind === 'chargeHit') {
+      this.takeDamage(Math.round(z.stats.damage * BOSS.charge.damage), z.chestPosition(_v));
+      away(data.dir.x, data.dir.z, BOSS.charge.knock, 4.5);
+      this.emit('hurt', { zombie: z });
+    } else if (kind === 'slam') {
+      const dist = Math.hypot(pp.x - zp.x, pp.z - zp.z);
+      _v.set(zp.x, (z.floorY ?? 0) + 0.1, zp.z);
+      g.effects.burst(_v, _up, '#5a4a3a', 34, 7);
+      g.effects.burst(_v, _up, '#2a2018', 18, 4);
+      // En el aire (saltó a tiempo) o fuera del radio: no le pasa nada.
+      const airborne = !player.onGround && pp.y - (z.floorY ?? 0) > 0.25;
+      if (dist <= data.radius && !airborne) {
+        const k = 1 - dist / data.radius;
+        this.takeDamage(Math.round(z.stats.damage * BOSS.slam.damage * (0.45 + 0.55 * k)), z.chestPosition(_v));
+        away(pp.x - zp.x, pp.z - zp.z, BOSS.slam.knock * (0.5 + 0.5 * k), 3.5);
+        this.emit('hurt', { zombie: z });
+      }
+      extra = { dist };
+    } else if (kind === 'summon') {
+      extra.spawned = this.spawnAround(z, data.type, data.count);
+    }
+    this.emit('boss', { kind, zombie: z, ...extra });
+  }
+
+  // Zombis que salen de la tierra alrededor de `z` (en celdas libres del mapa). Son extra: no estaban
+  // en la ronda, pero hay que matarlos para terminarla.
+  spawnAround(z, type, count) {
+    let n = 0;
+    const p = z.position;
+    const start = Math.random() * Math.PI * 2;
+    for (let k = 0; k < 10 && n < count; k++) {
+      const a = start + (k / 10) * Math.PI * 2;
+      const r = 2.2 + (k % 2) * 0.8;
+      const x = p.x + Math.sin(a) * r;
+      const zz = p.z + Math.cos(a) * r;
+      const i = this.nav.index(x, zz);
+      if (i < 0 || this.nav.blocked[i]) continue;
+      const minion = new Zombie(this, zombieStats(type, this.cfg), new THREE.Vector3(x, p.y, zz));
+      minion.passed = true; // ya está adentro: no busca tablones
+      minion.rise();
+      this.bots.push(minion);
+      n++;
+    }
+    return n;
   }
 
   /** Prueba el código escrito en el teclado de la caja fuerte (ver safe.SafeLock.submit). */

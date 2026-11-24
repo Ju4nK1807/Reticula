@@ -17,7 +17,6 @@ function rules(game) {
   // Una vez por sección (el Hospital tiene dos puertas con el mismo precio).
   const doors = [...new Map(Object.values(DOORS).map((d) => [d.name, d])).values()].map((d) => `${d.name} (${fmt(d.price)})`).join(', ');
   return [
-    ['Resiste la horda', 'Cada ronda trae más zombis, más resistentes y más rápidos. La partida termina cuando caes. Te recuperas si pasas unos segundos sin recibir golpes.'],
     ['Linterna', `Es de noche y la niebla no deja ver: lo único que alumbra es tu linterna. Préndela o apágala${touch ? ' con el botón de la luz' : key('flashlight')}; apagada, solo vas a ver los ojos de los payasos.`],
     ['Gana puntos', `Cada impacto da puntos; matar da más, sobre todo a la cabeza, con el cuchillo${key('melee')} o con granadas${key('grenade')}.`],
     ['Barricadas', `Empiezas encerrado en el Vestíbulo. La horda sale de la tierra y arranca los tablones de las ventanas; mantén${key('interact')} junto a una ventana para repararla (+${BARRICADE.repairPoints} por tablón).`],
@@ -29,7 +28,7 @@ function rules(game) {
     ['Bebidas', `${Object.keys(PERKS).length} máquinas repartidas por el mapa: ${Object.values(PERKS).map((p) => p.name).join(', ')}. Duran hasta que caes (Último Aliento te levanta una vez).`],
     ['Granadas y armería', `Entre rondas abre la armería${key('interact')}: munición, botiquín y cuatro tipos de granada (fragmentación, incendiaria, aturdidora y señuelo). Cambia de tipo${key('grenadeNext')}.`],
     ['Potenciadores', `Algunos zombis sueltan un cristal brillante: ${Object.values(POWERUPS).map((p) => p.name.toLowerCase()).join(', ')}. Pasa por encima para tomarlo.`],
-    ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte; El Jefe es el más grande de todos y suelta el código de la caja fuerte. Una explosión cerca puede arrancarles las piernas: siguen arrastrándose.'],
+    ['Conoce a la horda', Object.values(ZOMBIE_TYPES).map((t) => t.name).join(', ') + '. Los corredores llegan antes; los reptantes son bajos; el bruto aguanta mucho y pega fuerte; El Jefe es el más grande de todos, embiste (sal de su línea), pisotea el suelo (aléjate o salta), llama corredores y se enfurece con poca vida; al morir suelta el código de la caja fuerte. Una explosión cerca puede arrancarles las piernas: siguen arrastrándose.'],
   ];
 }
 

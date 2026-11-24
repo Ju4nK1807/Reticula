@@ -1,5 +1,5 @@
 {
-  "_info": "Catálogo de superficies PBR (texturas CC0 de Poly Haven). tile = metros por repetición. gray = el albedo se pasa a escala de grises para que el color lo ponga la paleta del mapa (superficies neutras). Para añadir una: agregarla aquí y ejecutar `python tools/textures.py`.",
+  "_info": "Catálogo de superficies PBR (texturas CC0 de Poly Haven). tile = metros por repetición. gray = el albedo se pasa a escala de grises para que el color lo ponga la paleta del mapa (superficies neutras). contrast = más contraste en el color (las de las armas, que se ven de cerca). Para añadir una: agregarla aquí y ejecutar `python tools/textures.py`.",
   "concrete_floor": { "asset": "concrete_floor_worn_001", "tile": 4, "gray": true },
   "concrete_wall": { "asset": "concrete_wall_004", "tile": 4, "gray": true },
   "concrete": { "asset": "brushed_concrete", "tile": 2.5, "gray": true },
@@ -20,5 +20,8 @@
   "rust": { "asset": "rusty_metal_02", "tile": 2 },
   "rust_corrugated": { "asset": "rusty_corrugated_iron", "tile": 2.5 },
   "mud": { "asset": "brown_mud_leaves_01", "tile": 4 },
-  "stone_wall": { "asset": "broken_wall", "tile": 3 }
+  "stone_wall": { "asset": "broken_wall", "tile": 3 },
+  "gun_paint": { "asset": "green_metal_rust", "tile": 0.3, "gray": true, "contrast": 2.2 },
+  "gun_grip": { "asset": "rubberized_track", "tile": 0.3, "gray": true, "contrast": 0.8 },
+  "gun_wood": { "asset": "dark_wood", "tile": 0.3, "contrast": 1.3 }
 }

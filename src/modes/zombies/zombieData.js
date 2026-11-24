@@ -9,7 +9,8 @@ import { FIRST_COUNTDOWN, INTERMISSION, ROUNDS } from './roundConfig.js';
 // por golpe · attackRange: m · attackEvery: s entre golpes · points: puntos al matarlo · low: se
 // arrastra (hitboxes cerca del suelo) · look: aspecto (zombieLook.js: ojos y tonos) · bulk: corpulencia
 // heavy: pesado (no se tambalea, no pierde la cabeza ni las piernas, ruge al aparecer y no acelera con
-// las rondas) · boss: el Jefe (uno en ciertas rondas; al morir suelta el código de la caja fuerte)
+// las rondas) · boss: el Jefe (uno en ciertas rondas; tiene ataques especiales, bossBrain.js, y al morir
+// suelta el código de la caja fuerte)
 // Todos usan el mismo modelo realista (zombieSkin.js); cambian su tamaño, su aspecto y su animación.
 // La vida, la velocidad y el daño de cada ronda multiplican estos valores (roundConfig.js).
 export const ZOMBIE_TYPES = {
@@ -17,7 +18,7 @@ export const ZOMBIE_TYPES = {
   runner: { name: 'Corredor', height: 1.74, hpScale: 0.7, speed: 4.1, damage: 34, attackRange: 1.25, attackEvery: 0.95, points: 80, look: 'runner', bulk: 0.94 },
   crawler: { name: 'Reptante', height: 1.78, hpScale: 0.6, speed: 2.2, damage: 38, attackRange: 1.15, attackEvery: 1.1, points: 90, low: true, look: 'normal', bulk: 0.96 },
   brute: { name: 'Bruto', height: 2.35, hpScale: 3, speed: 1.45, damage: 80, attackRange: 1.75, attackEvery: 1.8, points: 300, look: 'brute', bulk: 1.18, heavy: true },
-  boss: { name: 'El Jefe', height: 2.6, hpScale: 14, speed: 1.55, damage: 90, attackRange: 1.95, attackEvery: 1.7, points: 1000, look: 'boss', bulk: 1.3, heavy: true, boss: true },
+  boss: { name: 'El Jefe', height: 2.6, hpScale: 30, speed: 1.55, damage: 90, attackRange: 1.95, attackEvery: 1.7, points: 1000, look: 'boss', bulk: 1.3, heavy: true, boss: true },
 };
 
 /** Vida de un caminante en la ronda n (fórmula y valores en roundConfig.js). */

@@ -15,22 +15,20 @@ const fmt = (n) => Math.round(n).toLocaleString('es');
 /*
   Capa de HUD del modo zombi (dentro de la capa de juego del HUD general: se oculta con él).
   Solo escribe en el DOM cuando cambia un valor.
-  - Panel de oleada (número, zombis que quedan, aviso de noche de corredores).
+  - Número de la ronda, solo, con letra de terror (sin carteles de inicio ni zombis restantes).
   - Puntos para la armería, con "+N" al ganar.
   - Granadas y potenciadores activos con su cuenta atrás.
-  - Cartel central (cuentas, oleada nueva, oleada superada y aviso de la armería).
   - Flechas de amenaza: zombis cerca y fuera de la vista.
-  - El Jefe: su barra de vida mientras está vivo y, al matarlo, el código de la caja fuerte.
+  - El código de la caja fuerte cuando el Jefe lo suelta (su vida no se muestra).
   - Teclado de la caja fuerte (se escribe con los números o tocando las teclas en el celular). Va
     encima de los controles táctiles para que se pueda tocar.
 */
 export class ZombieHud {
   constructor(hud) {
     const layer = hud.refs.crosshair.parentElement;
+    // Solo el número de la ronda, con letra de terror (sin cuántos zombis quedan).
     this.waveNum = h('strong', {}, '1');
-    this.left = h('span', {}, '');
-    this.tag = h('span', { class: 'zh-tag', hidden: true }, 'Noche de corredores');
-    this.panel = h('div', { class: 'zh-panel' }, h('div', { class: 'zh-wave' }, h('small', {}, 'Ronda'), this.waveNum), h('div', { class: 'zh-meta' }, this.left, this.tag));
+    this.panel = h('div', { class: 'zh-panel', title: 'Ronda' }, h('div', { class: 'zh-wave' }, this.waveNum));
 
     this.cash = h('strong', {}, '0');
     this.gain = h('span', { class: 'zh-gain' });
@@ -47,10 +45,6 @@ export class ZombieHud {
     this.pText = h('span', { class: 'zh-p-text' });
     this.pPrice = h('strong', { class: 'zh-p-price' });
     this.prompt = h('div', { class: 'zh-prompt', hidden: true }, this.pKey, this.pText, this.pPrice);
-
-    this.bTitle = h('div', { class: 'zh-b-title' });
-    this.bSub = h('div', { class: 'zh-b-sub' });
-    this.banner = h('div', { class: 'zh-banner', hidden: true }, this.bTitle, this.bSub);
 
     this.arrows = [];
     this.arrowLayer = h('div', { class: 'zh-arrows' });
@@ -73,13 +67,10 @@ export class ZombieHud {
     // Viñeta oscura (en calidad alta la pone el postproceso) y bordes rojos al estar herido.
     this.vignette = h('div', { class: 'zh-vignette', hidden: true });
     this.hurt = h('div', { class: 'zh-hurt' });
-    // El Jefe: barra de vida arriba al centro.
-    this.bossFill = h('i');
-    this.bossBox = h('div', { class: 'zh-boss', hidden: true }, h('div', { class: 'zh-boss-name' }, 'El Jefe'), h('div', { class: 'zh-boss-meter' }, this.bossFill), h('small', {}, 'Lleva el código de la caja fuerte'));
     // Código de la caja fuerte (cuando el Jefe ya cayó y la caja sigue cerrada).
     this.codeVal = h('strong', {}, '');
     this.codeBox = h('div', { class: 'zh-code', hidden: true }, h('small', {}, 'Código de la caja fuerte'), this.codeVal);
-    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.lightBox, this.bossBox, this.codeBox, this.banner, this.prompt);
+    this.root = h('div', { class: 'zh-root' }, this.vignette, this.hurt, this.arrowLayer, this.panel, this.cashBox, this.barBox, this.side, this.lightBox, this.codeBox, this.prompt);
     layer.append(this.root);
     this.cache = new Map();
     this.buildKeypad(layer);
@@ -149,14 +140,6 @@ export class ZombieHud {
     this.prompt.classList.toggle('poor', p.poor ?? (p.ok === false && !!p.price));
   }
 
-  banner_(title, sub) {
-    const show = !!title;
-    this.set('bShow', this.banner, !show, 'hidden');
-    if (!show) return;
-    this.set('bTitle', this.bTitle, title);
-    this.set('bSub', this.bSub, sub ?? '');
-  }
-
   update(game, run, mode) {
     this.updateLight(game, mode.flashlight);
     const wave = String(Math.max(1, run.wave || mode.nextWave));
@@ -172,10 +155,6 @@ export class ZombieHud {
     const hurt = Math.max(0, Math.min(1, (0.5 - run.health / run.maxHealth) / 0.4));
     this.set('hurt', this.hurt, hurt.toFixed(2), '__o');
     if (this.hurt.style.opacity !== hurt.toFixed(2)) this.hurt.style.opacity = hurt.toFixed(2);
-    const left = run.remaining;
-    const idle = mode.state === 'countdown' ? 'Preparación' : 'Descanso';
-    this.set('left', this.left, run.state === 'wave' ? `${left} ${left === 1 ? 'zombi' : 'zombis'}` : idle);
-    this.set('tag', this.tag, !(run.state === 'wave' && run.cfg?.runnerNight), 'hidden');
     this.set('cash', this.cash, fmt(run.cash));
     if (run.bar) {
       const left = run.bar.left;
@@ -214,28 +193,12 @@ export class ZombieHud {
       );
     }
 
-    // Cartel central según el estado del modo.
-    if (mode.state === 'countdown') this.banner_('Prepárate', `La horda llega en ${Math.ceil(mode.timer)}`);
-    else if (mode.state === 'intermission') {
-      const shop = game.touchMode ? 'Toca «Armería»' : `${keyLabel(game.settings.keys, 'interact')}: armería`;
-      // Pausa entre rondas: el cartel anuncia la que viene.
-      this.banner_(`Ronda ${run.wave + 1}`, `Ronda ${run.wave} superada · empieza en ${Math.ceil(mode.timer)} s · ${shop}`);
-    } else if (mode.state === 'wave' && mode.waveBannerT > 0) this.banner_(`Ronda ${run.wave}`, run.cfg?.runnerNight ? 'Noche de corredores: vienen rápido' : `${run.cfg?.count ?? ''} zombis`);
-    else this.banner_(null);
-
-    this.updateBoss(run);
+    this.updateCode(run);
     this.updateArrows(game, run);
   }
 
-  // Barra de vida del Jefe (mientras vive) y el código de la caja fuerte (cuando lo soltó).
-  updateBoss(run) {
-    const b = run.boss;
-    this.set('bossShow', this.bossBox, !b, 'hidden');
-    if (b) {
-      const pct = `${Math.max(0, Math.round((b.hp / b.maxHp) * 100))}%`;
-      this.set('bossFill', this.bossFill, pct, '__w');
-      if (this.bossFill.style.width !== pct) this.bossFill.style.width = pct;
-    }
+  // Código de la caja fuerte (cuando el Jefe lo soltó). La vida del Jefe no se muestra.
+  updateCode(run) {
     const s = run.safe;
     const showCode = !!s && s.known && !s.unlocked;
     this.set('codeShow', this.codeBox, !showCode, 'hidden');
