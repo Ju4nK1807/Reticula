@@ -16,6 +16,7 @@ descubre tu rango y entrena la coordinación ojo-mano. También tiene campaña, 
 
 **[▶ Jugar en el navegador](https://ju4nk1807.github.io/Reticula/)** ·
 [Descargas (Releases)](https://github.com/Ju4nK1807/Reticula/releases) ·
+[Tráiler](#tráiler) ·
 [Capturas](#capturas) ·
 [Cómo ejecutarlo](#cómo-ejecutarlo)
 
@@ -26,6 +27,7 @@ descubre tu rango y entrena la coordinación ojo-mano. También tiene campaña, 
 ## Contenido
 
 - [¿Qué es Retícula?](#qué-es-retícula)
+- [Tráiler](#tráiler)
 - [Capturas](#capturas)
 - [Características](#características)
 - [Cómo ejecutarlo](#cómo-ejecutarlo)
@@ -59,6 +61,13 @@ desde tu juego (CS2, Valorant, etc.), así que lo que entrenas aquí se siente i
 | **Mapas** | Campo de tiro, Patio, Bodega, Ciudad, Arena, Cúpula, Bastión y el Barrio en ruinas (modo zombi) |
 | **Código** | ~26 800 líneas de JavaScript en `src/`, 45 archivos de prueba con 425 pruebas automáticas |
 | **Plataformas** | Navegador (GitHub Pages), Windows, Mac y Android |
+
+## Tráiler
+
+[![Tráiler de Retícula (clic para verlo)](docs/video/trailer-portada.jpg)](docs/video/reticula-trailer.mp4)
+
+**[▶ Ver el tráiler (48 s)](docs/video/reticula-trailer.mp4)**: las dos evaluaciones (dianas y enemigos), la
+campaña, el modo infinito y el modo zombi, grabado del juego real.
 
 ## Capturas
 
